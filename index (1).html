@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faraj League</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#060f1a;color:#f5f0e8;font-family:'Lato',sans-serif;font-weight:300;overflow-x:hidden;height:auto!important;min-height:0!important;}
+nav{position:sticky;top:0;z-index:200;background:#060f1a;border-bottom:2px solid rgba(200,168,75,0.2);}
+.nav-top{display:flex;align-items:center;height:46px;padding:0 1rem;gap:0.7rem;border-bottom:1px solid rgba(200,168,75,0.1);}
+.nav-logo{font-family:'Cinzel',serif;font-size:0.95rem;font-weight:700;color:#c8a84b;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.nav-spacer{flex:1;}
+.nav-season-select{background:#0a1f2e;border:1px solid rgba(47,168,154,0.4);color:#2fa89a;font-family:'Lato',sans-serif;font-size:0.84rem;padding:0.28rem 0.5rem;border-radius:3px;cursor:pointer;}
+.nav-season-select option{background:#0a1f2e;color:#f5f0e8;}
+.nav-tabs{display:flex;flex-wrap:wrap;background:#060f1a;padding:0 0.4rem;}
+.nav-tab{background:none;border:none;border-bottom:2px solid transparent;color:#ffffff!important;font-family:'Lato',sans-serif;font-size:0.82rem;font-weight:400;letter-spacing:0.1em;text-transform:uppercase;padding:0.55rem 0.95rem;cursor:pointer;transition:color 0.15s,border-color 0.15s;white-space:nowrap;flex-shrink:0;}
+.nav-tab:hover{color:#c8a84b!important;border-bottom-color:rgba(200,168,75,0.4);}
+.nav-tab.active{color:#c8a84b!important;border-bottom-color:#c8a84b;}
+.page{display:none;}
+.page.active{display:block;}
+.hero{padding:2rem 1.8rem 1.6rem;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(26,122,110,0.14) 0%,transparent 65%);}
+.hero-geo{position:absolute;inset:0;opacity:0.03;background-image:repeating-linear-gradient(60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%),repeating-linear-gradient(-60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%);background-size:60px 60px;}
+.hero-content{position:relative;z-index:1;max-width:560px;}
+.hero-badge{display:inline-block;border:1px solid rgba(200,168,75,0.2);color:#c8a84b;font-size:0.82rem;letter-spacing:0.2em;text-transform:uppercase;padding:0.32rem 0.95rem;border-radius:2px;margin-bottom:0.75rem;}
+.hero-logo{width:62px;height:62px;border:2px solid #c8a84b;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;background:rgba(200,168,75,0.07);font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;font-weight:700;}
+.hero h1{font-family:'Cinzel',serif;font-size:clamp(1.7rem,4.2vw,2.8rem);font-weight:700;color:#f5f0e8;letter-spacing:0.08em;line-height:1.15;margin-bottom:0.3rem;}
+.hero-sub{font-family:'Cinzel',serif;font-size:1rem;color:#2fa89a;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.85rem;}
+.hero-divider{width:48px;height:1px;background:linear-gradient(90deg,transparent,#c8a84b,transparent);margin:0.5rem auto;}
+.hero-hadith-ar{font-size:clamp(1.5rem,3.5vw,2.2rem);color:#e2c97e;direction:rtl;margin-bottom:0.3rem;line-height:1.8;}
+.hero-hadith-en{font-size:1rem;color:#c8c0b0;font-style:italic;letter-spacing:0.04em;margin-bottom:0.75rem;}
+.season-tag{font-size:0.85rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;}
+.historic-banner{background:linear-gradient(135deg,#082e2a,#0a1f2e);border-top:1px solid rgba(47,168,154,0.3);border-bottom:1px solid rgba(47,168,154,0.3);padding:0.7rem 1.8rem;text-align:center;}
+.historic-banner-label{font-family:'Cinzel',serif;font-size:0.85rem;color:#2fa89a;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.45rem;}
+.season-champs{display:flex;justify-content:center;gap:2.2rem;flex-wrap:wrap;}
+.champ-item{text-align:center;}
+.champ-label{font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8c0b0;}
+.champ-value{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;margin-top:0.1rem;}
+.quick-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(200,168,75,0.2);}
+.qs-item{background:#0a1f2e;padding:0.9rem 0.7rem;text-align:center;}
+.qs-num{font-family:'Cinzel',serif;font-size:1.6rem;color:#c8a84b;font-weight:700;line-height:1;}
+.qs-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#c8c0b0;margin-top:0.18rem;}
+.section{padding:2rem 2.5rem;}
+.section-title{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:600;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.25rem;}
+.section-line{width:36px;height:2px;background:#c8a84b;margin-bottom:1.3rem;}
+.section-sub{font-size:0.82rem;letter-spacing:0.14em;color:#2fa89a;text-transform:uppercase;margin-bottom:0.2rem;}
+.section-divider{border:none;border-top:1px solid rgba(200,168,75,0.2);margin:1.8rem 0;}
+.card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.25rem;}
+.week-dropdown-wrap{display:flex;align-items:center;gap:0.65rem;margin-bottom:1.2rem;}
+.week-dropdown-label{font-size:0.82rem;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;}
+.week-dropdown{background:#0e2535;border:1px solid #ffffff;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.88rem;padding:0.38rem 0.8rem;border-radius:3px;cursor:pointer;}
+.week-dropdown option{background:#0a1f2e;color:#f5f0e8;}
+.insta-btn{display:inline-flex;align-items:center;background:none;border:1px solid #ffffff;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.8rem;letter-spacing:0.09em;text-transform:uppercase;padding:0.45rem 1rem;border-radius:2px;cursor:pointer;margin-top:0.2rem;transition:background 0.15s;}
+.insta-btn:hover{background:rgba(255,255,255,0.08);}
+.conf-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+.conf-header{font-family:'Cinzel',serif;font-size:0.9rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.65rem;padding-bottom:0.32rem;border-bottom:1px solid rgba(200,168,75,0.2);}
+.standings-table{width:100%;border-collapse:collapse;font-size:0.92rem;}
+.standings-table th{text-align:left;color:#c8c0b0;font-size:0.76rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;padding:0.28rem 0.6rem 0.6rem;}
+.standings-table th:not(:first-child){text-align:center;}
+.standings-table td{padding:0.6rem;border-top:1px solid rgba(200,168,75,0.07);color:#c8c0b0;}
+.standings-table td:not(:first-child){text-align:center;}
+.team-link{color:#f5f0e8;cursor:pointer;transition:color 0.15s;}
+.team-link:hover{color:#c8a84b;}
+.standings-table tr:first-of-type td{border-top:none;}
+.matchups-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem 1.1rem;}
+.matchup-game-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.55rem;}
+.matchup-row{display:flex;align-items:center;justify-content:space-between;padding:0.22rem 0;}
+.matchup-team{font-size:0.96rem;color:#c8c0b0;}
+.matchup-team.winner{color:#c8a84b;font-weight:700;}
+.matchup-score{font-family:'Cinzel',serif;font-size:1.1rem;color:#c8c0b0;}
+.matchup-score.winner{color:#c8a84b;}
+.matchup-mid{height:1px;background:rgba(200,168,75,0.08);margin:0.3rem 0;}
+.winner-tag{font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.4rem;color:#2fa89a;}
+.home-awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1.4rem;}
+.award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;}
+.award-label{font-size:0.78rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.2rem;}
+.award-game{font-size:0.82rem;color:#c8c0b0;margin-bottom:0.4rem;}
+.award-winner{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;}
+.award-winner-sub{font-size:0.82rem;color:#c8c0b0;margin-top:0.1rem;}
+.akhlaq-card{grid-column:1/-1;background:linear-gradient(135deg,#082e2a,#0e2535);border-color:rgba(47,168,154,0.3);}
+.akhlaq-inner{display:flex;align-items:center;gap:1rem;}
+.akhlaq-medal{width:42px;height:42px;flex-shrink:0;border-radius:50%;background:#0d4f47;border:2px solid #2fa89a;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.95rem;}
+.team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.2rem 0.9rem;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.15s;}
+.team-card:hover{border-color:#2fa89a;transform:translateY(-2px);}
+.team-card.selected{border-color:#c8a84b;}
+.team-emblem{width:46px;height:46px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.65rem;font-family:'Cinzel',serif;font-size:0.9rem;color:#2fa89a;font-weight:600;}
+.team-name{font-family:'Cinzel',serif;font-size:0.95rem;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.16rem;}
+.team-conf{font-size:0.76rem;text-transform:uppercase;letter-spacing:0.12em;color:#c8a84b;}
+.team-captain{font-size:0.82rem;color:#c8c0b0;margin-top:0.32rem;}
+.team-record{font-size:0.86rem;color:#2fa89a;margin-top:0.22rem;}
+.roster-panel{display:none;background:#0a1f2e;border:1px solid rgba(47,168,154,0.3);border-radius:4px;padding:1.2rem;margin-top:0.95rem;position:relative;}
+.roster-panel.open{display:block;}
+.roster-close{position:absolute;top:0.6rem;right:0.8rem;background:none;border:none;color:#ffffff;font-size:0.95rem;cursor:pointer;}
+.roster-player{font-size:0.9rem;color:#c8c0b0;padding:0.3rem 0;border-bottom:1px solid rgba(200,168,75,0.06);display:flex;align-items:center;gap:0.5rem;}
+.roster-player:last-child{border-bottom:none;}
+.roster-num{font-size:0.78rem;color:#2fa89a;width:22px;flex-shrink:0;}
+.awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.95rem;}
+.season-awards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.season-award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.4rem 0.9rem;text-align:center;}
+.season-award-icon{font-size:1.6rem;margin-bottom:0.55rem;}
+.season-award-title{font-family:'Cinzel',serif;font-size:0.9rem;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.5rem;}
+.season-award-holder{font-size:0.78rem;color:#c8c0b0;}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;align-items:start;}
+.about-text p{font-size:0.96rem;color:#c8c0b0;line-height:1.85;margin-bottom:0.8rem;}
+.conf-info-card{background:#0e2535;border:1px solid rgba(47,168,154,0.3);border-radius:4px;padding:1.2rem;}
+.conf-info-title{font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.85rem;}
+.conf-accordion{border:1px solid rgba(200,168,75,0.2);border-radius:3px;margin-bottom:0.5rem;overflow:hidden;}
+.conf-acc-header{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0.8rem;cursor:pointer;background:#0a1f2e;transition:background 0.15s;}
+.conf-acc-header:hover{background:rgba(47,168,154,0.08);}
+.conf-acc-title{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:#f5f0e8;}
+.conf-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.conf-acc-arrow{font-size:0.82rem;color:#ffffff;transition:transform 0.2s;}
+.conf-acc-arrow.open{transform:rotate(180deg);}
+.conf-acc-body{display:none;padding:0.5rem 0.8rem 0.7rem 1.9rem;background:#0e2535;}
+.conf-acc-body.open{display:block;}
+.conf-team-bullet{font-size:0.88rem;color:#c8c0b0;padding:0.22rem 0;display:flex;align-items:center;gap:0.42rem;}
+.conf-team-bullet::before{content:'';width:3px;height:3px;border-radius:50%;background:#c8c0b0;flex-shrink:0;}
+.tier-header{font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.22em;text-transform:uppercase;padding:0.28rem 0.65rem;border-radius:2px;display:inline-block;margin-bottom:0.7rem;}
+.tier-title{background:rgba(200,168,75,0.12);color:#c8a84b;}
+.tier-conf{background:rgba(47,168,154,0.1);color:#2fa89a;}
+.tier-community{background:rgba(245,240,228,0.05);color:#c8c0b0;}
+.sponsor-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem 1.2rem;margin-bottom:0.6rem;}
+.sponsor-open{font-size:0.73rem;color:#c8c0b0;font-style:italic;}
+.media-week-label{font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.55rem;padding-bottom:0.28rem;border-bottom:1px solid rgba(200,168,75,0.2);}
+.media-section-title{font-size:0.82rem;letter-spacing:0.16em;text-transform:uppercase;color:#2fa89a;margin:1.1rem 0 0.65rem;}
+.media-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;}
+.video-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;min-height:118px;}
+.video-icon{font-size:1.4rem;opacity:0.3;}
+.video-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;}
+.video-title{font-size:0.72rem;color:#c8c0b0;}
+footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.2rem 1.8rem;text-align:center;}
+.footer-logo{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;letter-spacing:0.2em;margin-bottom:0.28rem;}
+.footer-hadith{font-size:0.88rem;color:#c8c0b0;font-style:italic;}
+.footer-insta{font-size:0.82rem;color:#2fa89a;letter-spacing:0.1em;margin-top:0.28rem;}
+.pending{color:#c8c0b0;font-style:italic;font-size:0.92rem;}
+@media(max-width:640px){
+  .conf-grid,.teams-grid,.awards-grid,.about-grid,.season-awards-grid,.media-grid,.matchups-grid,.home-awards-grid{grid-template-columns:1fr;}
+  .quick-stats{grid-template-columns:repeat(2,1fr);}
+  .akhlaq-card{grid-column:1;}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-top">
+    <div class="nav-logo" onclick="showPage('home')">Faraj League</div>
+    <div class="nav-spacer"></div>
+    <select class="nav-season-select" id="season-select" onchange="changeSeason(this.value)">
+      <option value="spring2026">Spring 2026 · Current</option>
+    </select>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home')">Home</button>
+    <button class="nav-tab" onclick="showPage('standings')">Standings</button>
+    <button class="nav-tab" onclick="showPage('teams')">Teams</button>
+    <button class="nav-tab" onclick="showPage('stats')">Stats</button>
+    <button class="nav-tab" onclick="showPage('awards')">Awards</button>
+    <button class="nav-tab" onclick="showPage('draft')">Draft</button>
+    <button class="nav-tab" onclick="showPage('media')">Media</button>
+    <button class="nav-tab" onclick="showPage('about')">About</button>
+    <button class="nav-tab" onclick="showPage('sponsors')">Sponsors</button>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div class="hero-bg"></div><div class="hero-geo"></div>
+    <div class="hero-content">
+      <div class="hero-badge">Spring 2026 · Inaugural Season</div>
+      <div class="hero-logo">FL</div>
+      <p class="hero-sub">Mecca & Medina Conferences</p>
+      <h1>Faraj League</h1>
+      <div class="hero-divider"></div>
+      <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
+      <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>
+      <p class="season-tag">6 Teams · 42 Players · Ages 17–30</p>
+    </div>
+  </div>
+  <div class="historic-banner" id="historic-banner" style="display:none;">
+    <div class="historic-banner-label">Season Complete</div>
+    <div class="season-champs">
+      <div class="champ-item"><div class="champ-label">Champions</div><div class="champ-value" id="hb-champ">—</div></div>
+      <div class="champ-item"><div class="champ-label">MVP</div><div class="champ-value" id="hb-mvp">—</div></div>
+      <div class="champ-item"><div class="champ-label">Scoring Title</div><div class="champ-value" id="hb-scoring">—</div></div>
+    </div>
+  </div>
+  <div class="quick-stats">
+    <div class="qs-item"><div class="qs-num">6</div><div class="qs-label">Teams</div></div>
+    <div class="qs-item"><div class="qs-num">42</div><div class="qs-label">Players</div></div>
+    <div class="qs-item"><div class="qs-num">2</div><div class="qs-label">Conferences</div></div>
+    <div class="qs-item"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></div>
+  </div>
+  <div class="section">
+    <p class="section-sub" id="home-matchup-sub">Week 1 · Upcoming</p>
+    <h2 class="section-title">Recent Matchups</h2>
+    <div class="section-line"></div>
+    <div class="matchups-grid" id="home-matchups"></div>
+    <div style="margin-top:2rem;">
+      <p class="section-sub" id="home-awards-sub">Week 1 · Latest</p>
+      <h2 class="section-title">Recent Awards</h2>
+      <div class="section-line"></div>
+      <div class="home-awards-grid" id="home-awards"></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- STANDINGS -->
+<div id="page-standings" class="page">
+  <div class="section">
+    <p class="section-sub">Spring 2026</p>
+    <h2 class="section-title">Standings</h2>
+    <div class="section-line"></div>
+    <div class="conf-grid">
+      <div class="card"><div class="conf-header">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:24px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"></tbody></table></div>
+      <div class="card"><div class="conf-header">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:24px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"></tbody></table></div>
+    </div>
+    <hr class="section-divider">
+    <p class="section-sub">Results by Week</p>
+    <h2 class="section-title">Scores</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap">
+      <span class="week-dropdown-label">Week</span>
+      <select class="week-dropdown" id="scores-week-select" onchange="renderScores(this.value)"></select>
+    </div>
+    <div id="scores-content"></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- TEAMS -->
+<div id="page-teams" class="page">
+  <div class="section">
+    <p class="section-sub">Spring 2026 · 6 Teams</p>
+    <h2 class="section-title">Teams & Rosters</h2>
+    <div class="section-line"></div>
+    <div class="teams-grid" id="teams-grid"></div>
+    <div id="roster-panel" class="roster-panel">
+      <button class="roster-close" onclick="closeRoster()">✕</button>
+      <div id="roster-content"></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- STATS -->
+<div id="page-stats" class="page">
+  <div class="section">
+    <p class="section-sub">Spring 2026 · Points Only</p>
+    <h2 class="section-title">Player Stats</h2>
+    <div class="section-line"></div>
+    <div class="card" style="padding:0;">
+      <table class="standings-table" style="width:100%;">
+        <thead><tr style="background:rgba(200,168,75,0.04);">
+          <th style="padding:0.72rem 0.9rem;width:32px">#</th>
+          <th style="padding:0.72rem 0.9rem;">Player</th>
+          <th style="padding:0.72rem 0.9rem;">Team</th>
+          <th style="padding:0.72rem 0.9rem;">GP</th>
+          <th style="padding:0.72rem 0.9rem;">PPG</th>
+          <th style="padding:0.72rem 0.9rem;">Total</th>
+        </tr></thead>
+        <tbody id="stats-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- AWARDS -->
+<div id="page-awards" class="page">
+  <div class="section">
+    <p class="section-sub">Weekly Recognition</p>
+    <h2 class="section-title">Awards</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap">
+      <span class="week-dropdown-label">Week</span>
+      <select class="week-dropdown" id="awards-week-select" onchange="renderAwards(this.value)"></select>
+    </div>
+    <div id="awards-grid" class="awards-grid"></div>
+    <hr class="section-divider">
+    <p class="section-sub">End of Season</p>
+    <h2 class="section-title">Season Awards</h2>
+    <div class="section-line"></div>
+    <div class="season-awards-grid">
+      <div class="season-award-card"><div class="season-award-icon">🏆</div><div class="season-award-title">Championship</div><div class="season-award-holder" id="sa-champ">Spring 2026 — In Progress</div></div>
+      <div class="season-award-card"><div class="season-award-icon">⭐</div><div class="season-award-title">Most Valuable Player</div><div class="season-award-holder" id="sa-mvp">Season in progress</div></div>
+      <div class="season-award-card"><div class="season-award-icon">📊</div><div class="season-award-title">Scoring Title</div><div class="season-award-holder" id="sa-scoring">Season in progress</div></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- DRAFT -->
+<div id="page-draft" class="page">
+  <div class="section">
+    <p class="section-sub">Spring 2026</p>
+    <h2 class="section-title">Draft Recap</h2>
+    <div class="section-line"></div>
+    <div class="card" style="margin-bottom:1.2rem;"><p style="font-size:0.78rem;color:#c8c0b0;line-height:1.85;">The inaugural Faraj League draft established all 6 team rosters from a pool of 42 players ages 17–30. Six captains selected their squads to compete across the Mecca and Medina conferences.</p></div>
+    <div class="card" style="text-align:center;padding:2.2rem;"><div style="font-size:0.76rem;color:#c8c0b0;font-style:italic;">Draft board coming soon.</div></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- MEDIA -->
+<div id="page-media" class="page">
+  <div class="section">
+    <p class="section-sub">Highlights & Interviews</p>
+    <h2 class="section-title">Media</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap">
+      <span class="week-dropdown-label">Week</span>
+      <select class="week-dropdown" id="media-week-select" onchange="renderMedia(this.value)"></select>
+    </div>
+    <div id="media-content"></div>
+    <div style="margin-top:1.3rem;text-align:center;"><button class="insta-btn">Follow @farajleague on Instagram</button></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- ABOUT -->
+<div id="page-about" class="page">
+  <div class="section">
+    <p class="section-sub">Who We Are</p>
+    <h2 class="section-title">About the League</h2>
+    <div class="section-line"></div>
+    <div class="about-grid">
+      <div class="about-text">
+        <p>The Faraj League is a community basketball league built on brotherhood and the spirit of collective preparation. Our name is drawn from the narration of the Holy Prophet (s.a.w.s.): <em style="color:#e2c97e;">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</em> — "The best worship is awaiting the reappearance."</p>
+        <p style="font-style:italic;">TBD</p>
+      </div>
+      <div>
+        <div class="conf-info-card">
+          <div class="conf-info-title">Spring 2026 Structure</div>
+          <div class="conf-accordion">
+            <div class="conf-acc-header" onclick="toggleAcc('mecca')">
+              <div class="conf-acc-title"><div class="conf-dot" style="background:#c8a84b"></div>Mecca Conference</div>
+              <span class="conf-acc-arrow" id="arrow-mecca">▾</span>
+            </div>
+            <div class="conf-acc-body" id="body-mecca"></div>
+          </div>
+          <div class="conf-accordion">
+            <div class="conf-acc-header" onclick="toggleAcc('medina')">
+              <div class="conf-acc-title"><div class="conf-dot" style="background:#2fa89a"></div>Medina Conference</div>
+              <span class="conf-acc-arrow" id="arrow-medina">▾</span>
+            </div>
+            <div class="conf-acc-body" id="body-medina"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<!-- SPONSORS -->
+<div id="page-sponsors" class="page">
+  <div class="section">
+    <p class="section-sub">Spring 2026</p>
+    <h2 class="section-title">Sponsors</h2>
+    <div class="section-line"></div>
+    <p style="font-size:0.78rem;color:#c8c0b0;margin-bottom:1.6rem;line-height:1.85;max-width:500px;">The Faraj League is supported by community partners who share our mission.</p>
+    <div style="margin-bottom:1.6rem;">
+      <div class="tier-header tier-title">Title Sponsor</div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Sponsor name</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+    </div>
+    <div style="margin-bottom:1.6rem;">
+      <div class="tier-header tier-conf">Conference Sponsors</div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Conference Sponsor 1</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Conference Sponsor 2</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+    </div>
+    <div>
+      <div class="tier-header tier-community">Community Partners</div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Community Partner 1</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Community Partner 2</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+      <div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.87rem;color:#c8c0b0;font-style:italic;margin-bottom:0.35rem;">Community Partner 3</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<script>
+// ─── DEFAULT DATA (used if admin has not saved anything yet) ───────────────────
+const DEFAULT_TEAMS = [
+  { id:1, name:'Team Alpha',   conf:'Mecca',  captain:'Captain 1', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+  { id:2, name:'Team Beta',    conf:'Mecca',  captain:'Captain 2', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+  { id:3, name:'Team Gamma',   conf:'Mecca',  captain:'Captain 3', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+  { id:4, name:'Team Delta',   conf:'Medina', captain:'Captain 4', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+  { id:5, name:'Team Epsilon', conf:'Medina', captain:'Captain 5', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+  { id:6, name:'Team Zeta',    conf:'Medina', captain:'Captain 6', players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7'] },
+];
+const TOTAL_WEEKS = 8;
+const CURRENT_WEEK = 1;
+
+// ─── LOAD DATA FROM ADMIN ─────────────────────────────────────────────────────
+function load(key, fallback) {
+  try { const v = localStorage.getItem('fl_'+key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
+}
+let teams   = load('teams', DEFAULT_TEAMS);
+let weeks   = load('weeks', {});   // { "1": { games:[{t1,s1,t2,s2}], awards:{akhlaq,motm1,motm2,motm3} } }
+let stats   = load('stats', {});   // { "playerName": { gp, total } }
+let season  = load('season', { champ:'', mvp:'', scoring:'' });
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function teamById(id) { return teams.find(t=>t.id===id)||{}; }
+function teamByName(name) { return teams.find(t=>t.name===name)||{}; }
+function initials(name) { return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function pending(label='Pending') { return `<span class="pending">${label}</span>`; }
+
+function getWeeksPlayed() {
+  return Object.keys(weeks).filter(w => {
+    const wk = weeks[w];
+    return wk.games && wk.games.some(g => g.s1 !== '' && g.s2 !== '');
+  }).length;
+}
+
+function buildWeekDropdown(elId, includeAll, currentWeek) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '';
+  if (includeAll) el.innerHTML += `<option value="all">All Weeks</option>`;
+  for (let w=1; w<=TOTAL_WEEKS; w++) {
+    el.innerHTML += `<option value="${w}">Week ${w}${w===CURRENT_WEEK?' (Current)':''}</option>`;
+  }
+}
+
+// ─── STANDINGS CALCULATION ────────────────────────────────────────────────────
+function calcStandings() {
+  const rec = {};
+  teams.forEach(t => { rec[t.name] = {w:0,l:0,pf:0,pa:0,conf:t.conf,id:t.id}; });
+  Object.values(weeks).forEach(wk => {
+    if (!wk.games) return;
+    wk.games.forEach(g => {
+      if (g.s1===''||g.s2==='') return;
+      const s1=parseInt(g.s1), s2=parseInt(g.s2);
+      if (!rec[g.t1]||!rec[g.t2]) return;
+      rec[g.t1].pf+=s1; rec[g.t1].pa+=s2;
+      rec[g.t2].pf+=s2; rec[g.t2].pa+=s1;
+      if(s1>s2){rec[g.t1].w++;rec[g.t2].l++;}
+      else{rec[g.t2].w++;rec[g.t1].l++;}
+    });
+  });
+  return rec;
+}
+
+function renderStandings() {
+  const rec = calcStandings();
+  ['Mecca','Medina'].forEach(conf => {
+    const tbody = document.getElementById(conf.toLowerCase()+'-standings');
+    const rows = teams.filter(t=>t.conf===conf)
+      .map(t=>({...rec[t.name],name:t.name,id:t.id}))
+      .sort((a,b)=>b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa));
+    tbody.innerHTML = rows.map((r,i)=>`
+      <tr>
+        <td style="color:#c8c0b0;font-size:0.68rem">${i+1}</td>
+        <td><span class="team-link" onclick="goToTeam(${r.id})">${r.name}</span></td>
+        <td>${r.w}</td><td>${r.l}</td>
+        <td>${r.pf||'—'}</td><td>${r.pa||'—'}</td>
+      </tr>`).join('');
+  });
+  // update team records
+  const rec2 = calcStandings();
+  teams.forEach(t => {
+    const r = rec2[t.name];
+    t._record = `${r.w}-${r.l}`;
+  });
+}
+
+// ─── HOME PAGE ────────────────────────────────────────────────────────────────
+function renderHome() {
+  const wp = getWeeksPlayed();
+  document.getElementById('weeks-played').textContent = wp;
+  const displayWeek = wp > 0 ? wp : 1;
+  const wk = weeks[displayWeek] || {};
+  const t = teams;
+
+  // matchup defaults: use scheduled matchups (1v4, 2v5, 3v6)
+  const defaultMatchups = [
+    {t1:t[0]?.name||'TBD', t2:t[3]?.name||'TBD'},
+    {t1:t[1]?.name||'TBD', t2:t[4]?.name||'TBD'},
+    {t1:t[2]?.name||'TBD', t2:t[5]?.name||'TBD'},
+  ];
+  const games = wk.games || defaultMatchups.map(m=>({...m,s1:'',s2:''}));
+
+  document.getElementById('home-matchup-sub').textContent = `Week ${displayWeek} · ${wp>0?'Results':'Upcoming'}`;
+  document.getElementById('home-awards-sub').textContent = `Week ${displayWeek} · Latest`;
+
+  document.getElementById('home-matchups').innerHTML = games.map((g,i) => {
+    const played = g.s1!==''&&g.s2!=='';
+    const s1=parseInt(g.s1||0), s2=parseInt(g.s2||0);
+    const w1=played&&s1>s2, w2=played&&s2>s1;
+    return `<div class="matchup-card">
+      <div class="matchup-game-label">Game ${i+1}</div>
+      <div class="matchup-row"><span class="matchup-team ${w1?'winner':''}">${g.t1}</span><span class="matchup-score ${w1?'winner':''}">${played?g.s1:'TBD'}</span></div>
+      <div class="matchup-mid"></div>
+      <div class="matchup-row"><span class="matchup-team ${w2?'winner':''}">${g.t2}</span><span class="matchup-score ${w2?'winner':''}">${played?g.s2:'TBD'}</span></div>
+      <div class="winner-tag" style="color:${played?'#2fa89a':'#c8c0b0'};font-style:${played?'normal':'italic'}">${played?(s1>s2?g.t1+' Win':g.t2+' Win'):'Not yet played'}</div>
+    </div>`;
+  }).join('');
+
+  const awards = wk.awards || {};
+  document.getElementById('home-awards').innerHTML = `
+    <div class="award-card akhlaq-card">
+      <div class="akhlaq-inner">
+        <div class="akhlaq-medal">☽</div>
+        <div>
+          <div class="award-label">Akhlaq Award — Week ${displayWeek}</div>
+          <div class="award-winner">${awards.akhlaq||'<span class="pending">Pending</span>'}</div>
+          <div class="award-winner-sub">Exemplary character & brotherhood</div>
+        </div>
+      </div>
+    </div>
+    ${games.map((g,i)=>`
+    <div class="award-card">
+      <div class="award-label">Man of the Match · Game ${i+1}</div>
+      <div class="award-game">${g.t1} vs ${g.t2}</div>
+      <div class="award-winner">${awards['motm'+(i+1)]||'<span class="pending">Pending</span>'}</div>
+    </div>`).join('')}`;
+}
+
+// ─── SCORES ───────────────────────────────────────────────────────────────────
+function renderScores(week) {
+  const el = document.getElementById('scores-content');
+  const renderWeek = w => {
+    const wk = weeks[w] || {};
+    const games = wk.games || [];
+    if (!games.length || games.every(g=>g.s1===''&&g.s2===''))
+      return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.8rem;"><div style="font-size:0.75rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
+    return `<div style="margin-bottom:1rem;">
+      <div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;">Week ${w}${w==CURRENT_WEEK?' — Current':''}</div>
+      <div class="matchups-grid">${games.map((g,i)=>{
+        const played=g.s1!==''&&g.s2!=='';
+        const s1=parseInt(g.s1||0),s2=parseInt(g.s2||0);
+        const w1=played&&s1>s2,w2=played&&s2>s1;
+        return `<div class="matchup-card">
+          <div class="matchup-game-label">Game ${i+1}</div>
+          <div class="matchup-row"><span class="matchup-team ${w1?'winner':''}">${g.t1}</span><span class="matchup-score ${w1?'winner':''}">${played?g.s1:'—'}</span></div>
+          <div class="matchup-mid"></div>
+          <div class="matchup-row"><span class="matchup-team ${w2?'winner':''}">${g.t2}</span><span class="matchup-score ${w2?'winner':''}">${played?g.s2:'—'}</span></div>
+          <div class="winner-tag" style="color:${played?'#2fa89a':'#c8c0b0'}">${played?(s1>s2?g.t1+' Win':g.t2+' Win'):'Not played'}</div>
+        </div>`;}).join('')}</div></div>`;
+  };
+  el.innerHTML = week==='all' ? Array.from({length:TOTAL_WEEKS},(_,i)=>renderWeek(i+1)).join('') : renderWeek(parseInt(week));
+}
+
+// ─── TEAMS ────────────────────────────────────────────────────────────────────
+let activeTeam = null;
+function renderTeams() {
+  const rec = calcStandings();
+  document.getElementById('teams-grid').innerHTML = teams.map(t=>`
+    <div class="team-card" id="tc-${t.id}" onclick="toggleRoster(${t.id})">
+      <div class="team-emblem">${initials(t.name)}</div>
+      <div class="team-name">${t.name}</div>
+      <div class="team-conf">${t.conf} Conference</div>
+      <div class="team-captain">Capt: ${t.captain}</div>
+      <div class="team-record">${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div>
+    </div>`).join('');
+}
+function toggleRoster(id) {
+  const panel = document.getElementById('roster-panel');
+  document.querySelectorAll('.team-card').forEach(c=>c.classList.remove('selected'));
+  if (activeTeam===id){closeRoster();return;}
+  activeTeam=id;
+  const t=teams.find(x=>x.id===id);
+  const rec=calcStandings();
+  document.getElementById('tc-'+id).classList.add('selected');
+  document.getElementById('roster-content').innerHTML=`
+    <div style="margin-bottom:0.85rem;">
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;color:#c8a84b">${t.name}</div>
+      <div style="font-size:0.84rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.1rem">${t.conf} Conference · Capt: ${t.captain} · ${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div>
+    </div>
+    ${(t.players||[]).map((p,i)=>`<div class="roster-player"><span class="roster-num">${i+1}</span>${p}</div>`).join('')}`;
+  panel.classList.add('open');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function closeRoster(){activeTeam=null;document.querySelectorAll('.team-card').forEach(c=>c.classList.remove('selected'));document.getElementById('roster-panel').classList.remove('open');}
+function goToTeam(id){showPage('teams');setTimeout(()=>toggleRoster(id),80);}
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const tbody = document.getElementById('stats-body');
+  const rows = Object.entries(stats).map(([name,s])=>({name,...s})).filter(s=>s.total>0);
+  rows.sort((a,b)=>b.total-a.total);
+  if (!rows.length) {
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.76rem;">No stats yet — season hasn't started.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td style="padding:0.62rem 0.9rem;color:#c8c0b0;font-size:0.68rem">${i+1}</td>
+      <td style="padding:0.62rem 0.9rem;color:#f5f0e8">${r.name}</td>
+      <td style="padding:0.62rem 0.9rem;">${r.team||'—'}</td>
+      <td style="padding:0.62rem 0.9rem;">${r.gp||0}</td>
+      <td style="padding:0.62rem 0.9rem;color:#c8a84b">${r.gp?(r.total/r.gp).toFixed(1):'0.0'}</td>
+      <td style="padding:0.62rem 0.9rem;">${r.total||0}</td>
+    </tr>`).join('');
+}
+
+// ─── AWARDS ───────────────────────────────────────────────────────────────────
+function renderAwards(week) {
+  const w=parseInt(week);
+  const wk=weeks[w]||{};
+  const awards=wk.awards||{};
+  const games=wk.games||[{t1:'TBD',t2:'TBD'},{t1:'TBD',t2:'TBD'},{t1:'TBD',t2:'TBD'}];
+  const label=w===CURRENT_WEEK?`Week ${w} (Current)`:`Week ${w}`;
+  document.getElementById('awards-grid').innerHTML=`
+    <div class="award-card akhlaq-card">
+      <div class="akhlaq-inner">
+        <div class="akhlaq-medal">☽</div>
+        <div>
+          <div class="award-label">Akhlaq Award — ${label}</div>
+          <div class="award-winner">${awards.akhlaq||'<span class="pending">Pending</span>'}</div>
+          <div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div>
+        </div>
+      </div>
+    </div>
+    ${games.map((g,i)=>`
+    <div class="award-card">
+      <div class="award-label">Man of the Match · Game ${i+1}</div>
+      <div class="award-game">${g.t1||'TBD'} vs ${g.t2||'TBD'}</div>
+      <div class="award-winner">${awards['motm'+(i+1)]||'<span class="pending">Pending</span>'}</div>
+    </div>`).join('')}`;
+
+  // season awards
+  document.getElementById('sa-champ').textContent = season.champ||'Spring 2026 — In Progress';
+  document.getElementById('sa-mvp').textContent = season.mvp||'Season in progress';
+  document.getElementById('sa-scoring').textContent = season.scoring||'Season in progress';
+}
+
+// ─── MEDIA ────────────────────────────────────────────────────────────────────
+function renderMedia(week) {
+  const ws = week==='all'?Array.from({length:TOTAL_WEEKS},(_,i)=>i+1):[parseInt(week)];
+  const soon=`<div class="video-title" style="font-style:italic;">Coming soon</div>`;
+  document.getElementById('media-content').innerHTML = ws.map(w=>`
+    <div style="margin-bottom:1.6rem;">
+      <div class="media-week-label">Week ${w}${w===CURRENT_WEEK?' — Current':''}</div>
+      <div class="media-section-title">Top Plays of the Week</div>
+      <div class="media-grid" style="grid-template-columns:1fr;">
+        <div class="video-card"><div class="video-icon">▶</div><div class="video-label">Top Plays · Week ${w}</div>${soon}<button class="insta-btn">View on Instagram</button></div>
+      </div>
+      <div class="media-section-title">Baseline Breakdown</div>
+      <div class="media-grid">${[1,2,3].map(ep=>`<div class="video-card"><div class="video-icon">▶</div><div class="video-label">Episode ${ep}</div>${soon}<button class="insta-btn">View on Instagram</button></div>`).join('')}</div>
+      <div class="media-section-title">Match Highlights</div>
+      <div class="media-grid">${[1,2,3].map(g=>`<div class="video-card"><div class="video-icon">▶</div><div class="video-label">Game ${g} Highlights</div>${soon}<button class="insta-btn">View on Instagram</button></div>`).join('')}</div>
+    </div>`).join('');
+}
+
+// ─── ABOUT ACCORDIONS ─────────────────────────────────────────────────────────
+function renderAbout() {
+  ['mecca','medina'].forEach(conf => {
+    const el = document.getElementById('body-'+conf);
+    const confTeams = teams.filter(t=>t.conf===conf.charAt(0).toUpperCase()+conf.slice(1));
+    el.innerHTML = confTeams.map(t=>`<div class="conf-team-bullet">${t.name}</div>`).join('');
+  });
+}
+function toggleAcc(conf){
+  const body=document.getElementById('body-'+conf);
+  const arrow=document.getElementById('arrow-'+conf);
+  const open=body.classList.contains('open');
+  body.classList.toggle('open',!open);
+  arrow.classList.toggle('open',!open);
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(b=>{
+    if(b.textContent.toLowerCase().trim()===id.toLowerCase())b.classList.add('active');
+  });
+  window.scrollTo(0,0);
+}
+function changeSeason(val){
+  document.getElementById('historic-banner').style.display=val==='spring2026'?'none':'block';
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init(){
+  buildWeekDropdown('scores-week-select', true, CURRENT_WEEK);
+  buildWeekDropdown('awards-week-select', false, CURRENT_WEEK);
+  buildWeekDropdown('media-week-select', true, CURRENT_WEEK);
+  document.getElementById('media-week-select').value = '1';
+
+  renderHome();
+  renderStandings();
+  renderTeams();
+  renderStats();
+  renderAwards(CURRENT_WEEK);
+  renderScores('all');
+  renderMedia(1);
+  renderAbout();
+}
+init();
+</script>
+</body>
+</html>
