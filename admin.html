@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faraj League — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#060f1a;color:#f5f0e8;font-family:'Lato',sans-serif;font-weight:300;min-height:100vh;}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}
+.login-box{background:#0e2535;border:1px solid rgba(200,168,75,0.3);border-radius:6px;padding:2.5rem 2rem;width:100%;max-width:360px;text-align:center;}
+.login-logo{font-family:'Cinzel',serif;font-size:1.1rem;color:#c8a84b;letter-spacing:0.2em;margin-bottom:0.3rem;}
+.login-sub{font-size:0.62rem;color:#2fa89a;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:2rem;}
+.login-box input{width:100%;background:#0a1f2e;border:1px solid rgba(255,255,255,0.15);color:#ffffff;font-family:'Lato',sans-serif;font-size:0.85rem;padding:0.7rem 0.9rem;border-radius:3px;margin-bottom:0.8rem;outline:none;}
+.login-box input:focus{border-color:#2fa89a;}
+.login-btn{width:100%;background:#1a7a6e;border:none;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;padding:0.75rem;border-radius:3px;cursor:pointer;transition:background 0.15s;}
+.login-btn:hover{background:#2fa89a;}
+.login-err{color:#e07070;font-size:0.7rem;margin-top:0.6rem;display:none;}
+
+/* ── ADMIN SHELL ── */
+#admin-shell{display:none;}
+.admin-nav{background:#082e2a;border-bottom:2px solid rgba(200,168,75,0.2);padding:0 1.2rem;display:flex;align-items:center;gap:1rem;height:48px;}
+.admin-nav-title{font-family:'Cinzel',serif;font-size:0.85rem;color:#c8a84b;letter-spacing:0.15em;flex:1;}
+.admin-nav-badge{font-size:0.58rem;background:rgba(47,168,154,0.2);color:#2fa89a;border:1px solid rgba(47,168,154,0.3);padding:0.2rem 0.6rem;border-radius:2px;letter-spacing:0.1em;text-transform:uppercase;}
+.logout-btn{background:none;border:1px solid rgba(255,255,255,0.2);color:#ffffff;font-family:'Lato',sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.28rem 0.7rem;border-radius:2px;cursor:pointer;}
+
+.admin-tabs{display:flex;background:#060f1a;border-bottom:1px solid rgba(200,168,75,0.15);padding:0 1.2rem;gap:0.2rem;}
+.admin-tab{background:none;border:none;border-bottom:2px solid transparent;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1rem;cursor:pointer;}
+.admin-tab:hover{color:#c8a84b;}
+.admin-tab.active{color:#c8a84b;border-bottom-color:#c8a84b;}
+
+.admin-page{display:none;padding:1.8rem 1.4rem;max-width:860px;margin:0 auto;}
+.admin-page.active{display:block;}
+
+.a-section{margin-bottom:2rem;}
+.a-title{font-family:'Cinzel',serif;font-size:1rem;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.2rem;}
+.a-line{width:28px;height:2px;background:#c8a84b;margin-bottom:1.1rem;}
+.a-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.2rem;margin-bottom:1rem;}
+.a-label{font-size:0.58rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.4rem;}
+.a-input{width:100%;background:#0a1f2e;border:1px solid rgba(255,255,255,0.15);color:#ffffff;font-family:'Lato',sans-serif;font-size:0.82rem;padding:0.55rem 0.75rem;border-radius:3px;margin-bottom:0.7rem;outline:none;}
+.a-input:focus{border-color:#2fa89a;}
+.a-row{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;}
+.a-row-3{display:grid;grid-template-columns:1fr auto auto;gap:0.8rem;align-items:end;}
+.a-score-row{display:grid;grid-template-columns:1fr 80px 20px 80px 1fr;gap:0.5rem;align-items:center;margin-bottom:0.8rem;}
+.a-score-team{font-size:0.78rem;color:#f5f0e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.a-score-team.right{text-align:right;}
+.a-vs{text-align:center;font-size:0.65rem;color:#c8c0b0;}
+.a-score-input{background:#0a1f2e;border:1px solid rgba(255,255,255,0.2);color:#c8a84b;font-family:'Cinzel',serif;font-size:1rem;text-align:center;padding:0.4rem;border-radius:3px;width:100%;outline:none;}
+.a-score-input:focus{border-color:#c8a84b;}
+.save-btn{background:#1a7a6e;border:none;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;padding:0.65rem 1.4rem;border-radius:3px;cursor:pointer;transition:background 0.15s;}
+.save-btn:hover{background:#2fa89a;}
+.save-btn.gold{background:#a07830;}
+.save-btn.gold:hover{background:#c8a84b;}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#0d4f47;border:1px solid #2fa89a;color:#ffffff;font-size:0.72rem;padding:0.65rem 1.1rem;border-radius:3px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;}
+.week-nav{display:flex;align-items:center;gap:0.8rem;margin-bottom:1.2rem;}
+.week-nav-label{font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;}
+.week-nav select{background:#0e2535;border:1px solid #ffffff;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.72rem;padding:0.32rem 0.7rem;border-radius:3px;cursor:pointer;}
+.week-nav select option{background:#0a1f2e;color:#f5f0e8;}
+.player-row{display:grid;grid-template-columns:1fr 80px;gap:0.5rem;align-items:center;margin-bottom:0.5rem;}
+.player-name-label{font-size:0.75rem;color:#c8c0b0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.divider{border:none;border-top:1px solid rgba(200,168,75,0.15);margin:1.5rem 0;}
+.info-note{font-size:0.7rem;color:#c8c0b0;font-style:italic;margin-bottom:1rem;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Faraj League</div>
+    <div class="login-sub">Organizer Admin Panel</div>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')tryLogin()">
+    <button class="login-btn" onclick="tryLogin()">Sign In</button>
+    <div class="login-err" id="login-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- ADMIN SHELL -->
+<div id="admin-shell">
+  <div class="admin-nav">
+    <div class="admin-nav-title">Faraj League Admin</div>
+    <div class="admin-nav-badge">Organizer Only</div>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="showAdminPage('rosters')">Rosters</button>
+    <button class="admin-tab" onclick="showAdminPage('scores')">Scores</button>
+    <button class="admin-tab" onclick="showAdminPage('awards')">Awards</button>
+    <button class="admin-tab" onclick="showAdminPage('stats')">Stats</button>
+    <button class="admin-tab" onclick="showAdminPage('season')">Season Awards</button>
+  </div>
+
+  <!-- ROSTERS PAGE -->
+  <div id="admin-rosters" class="admin-page active">
+    <div class="a-section">
+      <div class="a-title">Teams & Rosters</div>
+      <div class="a-line"></div>
+      <p class="info-note">Set team names, conference, captain, and 7 players per team. Do this once before the season starts. Changes here will update everywhere on the public site.</p>
+      <div id="roster-editor"></div>
+      <button class="save-btn" onclick="saveRosters()">Save All Rosters</button>
+    </div>
+  </div>
+
+  <!-- SCORES PAGE -->
+  <div id="admin-scores" class="admin-page">
+    <div class="a-section">
+      <div class="a-title">Enter Scores</div>
+      <div class="a-line"></div>
+      <p class="info-note">Select the week, then enter the final score for each game. Standings update automatically.</p>
+      <div class="week-nav">
+        <span class="week-nav-label">Week</span>
+        <select id="scores-week-nav" onchange="renderScoresEditor(this.value)"></select>
+      </div>
+      <div id="scores-editor"></div>
+      <button class="save-btn" onclick="saveScores()">Save Scores</button>
+    </div>
+  </div>
+
+  <!-- AWARDS PAGE -->
+  <div id="admin-awards" class="admin-page">
+    <div class="a-section">
+      <div class="a-title">Enter Awards</div>
+      <div class="a-line"></div>
+      <p class="info-note">Select the week and enter the award winners. The Akhlaq Award is organizer-selected. Man of the Match is one per game.</p>
+      <div class="week-nav">
+        <span class="week-nav-label">Week</span>
+        <select id="awards-week-nav" onchange="renderAwardsEditor(this.value)"></select>
+      </div>
+      <div id="awards-editor"></div>
+      <button class="save-btn" onclick="saveAwards()">Save Awards</button>
+    </div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div id="admin-stats" class="admin-page">
+    <div class="a-section">
+      <div class="a-title">Enter Points</div>
+      <div class="a-line"></div>
+      <p class="info-note">Select the week and enter how many points each player scored across all games that week. Leave blank for 0. Totals and PPG calculate automatically.</p>
+      <div class="week-nav">
+        <span class="week-nav-label">Week</span>
+        <select id="stats-week-nav" onchange="renderStatsEditor(this.value)"></select>
+      </div>
+      <div id="stats-editor"></div>
+      <button class="save-btn" onclick="saveStats()">Save Stats</button>
+    </div>
+  </div>
+
+  <!-- SEASON AWARDS PAGE -->
+  <div id="admin-season" class="admin-page">
+    <div class="a-section">
+      <div class="a-title">Season Awards</div>
+      <div class="a-line"></div>
+      <p class="info-note">Fill these in at the end of the season. Leave blank while season is in progress.</p>
+      <div class="a-card">
+        <div class="a-label">Champions (Team Name)</div>
+        <input class="a-input" id="sa-champ" placeholder="e.g. Team Alpha">
+        <div class="a-label">Most Valuable Player</div>
+        <input class="a-input" id="sa-mvp" placeholder="e.g. Ali Hassan">
+        <div class="a-label">Scoring Title (Player Name)</div>
+        <input class="a-input" id="sa-scoring" placeholder="e.g. Omar Khalil">
+      </div>
+      <button class="save-btn gold" onclick="saveSeasonAwards()">Save Season Awards</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Saved ✓</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+// !! CHANGE THIS PASSWORD before going live !!
+const ADMIN_PASSWORD = 'faraj2026';
+const TOTAL_WEEKS = 8;
+const CURRENT_WEEK = 1;
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function tryLogin(){
+  const pw = document.getElementById('pw-input').value;
+  if(pw===ADMIN_PASSWORD){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('admin-shell').style.display='block';
+    init();
+  } else {
+    document.getElementById('login-err').style.display='block';
+    document.getElementById('pw-input').value='';
+  }
+}
+function logout(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('admin-shell').style.display='none';
+  document.getElementById('pw-input').value='';
+  document.getElementById('login-err').style.display='none';
+}
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+function save(key,val){ localStorage.setItem('fl_'+key, JSON.stringify(val)); }
+function load(key,fallback){ try{const v=localStorage.getItem('fl_'+key);return v?JSON.parse(v):fallback;}catch(e){return fallback;} }
+
+const DEFAULT_TEAMS = [
+  {id:1,name:'Team Alpha',  conf:'Mecca', captain:'Captain 1',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:2,name:'Team Beta',   conf:'Mecca', captain:'Captain 2',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:3,name:'Team Gamma',  conf:'Mecca', captain:'Captain 3',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:4,name:'Team Delta',  conf:'Medina',captain:'Captain 4',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:5,name:'Team Epsilon',conf:'Medina',captain:'Captain 5',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:6,name:'Team Zeta',   conf:'Medina',captain:'Captain 6',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+];
+
+let teams  = load('teams', DEFAULT_TEAMS);
+let weeks  = load('weeks', {});
+let stats  = load('stats', {});
+let season = load('season', {champ:'',mvp:'',scoring:''});
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function toast(msg='Saved ✓'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showAdminPage(id){
+  document.querySelectorAll('.admin-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('admin-'+id).classList.add('active');
+  document.querySelectorAll('.admin-tab').forEach(b=>{
+    if(b.textContent.toLowerCase().trim()===id.toLowerCase()||
+       (id==='season'&&b.textContent.toLowerCase().includes('season')))
+      b.classList.add('active');
+  });
+}
+
+// ─── WEEK DROPDOWNS ───────────────────────────────────────────────────────────
+function buildWeekNav(elId){
+  const el=document.getElementById(elId);
+  el.innerHTML='';
+  for(let w=1;w<=TOTAL_WEEKS;w++){
+    el.innerHTML+=`<option value="${w}">Week ${w}${w===CURRENT_WEEK?' (Current)':''}</option>`;
+  }
+}
+
+// ─── ROSTERS EDITOR ───────────────────────────────────────────────────────────
+function renderRosterEditor(){
+  document.getElementById('roster-editor').innerHTML = teams.map((t,ti)=>`
+    <div class="a-card">
+      <div style="font-family:'Cinzel',serif;font-size:0.72rem;color:#c8a84b;letter-spacing:0.12em;margin-bottom:0.9rem;">Team ${ti+1}</div>
+      <div class="a-row" style="margin-bottom:0.7rem;">
+        <div>
+          <div class="a-label">Team Name</div>
+          <input class="a-input" id="t${ti}-name" value="${t.name}" style="margin-bottom:0;" placeholder="Team name">
+        </div>
+        <div>
+          <div class="a-label">Conference</div>
+          <select class="a-input" id="t${ti}-conf" style="margin-bottom:0;">
+            <option value="Mecca" ${t.conf==='Mecca'?'selected':''}>Mecca</option>
+            <option value="Medina" ${t.conf==='Medina'?'selected':''}>Medina</option>
+          </select>
+        </div>
+      </div>
+      <div class="a-label">Captain</div>
+      <input class="a-input" id="t${ti}-captain" value="${t.captain}" placeholder="Captain name">
+      <div class="a-label" style="margin-top:0.3rem;">Players (7)</div>
+      ${(t.players||[]).map((p,pi)=>`
+        <input class="a-input" id="t${ti}-p${pi}" value="${p}" placeholder="Player ${pi+1}" style="margin-bottom:0.4rem;">
+      `).join('')}
+    </div>`).join('');
+}
+
+function saveRosters(){
+  teams = teams.map((t,ti)=>({
+    ...t,
+    name: document.getElementById(`t${ti}-name`).value.trim()||t.name,
+    conf: document.getElementById(`t${ti}-conf`).value,
+    captain: document.getElementById(`t${ti}-captain`).value.trim()||t.captain,
+    players: Array.from({length:7},(_,pi)=>document.getElementById(`t${ti}-p${pi}`)?.value.trim()||`Player ${pi+1}`)
+  }));
+  save('teams', teams);
+  // rebuild stats keys for renamed players
+  rebuildStatsKeys();
+  toast('Rosters saved ✓');
+  renderScoresEditor(document.getElementById('scores-week-nav').value);
+  renderAwardsEditor(document.getElementById('awards-week-nav').value);
+  renderStatsEditor(document.getElementById('stats-week-nav').value);
+}
+
+function rebuildStatsKeys(){
+  // Ensure every current player has a stats entry
+  const allPlayers = teams.flatMap(t=>(t.players||[]).map(p=>({name:p,team:t.name})));
+  allPlayers.forEach(({name,team})=>{
+    if(!stats[name]) stats[name]={gp:0,total:0,team};
+    else stats[name].team = team;
+  });
+  save('stats', stats);
+}
+
+// ─── SCORES EDITOR ────────────────────────────────────────────────────────────
+let currentScoresWeek = CURRENT_WEEK;
+function renderScoresEditor(week){
+  currentScoresWeek = parseInt(week);
+  const wk = weeks[week] || {};
+  // Default matchups: 1v4, 2v5, 3v6
+  const defaultMatchups = [
+    {t1:teams[0]?.name||'TBD',t2:teams[3]?.name||'TBD'},
+    {t1:teams[1]?.name||'TBD',t2:teams[4]?.name||'TBD'},
+    {t1:teams[2]?.name||'TBD',t2:teams[5]?.name||'TBD'},
+  ];
+  const games = wk.games || defaultMatchups.map(m=>({...m,s1:'',s2:''}));
+  document.getElementById('scores-editor').innerHTML = `
+    <div class="a-card">
+      ${games.map((g,i)=>`
+        <div style="margin-bottom:${i<2?'1.2rem':'0'}">
+          <div class="a-label" style="margin-bottom:0.6rem;">Game ${i+1}</div>
+          <div class="a-score-row">
+            <span class="a-score-team">${g.t1}</span>
+            <input class="a-score-input" id="s${i}-1" value="${g.s1}" placeholder="0" type="number" min="0">
+            <span class="a-vs">vs</span>
+            <input class="a-score-input" id="s${i}-2" value="${g.s2}" placeholder="0" type="number" min="0">
+            <span class="a-score-team right">${g.t2}</span>
+          </div>
+          ${i<2?'<hr class="divider" style="margin:0.8rem 0;">':''}
+        </div>`).join('')}
+    </div>`;
+}
+
+function saveScores(){
+  const week = currentScoresWeek;
+  const defaultMatchups = [
+    {t1:teams[0]?.name||'TBD',t2:teams[3]?.name||'TBD'},
+    {t1:teams[1]?.name||'TBD',t2:teams[4]?.name||'TBD'},
+    {t1:teams[2]?.name||'TBD',t2:teams[5]?.name||'TBD'},
+  ];
+  const existing = weeks[week] || {};
+  const existingGames = existing.games || defaultMatchups.map(m=>({...m,s1:'',s2:''}));
+  const games = existingGames.map((g,i)=>({
+    ...g,
+    s1: document.getElementById(`s${i}-1`)?.value||'',
+    s2: document.getElementById(`s${i}-2`)?.value||'',
+  }));
+  weeks[week] = {...existing, games};
+  save('weeks', weeks);
+  toast('Scores saved ✓');
+}
+
+// ─── AWARDS EDITOR ────────────────────────────────────────────────────────────
+let currentAwardsWeek = CURRENT_WEEK;
+function renderAwardsEditor(week){
+  currentAwardsWeek = parseInt(week);
+  const wk = weeks[week] || {};
+  const awards = wk.awards || {};
+  const defaultMatchups = [
+    {t1:teams[0]?.name||'TBD',t2:teams[3]?.name||'TBD'},
+    {t1:teams[1]?.name||'TBD',t2:teams[4]?.name||'TBD'},
+    {t1:teams[2]?.name||'TBD',t2:teams[5]?.name||'TBD'},
+  ];
+  const games = wk.games || defaultMatchups.map(m=>({...m,s1:'',s2:''}));
+  document.getElementById('awards-editor').innerHTML=`
+    <div class="a-card">
+      <div class="a-label">☽ Akhlaq Award — Week ${week}</div>
+      <input class="a-input" id="aw-akhlaq" value="${awards.akhlaq||''}" placeholder="Player name">
+      <hr class="divider">
+      ${games.map((g,i)=>`
+        <div class="a-label">Man of the Match · Game ${i+1} (${g.t1} vs ${g.t2})</div>
+        <input class="a-input" id="aw-motm${i+1}" value="${awards['motm'+(i+1)]||''}" placeholder="Player name">
+      `).join('')}
+    </div>`;
+}
+
+function saveAwards(){
+  const week = currentAwardsWeek;
+  const existing = weeks[week] || {};
+  weeks[week] = {
+    ...existing,
+    awards: {
+      akhlaq: document.getElementById('aw-akhlaq')?.value.trim()||'',
+      motm1:  document.getElementById('aw-motm1')?.value.trim()||'',
+      motm2:  document.getElementById('aw-motm2')?.value.trim()||'',
+      motm3:  document.getElementById('aw-motm3')?.value.trim()||'',
+    }
+  };
+  save('weeks', weeks);
+  toast('Awards saved ✓');
+}
+
+// ─── STATS EDITOR ─────────────────────────────────────────────────────────────
+let currentStatsWeek = CURRENT_WEEK;
+function renderStatsEditor(week){
+  currentStatsWeek = parseInt(week);
+  // Load existing week stats
+  const weekStats = load('weekstats_'+week, {});
+  document.getElementById('stats-editor').innerHTML = teams.map((t,ti)=>`
+    <div class="a-card" style="margin-bottom:0.8rem;">
+      <div style="font-family:'Cinzel',serif;font-size:0.7rem;color:#c8a84b;letter-spacing:0.1em;margin-bottom:0.8rem;">${t.name}</div>
+      ${(t.players||[]).map(p=>`
+        <div class="player-row">
+          <span class="player-name-label">${p}</span>
+          <input class="a-score-input" id="pts-${encodeId(p)}" value="${weekStats[p]||''}" placeholder="0" type="number" min="0" style="font-size:0.85rem;">
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function encodeId(str){ return str.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function saveStats(){
+  const week = currentStatsWeek;
+  const weekStats = {};
+  teams.forEach(t=>{
+    (t.players||[]).forEach(p=>{
+      const val = parseInt(document.getElementById('pts-'+encodeId(p))?.value)||0;
+      weekStats[p] = val;
+      // Update cumulative stats
+      if(!stats[p]) stats[p]={gp:0,total:0,team:t.name};
+      stats[p].team = t.name;
+    });
+  });
+  // Recompute cumulative from all weeks
+  const allWeekStats = {};
+  for(let w=1;w<=TOTAL_WEEKS;w++){
+    const ws = w===week ? weekStats : load('weekstats_'+w, {});
+    Object.entries(ws).forEach(([p,pts])=>{
+      if(!allWeekStats[p]) allWeekStats[p]={gp:0,total:0};
+      if(pts>0){ allWeekStats[p].gp++; allWeekStats[p].total+=parseInt(pts); }
+    });
+  }
+  // Merge into stats
+  teams.forEach(t=>{
+    (t.players||[]).forEach(p=>{
+      stats[p] = { team:t.name, ...(allWeekStats[p]||{gp:0,total:0}) };
+    });
+  });
+  save('weekstats_'+week, weekStats);
+  save('stats', stats);
+  toast('Stats saved ✓');
+}
+
+// ─── SEASON AWARDS ────────────────────────────────────────────────────────────
+function loadSeasonAwardsEditor(){
+  document.getElementById('sa-champ').value  = season.champ||'';
+  document.getElementById('sa-mvp').value    = season.mvp||'';
+  document.getElementById('sa-scoring').value= season.scoring||'';
+}
+function saveSeasonAwards(){
+  season = {
+    champ:   document.getElementById('sa-champ').value.trim(),
+    mvp:     document.getElementById('sa-mvp').value.trim(),
+    scoring: document.getElementById('sa-scoring').value.trim(),
+  };
+  save('season', season);
+  toast('Season awards saved ✓');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init(){
+  teams  = load('teams', DEFAULT_TEAMS);
+  weeks  = load('weeks', {});
+  stats  = load('stats', {});
+  season = load('season', {champ:'',mvp:'',scoring:''});
+
+  buildWeekNav('scores-week-nav');
+  buildWeekNav('awards-week-nav');
+  buildWeekNav('stats-week-nav');
+
+  renderRosterEditor();
+  renderScoresEditor(CURRENT_WEEK);
+  renderAwardsEditor(CURRENT_WEEK);
+  renderStatsEditor(CURRENT_WEEK);
+  loadSeasonAwardsEditor();
+}
+</script>
+</body>
+</html>
