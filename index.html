@@ -137,6 +137,18 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .footer-insta{font-size:0.82rem;color:#2fa89a;letter-spacing:0.1em;margin-top:0.3rem;}
 .pending{color:#c8c0b0;font-style:italic;}
 .loading{text-align:center;padding:2rem;font-size:0.88rem;color:#c8c0b0;font-style:italic;}
+.title-sponsor-bar{background:linear-gradient(135deg,#0a1f2e,#0e2535);border:1px solid rgba(200,168,75,0.25);border-radius:5px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;gap:1.2rem;flex-wrap:wrap;}
+.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.2rem;}
+.title-sponsor-name{font-family:'Cinzel',serif;font-size:1.1rem;color:#f5f0e8;letter-spacing:0.06em;}
+.title-sponsor-logo{max-height:48px;max-width:140px;object-fit:contain;border-radius:3px;}
+.home-standings-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:0;}
+.home-conf-block{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;}
+.home-conf-title{font-family:'Cinzel',serif;font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(200,168,75,0.15);}
+.home-stand-row{display:flex;align-items:center;gap:0.5rem;padding:0.28rem 0;border-bottom:1px solid rgba(200,168,75,0.05);font-size:0.88rem;}
+.home-stand-row:last-child{border-bottom:none;}
+.home-stand-rank{font-size:0.72rem;color:#c8c0b0;width:16px;flex-shrink:0;}
+.home-stand-name{flex:1;color:#f5f0e8;}
+.home-stand-rec{font-size:0.82rem;color:#2fa89a;white-space:nowrap;}
 @media(max-width:700px){
   .conf-grid,.teams-grid,.awards-grid,.about-grid,.season-awards-grid,.media-grid,.matchups-grid,.home-awards-grid{grid-template-columns:1fr;}
   .quick-stats{grid-template-columns:repeat(2,1fr);}
@@ -172,8 +184,8 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
     <div class="hero-bg"></div><div class="hero-geo"></div>
     <div class="hero-content">
       <div class="hero-badge">Spring 2026 · Inaugural Season</div>
+      <div id="title-sponsor-banner"></div>
       <div class="hero-logo">FL</div>
-      <p class="hero-sub">Mecca & Medina Conferences</p>
       <h1>Faraj League</h1>
       <div class="hero-divider"></div>
       <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
@@ -196,6 +208,11 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
     <div class="qs-item"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></div>
   </div>
   <div class="section">
+    <p class="section-sub" id="home-standings-sub">Spring 2026</p>
+    <h2 class="section-title" id="home-standings-title">Standings</h2>
+    <div class="section-line"></div>
+    <div class="home-standings-wrap" id="home-standings"></div>
+    <hr class="section-divider">
     <p class="section-sub" id="home-matchup-sub">Week 1 · Upcoming</p>
     <h2 class="section-title">Recent Matchups</h2>
     <div class="section-line"></div>
@@ -214,8 +231,8 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
   <div class="section">
     <p class="section-sub">Spring 2026</p><h2 class="section-title">Standings</h2><div class="section-line"></div>
     <div class="conf-grid">
-      <div class="card"><div class="conf-header">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
-      <div class="card"><div class="conf-header">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+      <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+      <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
     </div>
     <hr class="section-divider">
     <p class="section-sub">Results by Week</p><h2 class="section-title">Scores</h2><div class="section-line"></div>
@@ -236,7 +253,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-stats" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026 · Points Only</p><h2 class="section-title">Player Stats</h2><div class="section-line"></div>
+    <p class="section-sub">Spring 2026 · Points Only</p><h2 class="section-title" id="stats-page-title">Player Stats</h2><div class="section-line"></div>
     <div class="card" style="padding:0;"><table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);"><th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">Team</th><th style="padding:0.75rem 1rem;">GP</th><th style="padding:0.75rem 1rem;">PPG</th><th style="padding:0.75rem 1rem;">Total</th></tr></thead><tbody id="stats-body"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
@@ -289,11 +306,11 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
         <div class="conf-info-card">
           <div class="conf-info-title">Spring 2026 Structure</div>
           <div class="conf-accordion">
-            <div class="conf-acc-header" onclick="toggleAcc('mecca')"><div class="conf-acc-title"><div class="conf-dot" style="background:#c8a84b"></div>Mecca Conference</div><span class="conf-acc-arrow" id="arrow-mecca">▾</span></div>
+            <div class="conf-acc-header" onclick="toggleAcc('mecca')"><div class="conf-acc-title"><div class="conf-dot" style="background:#c8a84b"></div><span id="about-mecca-label">Mecca Conference</span></div><span class="conf-acc-arrow" id="arrow-mecca">▾</span></div>
             <div class="conf-acc-body" id="body-mecca"></div>
           </div>
           <div class="conf-accordion">
-            <div class="conf-acc-header" onclick="toggleAcc('medina')"><div class="conf-acc-title"><div class="conf-dot" style="background:#2fa89a"></div>Medina Conference</div><span class="conf-acc-arrow" id="arrow-medina">▾</span></div>
+            <div class="conf-acc-header" onclick="toggleAcc('medina')"><div class="conf-acc-title"><div class="conf-dot" style="background:#2fa89a"></div><span id="about-medina-label">Medina Conference</span></div><span class="conf-acc-arrow" id="arrow-medina">▾</span></div>
             <div class="conf-acc-body" id="body-medina"></div>
           </div>
         </div>
@@ -315,14 +332,36 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 </div>
 
 <script>
+// ─── SPONSOR CONFIG ───────────────────────────────────────────────────────────
+// To revert all sponsor branding: set each value back to null
+// To activate: replace null with the sponsor name string e.g. 'Jordan Brand'
+const SP1        = '[SPONSOR 1 NAME]';   // Title Sponsor (hero banner)
+const SP1_LOGO   = null;   // Title Sponsor logo URL (image link) or null
+const SP2A       = '[Sponsor 2A]';   // Mecca Conference sponsor name
+const SP2B       = '[Sponsor 2B]';   // Medina Conference sponsor name
+const SP3A       = '[Sponsor 3A]';   // Man of the Match Game 1 sponsor
+const SP3B       = '[Sponsor 3B]';   // Man of the Match Game 2 sponsor
+const SP3C       = '[Sponsor 3C]';   // Man of the Match Game 3 sponsor
+
+// Derived display labels — edit below only if you want custom phrasing
+function confLabel(conf){
+  if(conf==='Mecca') return SP2A ? `${SP2A} Mecca Conference` : 'Mecca Conference';
+  if(conf==='Medina') return SP2B ? `${SP2B} Medina Conference` : 'Medina Conference';
+  return conf+' Conference';
+}
+function motmLabel(game){
+  const sp=[SP3A,SP3B,SP3C][game-1];
+  return sp ? `${sp} Man of the Match · Game ${game}` : `Man of the Match · Game ${game}`;
+}
+function akhlaqLabel(week){ return SP2B ? `${SP2B} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`; }
+function statsTitle(){ return SP2A ? `${SP2A} Player Stats` : 'Player Stats'; }
+
 // ─── SHEET CONFIG ─────────────────────────────────────────────────────────────
 const SHEET_ID='2PACX-1vR1WgaaoWS1cm-AMTrehXj14XilwjYZvwB-r9fes4WF3RtPO5BgGqT4n4QLMX6ngw2fgEHJDcfwkfOG';
 const BASE=`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
 // gid values correspond to tab order: 0=first tab, 1=second, etc.
 // After you create the 4 tabs, update these gid numbers if needed (see instructions below)
-const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};
-const TOTAL_WEEKS=8, CURRENT_WEEK=1;
-
+const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};const TOTAL_WEEKS=8, CURRENT_WEEK=1;
 // ─── CSV FETCH ────────────────────────────────────────────────────────────────
 async function fetchCSV(url){
   const res=await fetch(url+'&t='+Date.now());
@@ -407,6 +446,22 @@ function buildWeekDropdown(elId,includeAll){
 
 // ─── RENDER ALL ───────────────────────────────────────────────────────────────
 function renderAll(){
+  // Apply sponsor labels to static elements
+  document.getElementById('conf-header-mecca').textContent = confLabel('Mecca');
+  document.getElementById('conf-header-medina').textContent = confLabel('Medina');
+  document.getElementById('stats-page-title').textContent = statsTitle();
+  document.getElementById('about-mecca-label').textContent = confLabel('Mecca');
+  document.getElementById('about-medina-label').textContent = confLabel('Medina');
+  // Home standings title uses SP2B sponsor
+  if(SP2B) document.getElementById('home-standings-title').textContent = `${SP2B} Standings`;
+  // Title sponsor banner
+  const banner = document.getElementById('title-sponsor-banner');
+  if(SP1){
+    banner.innerHTML = `<div class="title-sponsor-bar">${SP1_LOGO?`<img src="${SP1_LOGO}" class="title-sponsor-logo" alt="${SP1} logo">`:''}  <div><div class="title-sponsor-eyebrow">Presented by</div><div class="title-sponsor-name">${SP1}</div></div></div>`;
+  } else {
+    banner.innerHTML = `<p class="hero-sub">Mecca & Medina Conferences</p>`;
+  }
+
   buildWeekDropdown('scores-week-select',true);
   buildWeekDropdown('awards-week-select',false);
   buildWeekDropdown('media-week-select',true);
@@ -425,6 +480,14 @@ function renderHome(){
   const t=DB.teams;
   document.getElementById('home-matchup-sub').textContent=`Week ${dw} · ${wp>0?'Results':'Upcoming'}`;
   document.getElementById('home-awards-sub').textContent=`Week ${dw} · Latest`;
+
+  // Mini standings
+  const rec=calcStandings();
+  document.getElementById('home-standings').innerHTML=['Mecca','Medina'].map(conf=>{
+    const rows=DB.teams.filter(t=>t.conf===conf).map(t=>({...rec[t.name]||{w:0,l:0},name:t.name})).sort((a,b)=>b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa));
+    return`<div class="home-conf-block"><div class="home-conf-title">${confLabel(conf)}</div>${rows.map((r,i)=>`<div class="home-stand-row"><span class="home-stand-rank">${i+1}</span><span class="home-stand-name">${r.name}</span><span class="home-stand-rec">${r.w}-${r.l}</span></div>`).join('')}</div>`;
+  }).join('');
+
   const games=weekGames.length?weekGames:[
     {game:1,t1:t[0]?.name||'TBD',t2:t[3]?.name||'TBD',s1:'',s2:''},
     {game:2,t1:t[1]?.name||'TBD',t2:t[4]?.name||'TBD',s1:'',s2:''},
@@ -436,8 +499,8 @@ function renderHome(){
     return`<div class="matchup-card"><div class="matchup-game-label">Game ${g.game||i+1}</div><div class="matchup-row"><span class="matchup-team ${w1?'winner':''}">${g.t1}</span><span class="matchup-score ${w1?'winner':''}">${played?g.s1:'TBD'}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team ${w2?'winner':''}">${g.t2}</span><span class="matchup-score ${w2?'winner':''}">${played?g.s2:'TBD'}</span></div><div class="winner-tag" style="${played?'':'color:#c8c0b0;font-style:italic'}">${played?(s1>s2?g.t1+' Win':g.t2+' Win'):'Not yet played'}</div></div>`;
   }).join('');
   document.getElementById('home-awards').innerHTML=`
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">Akhlaq Award — Week ${dw}</div><div class="award-winner">${wa.akhlaq||pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
-    ${games.map((g,i)=>`<div class="award-card"><div class="award-label">Man of the Match · Game ${g.game||i+1}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm'+(g.game||i+1)]||pending()}</div></div>`).join('')}`;
+    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(dw)}</div><div class="award-winner">${wa.akhlaq||pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
+    ${games.map((g,i)=>`<div class="award-card"><div class="award-label">${motmLabel(g.game||i+1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm'+(g.game||i+1)]||pending()}</div></div>`).join('')}`;
 }
 
 // ─── STANDINGS ────────────────────────────────────────────────────────────────
@@ -496,10 +559,10 @@ function renderAwards(week){
   const label=w===CURRENT_WEEK?`Week ${w} (Current)`:`Week ${w}`;
   const g1=games[0]||{t1:'TBD',t2:'TBD'},g2=games[1]||{t1:'TBD',t2:'TBD'},g3=games[2]||{t1:'TBD',t2:'TBD'};
   document.getElementById('awards-grid').innerHTML=`
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">Akhlaq Award — ${label}</div><div class="award-winner">${wa.akhlaq||pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>
-    <div class="award-card"><div class="award-label">Man of the Match · Game 1</div><div class="award-game">${g1.t1} vs ${g1.t2}</div><div class="award-winner">${wa.motm1||pending()}</div></div>
-    <div class="award-card"><div class="award-label">Man of the Match · Game 2</div><div class="award-game">${g2.t1} vs ${g2.t2}</div><div class="award-winner">${wa.motm2||pending()}</div></div>
-    <div class="award-card"><div class="award-label">Man of the Match · Game 3</div><div class="award-game">${g3.t1} vs ${g3.t2}</div><div class="award-winner">${wa.motm3||pending()}</div></div>`;
+    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner">${wa.akhlaq||pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(1)}</div><div class="award-game">${g1.t1} vs ${g1.t2}</div><div class="award-winner">${wa.motm1||pending()}</div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(2)}</div><div class="award-game">${g2.t1} vs ${g2.t2}</div><div class="award-winner">${wa.motm2||pending()}</div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(3)}</div><div class="award-game">${g3.t1} vs ${g3.t2}</div><div class="award-winner">${wa.motm3||pending()}</div></div>`;
   const sa=DB.awards.find(a=>a.champ)||{};
   document.getElementById('sa-champ').textContent=sa.champ||'Spring 2026 — In Progress';
   document.getElementById('sa-mvp').textContent=sa.mvp||'Season in progress';
@@ -517,7 +580,10 @@ function renderMedia(week){
 function renderAbout(){
   ['mecca','medina'].forEach(conf=>{
     const el=document.getElementById('body-'+conf);
-    el.innerHTML=DB.teams.filter(t=>t.conf===conf.charAt(0).toUpperCase()+conf.slice(1)).map(t=>`<div class="conf-team-bullet">${t.name}</div>`).join('');
+    const confName=conf.charAt(0).toUpperCase()+conf.slice(1);
+    const sp=conf==='mecca'?SP2A:SP2B;
+    const tagline=sp?`<div style="font-size:0.75rem;color:#c8a84b;font-style:italic;margin-bottom:0.5rem;">${confName} Conference — Brought to you by ${sp}</div>`:'';
+    el.innerHTML=tagline+DB.teams.filter(t=>t.conf===confName).map(t=>`<div class="conf-team-bullet">${t.name}</div>`).join('');
   });
 }
 function toggleAcc(conf){document.getElementById('body-'+conf).classList.toggle('open');document.getElementById('arrow-'+conf).classList.toggle('open');}
