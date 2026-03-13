@@ -245,7 +245,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 <div id="page-teams" class="page">
   <div class="section">
     <p class="section-sub">Spring 2026 · 6 Teams</p><h2 class="section-title">Teams & Rosters</h2><div class="section-line"></div>
-    <div class="teams-grid" id="teams-grid"><div class="loading">Loading...</div></div>
+    <div id="teams-grid"></div>
     <div id="roster-panel" class="roster-panel"><button class="roster-close" onclick="closeRoster()">✕</button><div id="roster-content"></div></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
@@ -336,12 +336,12 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 // To revert all sponsor branding: set each value back to null
 // To activate: replace null with the sponsor name string e.g. 'Jordan Brand'
 const SP1        = '[SPONSOR 1 NAME]';   // Title Sponsor (hero banner)
-const SP1_LOGO   = null;   // Title Sponsor logo URL (image link) or null
-const SP2A       = '[Sponsor 2A]';   // Mecca Conference sponsor name
-const SP2B       = '[Sponsor 2B]';   // Medina Conference sponsor name
-const SP3A       = '[Sponsor 3A]';   // Man of the Match Game 1 sponsor
-const SP3B       = '[Sponsor 3B]';   // Man of the Match Game 2 sponsor
-const SP3C       = '[Sponsor 3C]';   // Man of the Match Game 3 sponsor
+const SP1_LOGO   = null;                 // Title Sponsor logo URL (image link) or null
+const SP2A       = '[Sponsor 2A]';       // Mecca Conference sponsor name
+const SP2B       = '[Sponsor 2B]';       // Medina Conference sponsor name
+const SP3A       = '[Sponsor 3A]';       // Man of the Match Game 1 sponsor
+const SP3B       = '[Sponsor 3B]';       // Man of the Match Game 2 sponsor
+const SP3C       = '[Sponsor 3C]';       // Man of the Match Game 3 sponsor
 
 // Derived display labels — edit below only if you want custom phrasing
 function confLabel(conf){
@@ -361,7 +361,9 @@ const SHEET_ID='2PACX-1vR1WgaaoWS1cm-AMTrehXj14XilwjYZvwB-r9fes4WF3RtPO5BgGqT4n4
 const BASE=`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
 // gid values correspond to tab order: 0=first tab, 1=second, etc.
 // After you create the 4 tabs, update these gid numbers if needed (see instructions below)
-const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};const TOTAL_WEEKS=8, CURRENT_WEEK=1;
+const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};
+const TOTAL_WEEKS=8, CURRENT_WEEK=1;
+
 // ─── CSV FETCH ────────────────────────────────────────────────────────────────
 async function fetchCSV(url){
   const res=await fetch(url+'&t='+Date.now());
@@ -453,7 +455,8 @@ function renderAll(){
   document.getElementById('about-mecca-label').textContent = confLabel('Mecca');
   document.getElementById('about-medina-label').textContent = confLabel('Medina');
   // Home standings title uses SP2B sponsor
-  if(SP2B) document.getElementById('home-standings-title').textContent = `Standings`;  // Title sponsor banner
+  if(SP2B) document.getElementById('home-standings-title').textContent = `${SP2B} Standings`;
+  // Title sponsor banner
   const banner = document.getElementById('title-sponsor-banner');
   if(SP1){
     banner.innerHTML = `<div class="title-sponsor-bar">${SP1_LOGO?`<img src="${SP1_LOGO}" class="title-sponsor-logo" alt="${SP1} logo">`:''}  <div><div class="title-sponsor-eyebrow">Presented by</div><div class="title-sponsor-name">${SP1}</div></div></div>`;
@@ -527,7 +530,12 @@ function renderScores(week){
 let activeTeam=null;
 function renderTeams(){
   const rec=calcStandings();
-  document.getElementById('teams-grid').innerHTML=DB.teams.map(t=>`<div class="team-card" id="tc-${t.id}" onclick="toggleRoster(${t.id})"><div class="team-emblem">${initials(t.name)}</div><div class="team-name">${t.name}</div><div class="team-conf">${t.conf} Conference</div><div class="team-captain">Capt: ${t.captain}</div><div class="team-record">${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>`).join('');
+  const teamCard=t=>`<div class="team-card" id="tc-${t.id}" onclick="toggleRoster(${t.id})"><div class="team-emblem">${initials(t.name)}</div><div class="team-name">${t.name}</div><div class="team-captain">Capt: ${t.captain}</div><div class="team-record">${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>`;
+  document.getElementById('teams-grid').innerHTML=['Mecca','Medina'].map(conf=>`
+    <div style="margin-bottom:1.6rem;">
+      <div style="font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.75rem;padding-bottom:0.35rem;border-bottom:1px solid rgba(200,168,75,0.2);">${confLabel(conf)}</div>
+      <div class="teams-grid">${DB.teams.filter(t=>t.conf===conf).map(teamCard).join('')}</div>
+    </div>`).join('');
 }
 function toggleRoster(id){
   const panel=document.getElementById('roster-panel');
