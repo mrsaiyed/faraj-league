@@ -453,8 +453,7 @@ function renderAll(){
   document.getElementById('about-mecca-label').textContent = confLabel('Mecca');
   document.getElementById('about-medina-label').textContent = confLabel('Medina');
   // Home standings title uses SP2B sponsor
-  if(SP2B) document.getElementById('home-standings-title').textContent = `${SP2B} Standings`;
-  // Title sponsor banner
+  if(SP2B) document.getElementById('home-standings-title').textContent = `Standings`;  // Title sponsor banner
   const banner = document.getElementById('title-sponsor-banner');
   if(SP1){
     banner.innerHTML = `<div class="title-sponsor-bar">${SP1_LOGO?`<img src="${SP1_LOGO}" class="title-sponsor-logo" alt="${SP1} logo">`:''}  <div><div class="title-sponsor-eyebrow">Presented by</div><div class="title-sponsor-name">${SP1}</div></div></div>`;
