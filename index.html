@@ -544,7 +544,7 @@ function toggleRoster(id){
   activeTeam=id;
   const t=DB.teams.find(x=>x.id===id),rec=calcStandings();
   document.getElementById('tc-'+id).classList.add('selected');
-  document.getElementById('roster-content').innerHTML=`<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${t.conf} Conference · Capt: ${t.captain} · ${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>${(t.players||[]).map((p,i)=>`<div class="roster-player"><span class="roster-num">${i+1}</span>${p}</div>`).join('')}`;
+  document.getElementById('roster-content').innerHTML=`<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${t.conf} Conference · Capt: ${t.captain} · ${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>${[t.captain,...(t.players||[])].map((p,i)=>`<div class="roster-player"><span class="roster-num">${i+1}</span>${p}</div>`).join('')}
   panel.classList.add('open');
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
