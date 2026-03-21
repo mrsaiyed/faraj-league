@@ -1,0 +1,13 @@
+{
+  "name": "faraj-league",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Faraj League public site and backend",
+  "scripts": {
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  }
+}
