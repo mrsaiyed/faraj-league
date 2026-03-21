@@ -179,11 +179,15 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
   </div>
 </nav>
 
+<div id="api-error-banner" class="historic-banner" style="display:none;">
+  <div class="historic-banner-label" id="api-error-message"></div>
+</div>
+
 <div id="page-home" class="page active">
   <div class="hero">
     <div class="hero-bg"></div><div class="hero-geo"></div>
     <div class="hero-content">
-      <div class="hero-badge">Spring 2026 · Inaugural Season</div>
+      <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
       <div id="title-sponsor-banner"></div>
       <img src="faraj-logo.png" style="width:340px;height:340px;mix-blend-mode:screen;" alt="Faraj League">
       <!-- <h1>Faraj League</h1> -->
@@ -229,7 +233,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-standings" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026</p><h2 class="section-title">Standings</h2><div class="section-line"></div>
+    <p class="section-sub" id="standings-section-sub">Spring 2026</p><h2 class="section-title">Standings</h2><div class="section-line"></div>
     <div class="conf-grid">
       <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
       <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
@@ -244,7 +248,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-teams" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026 · 6 Teams</p><h2 class="section-title">Teams & Rosters</h2><div class="section-line"></div>
+    <p class="section-sub" id="teams-section-sub">Spring 2026 · 6 Teams</p><h2 class="section-title">Teams & Rosters</h2><div class="section-line"></div>
     <div id="teams-grid"></div>
     <div id="roster-panel" class="roster-panel"><button class="roster-close" onclick="closeRoster()">✕</button><div id="roster-content"></div></div>
   </div>
@@ -253,7 +257,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-stats" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026 · Points Only</p><h2 class="section-title" id="stats-page-title">Player Stats</h2><div class="section-line"></div>
+    <p class="section-sub" id="stats-section-sub">Spring 2026 · Points Only</p><h2 class="section-title" id="stats-page-title">Player Stats</h2><div class="section-line"></div>
     <div class="card" style="padding:0;"><table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);"><th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">Team</th><th style="padding:0.75rem 1rem;">GP</th><th style="padding:0.75rem 1rem;">PPG</th><th style="padding:0.75rem 1rem;">Total</th></tr></thead><tbody id="stats-body"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
@@ -277,7 +281,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-draft" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026</p><h2 class="section-title">Draft Recap</h2><div class="section-line"></div>
+    <p class="section-sub" id="draft-section-sub">Spring 2026</p><h2 class="section-title">Draft Recap</h2><div class="section-line"></div>
     <div class="card" style="margin-bottom:1.2rem;"><p style="font-size:0.96rem;color:#c8c0b0;line-height:1.85;">The inaugural Faraj League draft established all 6 team rosters from a pool of 42 players ages 17–30. Six captains selected their squads to compete across the Mecca and Medina conferences.</p></div>
     <div class="card" style="text-align:center;padding:2.2rem;"><div style="font-size:0.92rem;color:#c8c0b0;font-style:italic;">Draft board coming soon.</div></div>
   </div>
@@ -304,7 +308,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
       </div>
       <div>
         <div class="conf-info-card">
-          <div class="conf-info-title">Spring 2026 Structure</div>
+          <div class="conf-info-title" id="about-conf-title">Spring 2026 Structure</div>
           <div class="conf-accordion">
             <div class="conf-acc-header" onclick="toggleAcc('mecca')"><div class="conf-acc-title"><div class="conf-dot" style="background:#c8a84b"></div><span id="about-mecca-label">Mecca Conference</span></div><span class="conf-acc-arrow" id="arrow-mecca">▾</span></div>
             <div class="conf-acc-body" id="body-mecca"></div>
@@ -322,28 +326,34 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 
 <div id="page-sponsors" class="page">
   <div class="section">
-    <p class="section-sub">Spring 2026</p><h2 class="section-title">Sponsors</h2><div class="section-line"></div>
+    <p class="section-sub" id="sponsors-section-sub">Spring 2026</p><h2 class="section-title">Sponsors</h2><div class="section-line"></div>
     <p style="font-size:0.96rem;color:#c8c0b0;margin-bottom:1.8rem;line-height:1.85;">The Faraj League is supported by community partners who share our mission.</p>
-    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-title">Title Sponsor</div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Sponsor name</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
-    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-conf">Conference Sponsors</div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 1</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 2</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
+    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-title">Title Sponsor</div><div class="sponsor-card"><div id="sponsor-title-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Sponsor name</div><div id="sponsor-title-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
+    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-conf">Conference Sponsors</div><div class="sponsor-card"><div id="sponsor-mecca-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 1</div><div id="sponsor-mecca-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div id="sponsor-medina-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 2</div><div id="sponsor-medina-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
     <div><div class="tier-header tier-community">Community Partners</div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 1</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 2</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 3</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
 
-<script>
-// ─── SPONSOR CONFIG ───────────────────────────────────────────────────────────
-// To revert all sponsor branding: set each value back to null
-// To activate: replace null with the sponsor name string e.g. 'Jordan Brand'
-const SP1        = '[SPONSOR 1 NAME AND LOGO]';   // Title Sponsor (hero banner)
-const SP1_LOGO   = null;                 // Title Sponsor logo URL (image link) or null
-const SP2A       = '[Sponsor 2A]';       // Mecca Conference sponsor name
-const SP2B       = '[Sponsor 2B]';       // Medina Conference sponsor name
-const SP3A       = '[Sponsor 3A]';       // Man of the Match Game 1 sponsor
-const SP3B       = '[Sponsor 3B]';       // Man of the Match Game 2 sponsor
-const SP3C       = '[Sponsor 3C]';       // Man of the Match Game 3 sponsor
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js';
+import { getSeasons, getSeasonData } from './lib/api.js';
 
-// Derived display labels — edit below only if you want custom phrasing
+// ─── API CONFIG ───────────────────────────────────────────────────────────────
+// e.g. https://<project-ref>.supabase.co (no trailing slash)
+const SUPABASE_URL = 'https://ruwihsxedobbxqavrjhl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1d2loc3hlZG9iYnhxYXZyamhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNTg3NjUsImV4cCI6MjA4OTYzNDc2NX0.wxQEfLBQOKPnShd8wje4Zbu3myR-JZbjcBaZekKOApg';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── SPONSOR CONFIG (mutable; overwritten from API when non-null) ─────────────
+let SP1 = '[SPONSOR 1 NAME AND LOGO]';
+let SP1_LOGO = null;
+let SP2A = '[Sponsor 2A]';
+let SP2B = '[Sponsor 2B]';
+const SP3A = '[Sponsor 3A]';
+const SP3B = '[Sponsor 3B]';
+const SP3C = '[Sponsor 3C]';
+
 function confLabel(conf){
   if(conf==='Mecca') return SP2A ? `${SP2A} Mecca Conference` : 'Mecca Conference';
   if(conf==='Medina') return SP2B ? `${SP2B} Medina Conference` : 'Medina Conference';
@@ -356,72 +366,187 @@ function motmLabel(game){
 function akhlaqLabel(week){ return SP2B ? `${SP2B} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`; }
 function statsTitle(){ return SP2A ? `${SP2A} Player Stats` : 'Player Stats'; }
 
-// ─── SHEET CONFIG ─────────────────────────────────────────────────────────────
-const SHEET_ID='2PACX-1vR1WgaaoWS1cm-AMTrehXj14XilwjYZvwB-r9fes4WF3RtPO5BgGqT4n4QLMX6ngw2fgEHJDcfwkfOG';
-const BASE=`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
-// gid values correspond to tab order: 0=first tab, 1=second, etc.
-// After you create the 4 tabs, update these gid numbers if needed (see instructions below)
-const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};
-const TOTAL_WEEKS=8, CURRENT_WEEK=1;
+// ─── SHEET CONFIG (commented out — kept for reference) ────────────────────────
+// const SHEET_ID='2PACX-1vR1WgaaoWS1cm-AMTrehXj14XilwjYZvwB-r9fes4WF3RtPO5BgGqT4n4QLMX6ngw2fgEHJDcfwkfOG';
+// const BASE=`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`;
+// const TABS={rosters:`${BASE}&gid=0`,scores:`${BASE}&gid=1062264139`,awards:`${BASE}&gid=1286604164`,stats:`${BASE}&gid=953301973`};
 
-// ─── CSV FETCH ────────────────────────────────────────────────────────────────
-async function fetchCSV(url){
-  const res=await fetch(url+'&t='+Date.now());
-  const text=await res.text();
-  return parseCSV(text);
-}
-function parseCSV(text){
-  return text.trim().split('\n').map(line=>{
-    const cols=[];let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      if(line[i]==='"'){inQ=!inQ;}
-      else if(line[i]===','&&!inQ){cols.push(cur.trim());cur='';}
-      else cur+=line[i];
-    }
-    cols.push(cur.trim());return cols;
-  });
-}
+let TOTAL_WEEKS = 8, CURRENT_WEEK = 1;
+let currentSeasonLabel = 'Spring 2026';
+let currentSeasonIsCurrent = true;
+let currentSeasonSlug = 'spring2026';
 
-// ─── DEFAULT DATA (shown until sheet is populated) ───────────────────────────
-const DEFAULT_TEAMS=[
-  {id:1,name:'Team Alpha',  conf:'Mecca', captain:'Captain 1',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
-  {id:2,name:'Team Beta',   conf:'Mecca', captain:'Captain 2',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
-  {id:3,name:'Team Gamma',  conf:'Mecca', captain:'Captain 3',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
-  {id:4,name:'Team Delta',  conf:'Medina',captain:'Captain 4',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
-  {id:5,name:'Team Epsilon',conf:'Medina',captain:'Captain 5',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
-  {id:6,name:'Team Zeta',   conf:'Medina',captain:'Captain 6',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+const DEFAULT_TEAMS = [
+  {id:'1',name:'Team Alpha',  conf:'Mecca', captain:'Captain 1',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:'2',name:'Team Beta',   conf:'Mecca', captain:'Captain 2',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:'3',name:'Team Gamma',  conf:'Mecca', captain:'Captain 3',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:'4',name:'Team Delta',  conf:'Medina',captain:'Captain 4',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:'5',name:'Team Epsilon',conf:'Medina',captain:'Captain 5',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
+  {id:'6',name:'Team Zeta',   conf:'Medina',captain:'Captain 6',players:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},
 ];
-let DB={teams:DEFAULT_TEAMS,scores:[],awards:[],stats:[]};
+let DB = { teams: DEFAULT_TEAMS, scores: [], awards: [], stats: [] };
 
-// ─── PARSERS ──────────────────────────────────────────────────────────────────
-function parseRosters(rows){
-  if(rows.length<2)return DEFAULT_TEAMS;
-  const data=rows.slice(1).filter(r=>r[0]&&r[0]!=='TeamName');
-  if(!data.length)return DEFAULT_TEAMS;
-  return data.map((r,i)=>({id:i+1,name:r[0]||`Team ${i+1}`,conf:r[1]||'Mecca',captain:r[2]||'TBD',players:r.slice(3,10).filter(p=>p)}));
+// ─── CSV PARSERS (commented out — kept for reference) ─────────────────────────
+// async function fetchCSV(url){ const res=await fetch(url+'&t='+Date.now()); return parseCSV(await res.text()); }
+// function parseCSV(text){ return text.trim().split('\n').map(line=>{...}); }
+// function parseRosters(rows){...}
+// function parseScores(rows){...}
+// function parseAwards(rows){...}
+// function parseStats(rows){...}
+
+function showError(msg){
+  const el = document.getElementById('api-error-banner');
+  if(el){ el.style.display='block'; document.getElementById('api-error-message').textContent=msg; }
 }
-function parseScores(rows){
-  if(rows.length<2)return[];
-  return rows.slice(1).filter(r=>r[0]&&r[0]!=='Week').map(r=>({week:parseInt(r[0])||0,game:parseInt(r[1])||0,t1:r[2]||'',s1:r[3]||'',t2:r[4]||'',s2:r[5]||''}));
-}
-function parseAwards(rows){
-  if(rows.length<2)return[];
-  return rows.slice(1).filter(r=>r[0]&&r[0]!=='Week').map(r=>({week:parseInt(r[0])||0,akhlaq:r[1]||'',motm1:r[2]||'',motm2:r[3]||'',motm3:r[4]||'',champ:r[5]||'',mvp:r[6]||'',scoring:r[7]||''}));
-}
-function parseStats(rows){
-  if(rows.length<2)return[];
-  return rows.slice(1).filter(r=>r[0]&&r[0]!=='Player').map(r=>({name:r[0]||'',team:r[1]||'',gp:parseInt(r[2])||0,total:parseInt(r[3])||0}));
+function clearError(){
+  const el = document.getElementById('api-error-banner');
+  if(el) el.style.display='none';
 }
 
-// ─── LOAD ─────────────────────────────────────────────────────────────────────
+async function fetchSeasons(){
+  const { data, error } = await getSeasons(supabase);
+  if(error) return { data: null, error };
+  return { data: data || [], error: null };
+}
+
+function transformSeasonData(raw){
+  const { season, teams: rawTeams, players, rosters, games, awards, stat_definitions, player_stat_values, sponsors } = raw;
+  const teamMap = {};
+  (rawTeams || []).forEach(t => { teamMap[t.id] = t; });
+  const playerMap = {};
+  (players || []).forEach(p => { playerMap[p.id] = p; });
+
+  const teams = (rawTeams || []).map(t => {
+    const rosterPlayers = (rosters || []).filter(r => r.team_id === t.id)
+      .map(r => playerMap[r.player_id]?.name).filter(Boolean);
+    rosterPlayers.sort((a,b) => {
+      const pa = players?.find(p => p.name===a), pb = players?.find(p => p.name===b);
+      return (pa?.jersey_number||0) - (pb?.jersey_number||0);
+    });
+    return { id: t.id, name: t.name, conf: t.conference || t.conf, captain: t.captain || '', players: rosterPlayers };
+  });
+
+  const scores = (games || []).map(g => ({
+    week: g.week,
+    game: g.game_index,
+    t1: teamMap[g.home_team_id]?.name || '',
+    s1: g.home_score != null ? String(g.home_score) : '',
+    t2: teamMap[g.away_team_id]?.name || '',
+    s2: g.away_score != null ? String(g.away_score) : ''
+  }));
+
+  const awardsTransformed = (awards || []).map(a => ({
+    week: a.week,
+    akhlaq: a.akhlaq || '',
+    motm1: a.motm1 || '',
+    motm2: a.motm2 || '',
+    motm3: a.motm3 || '',
+    champ: a.champ || '',
+    mvp: a.mvp || '',
+    scoring: a.scoring || ''
+  }));
+
+  const pointsDef = (stat_definitions || []).find(s => s.slug === 'points');
+  const stats = [];
+  if(pointsDef){
+    const psvByPlayer = {};
+    (player_stat_values || []).filter(psv => psv.stat_definition_id === pointsDef.id).forEach(psv => {
+      psvByPlayer[psv.player_id] = (psvByPlayer[psv.player_id] || 0) + Number(psv.value || 0);
+    });
+    const rosterToTeam = {};
+    (rosters || []).forEach(r => { rosterToTeam[r.player_id] = teamMap[r.team_id]?.name || ''; });
+    Object.entries(psvByPlayer).forEach(([pid, total]) => {
+      const p = playerMap[pid];
+      if(p) stats.push({ name: p.name, team: rosterToTeam[pid] || '', gp: 0, total });
+    });
+  }
+
+  const sponsorOverrides = {};
+  (sponsors || []).forEach(s => {
+    if(s.name != null && s.name !== ''){
+      if(s.type === 'title'){ sponsorOverrides.SP1 = s.name; sponsorOverrides.SP1_LOGO = s.logo_url || null; }
+      if(s.type === 'conference_mecca') sponsorOverrides.SP2A = s.name;
+      if(s.type === 'conference_medina') sponsorOverrides.SP2B = s.name;
+    }
+  });
+
+  return { season, teams, scores, awards: awardsTransformed, stats, sponsorOverrides };
+}
+
+async function fetchSeasonData(slug){
+  const { data: raw, error } = await getSeasonData(supabase, slug);
+  if(error || !raw) return { data: null, error: error || new Error('Season not found') };
+  return { data: transformSeasonData(raw), error: null };
+}
+
+function applySponsorOverrides(overrides){
+  if(!overrides) return;
+  if(overrides.SP1 != null) SP1 = overrides.SP1;
+  if(overrides.SP1_LOGO !== undefined) SP1_LOGO = overrides.SP1_LOGO;
+  if(overrides.SP2A != null) SP2A = overrides.SP2A;
+  if(overrides.SP2B != null) SP2B = overrides.SP2B;
+}
+
+function deriveWeeks(scores){
+  if(!scores?.length) return { TOTAL_WEEKS: 8, CURRENT_WEEK: 1 };
+  const maxWeek = Math.max(...scores.map(g => g.week));
+  const played = scores.filter(g => g.s1 !== '' && g.s2 !== '');
+  const latestPlayed = played.length ? Math.max(...played.map(g => g.week)) : 1;
+  return { TOTAL_WEEKS: Math.max(8, maxWeek), CURRENT_WEEK: latestPlayed || 1 };
+}
+
+function populateSeasonDropdown(seasons, defaultSlug){
+  const sel = document.querySelector('.nav-season-select');
+  if(!sel) return;
+  sel.innerHTML = '';
+  (seasons || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.slug;
+    opt.textContent = s.label + (s.is_current ? ' · Current' : '');
+    sel.appendChild(opt);
+  });
+  sel.value = defaultSlug || (seasons?.[0]?.slug);
+}
+
 async function loadAll(){
-  try{
-    const[r,s,a,st]=await Promise.all([fetchCSV(TABS.rosters),fetchCSV(TABS.scores),fetchCSV(TABS.awards),fetchCSV(TABS.stats)]);
-    DB.teams=parseRosters(r);
-    DB.scores=parseScores(s);
-    DB.awards=parseAwards(a);
-    DB.stats=parseStats(st);
-  }catch(e){console.warn('Sheet load failed, using defaults.',e);}
+  clearError();
+  const seasonsRes = await fetchSeasons();
+  if(seasonsRes.error){
+    console.warn('fetchSeasons failed', seasonsRes.error);
+    DB = { teams: [...DEFAULT_TEAMS], scores: [], awards: [], stats: [] };
+    showError('Could not load seasons. Please refresh.');
+    renderAll();
+    return;
+  }
+  const seasons = seasonsRes.data || [];
+  const defaultSlug = seasons.find(s => s.is_current)?.slug || seasons[0]?.slug;
+  if(!defaultSlug){
+    DB = { teams: [...DEFAULT_TEAMS], scores: [], awards: [], stats: [] };
+    showError('Could not load seasons. Please refresh.');
+    renderAll();
+    return;
+  }
+
+  const dataRes = await fetchSeasonData(defaultSlug);
+  if(dataRes.error){
+    console.warn('fetchSeasonData failed', dataRes.error);
+    DB = { teams: [...DEFAULT_TEAMS], scores: [], awards: [], stats: [] };
+    showError('Could not load season data. Please refresh.');
+    populateSeasonDropdown(seasons, defaultSlug);
+    renderAll();
+    return;
+  }
+
+  const { season, teams, scores, awards, stats, sponsorOverrides } = dataRes.data;
+  DB = { teams, scores, awards, stats };
+  applySponsorOverrides(sponsorOverrides);
+  const { TOTAL_WEEKS: tw, CURRENT_WEEK: cw } = deriveWeeks(scores);
+  TOTAL_WEEKS = tw; CURRENT_WEEK = cw;
+  currentSeasonLabel = season?.label || 'Spring 2026';
+  currentSeasonIsCurrent = season?.is_current ?? true;
+  currentSeasonSlug = season?.slug || defaultSlug;
+
+  populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
 }
 
@@ -448,28 +573,52 @@ function buildWeekDropdown(elId,includeAll){
 
 // ─── RENDER ALL ───────────────────────────────────────────────────────────────
 function renderAll(){
-  // Apply sponsor labels to static elements
-  document.getElementById('conf-header-mecca').textContent = confLabel('Mecca');
-  document.getElementById('conf-header-medina').textContent = confLabel('Medina');
-  document.getElementById('stats-page-title').textContent = statsTitle();
-  document.getElementById('about-mecca-label').textContent = confLabel('Mecca');
-  document.getElementById('about-medina-label').textContent = confLabel('Medina');
-  // Home standings title uses SP2B sponsor
-  document.getElementById('home-standings-title').textContent = `Standings`;
-  // Title sponsor banner
+  const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; };
+  set('conf-header-mecca', confLabel('Mecca'));
+  set('conf-header-medina', confLabel('Medina'));
+  set('stats-page-title', statsTitle());
+  set('about-mecca-label', confLabel('Mecca'));
+  set('about-medina-label', confLabel('Medina'));
+  set('home-standings-title', 'Standings');
+  set('home-standings-sub', currentSeasonLabel);
+  set('standings-section-sub', currentSeasonLabel);
+  set('teams-section-sub', `${currentSeasonLabel} · ${DB.teams?.length||6} Teams`);
+  set('stats-section-sub', `${currentSeasonLabel} · Points Only`);
+  set('draft-section-sub', currentSeasonLabel);
+  set('sponsors-section-sub', currentSeasonLabel);
+  set('about-conf-title', `${currentSeasonLabel} Structure`);
+  const heroBadge = document.getElementById('hero-badge');
+  if(heroBadge) heroBadge.textContent = `${currentSeasonLabel} · Inaugural Season`;
+
   const banner = document.getElementById('title-sponsor-banner');
-  if(SP1){
-    banner.innerHTML = `<div class="title-sponsor-bar">${SP1_LOGO?`<img src="${SP1_LOGO}" class="title-sponsor-logo" alt="${SP1} logo">`:''}  <div><div class="title-sponsor-eyebrow">Presented by</div><div class="title-sponsor-name">${SP1}</div></div></div>`;
-  } else {
-    banner.innerHTML = `<p class="hero-sub">Mecca & Medina Conferences</p>`;
+  if(banner){
+    if(SP1) banner.innerHTML = `<div class="title-sponsor-bar">${SP1_LOGO?`<img src="${SP1_LOGO}" class="title-sponsor-logo" alt="${SP1} logo">`:''}  <div><div class="title-sponsor-eyebrow">Presented by</div><div class="title-sponsor-name">${SP1}</div></div></div>`;
+    else banner.innerHTML = `<p class="hero-sub">Mecca & Medina Conferences</p>`;
+  }
+
+  set('sponsor-title-name', SP1 || 'Sponsor name');
+  set('sponsor-title-desc', SP1 ? 'Details, social media, and website link will appear here once confirmed.' : 'Details, social media, and website link will appear here once confirmed.');
+  set('sponsor-mecca-name', SP2A || 'Conference Sponsor 1');
+  set('sponsor-mecca-desc', SP2A ? 'Details, social media, and website link will appear here once confirmed.' : 'Details, social media, and website link will appear here once confirmed.');
+  set('sponsor-medina-name', SP2B || 'Conference Sponsor 2');
+  set('sponsor-medina-desc', SP2B ? 'Details, social media, and website link will appear here once confirmed.' : 'Details, social media, and website link will appear here once confirmed.');
+
+  const sa = DB.awards?.find(a => a.champ);
+  const showHistoric = !currentSeasonIsCurrent || (sa && sa.champ);
+  const hb = document.getElementById('historic-banner');
+  if(hb) hb.style.display = showHistoric ? 'block' : 'none';
+  if(showHistoric && sa){
+    document.getElementById('hb-champ').textContent = sa.champ || '—';
+    document.getElementById('hb-mvp').textContent = sa.mvp || '—';
+    document.getElementById('hb-scoring').textContent = sa.scoring || '—';
   }
 
   buildWeekDropdown('scores-week-select',true);
   buildWeekDropdown('awards-week-select',false);
   buildWeekDropdown('media-week-select',true);
-  document.getElementById('media-week-select').value='1';
+  document.getElementById('media-week-select').value = String(CURRENT_WEEK);
   renderHome();renderStandings();renderTeams();renderStats();
-  renderAwards(CURRENT_WEEK);renderScores('all');renderMedia(1);renderAbout();
+  renderAwards(CURRENT_WEEK);renderScores('all');renderMedia(CURRENT_WEEK);renderAbout();
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
@@ -508,10 +657,11 @@ function renderHome(){
 // ─── STANDINGS ────────────────────────────────────────────────────────────────
 function renderStandings(){
   const rec=calcStandings();
+  const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   ['Mecca','Medina'].forEach(conf=>{
     const tbody=document.getElementById(conf.toLowerCase()+'-standings');
     const rows=DB.teams.filter(t=>t.conf===conf).map(t=>({...rec[t.name]||{w:0,l:0,pf:0,pa:0},name:t.name,id:t.id})).sort((a,b)=>b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa));
-    tbody.innerHTML=rows.map((r,i)=>`<tr><td style="color:#c8c0b0;font-size:0.82rem">${i+1}</td><td><span class="team-link" onclick="goToTeam(${r.id})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf||'—'}</td><td>${r.pa||'—'}</td></tr>`).join('');
+    tbody.innerHTML=rows.map((r,i)=>`<tr><td style="color:#c8c0b0;font-size:0.82rem">${i+1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf||'—'}</td><td>${r.pa||'—'}</td></tr>`).join('');
   });
 }
 
@@ -530,7 +680,8 @@ function renderScores(week){
 let activeTeam=null;
 function renderTeams(){
   const rec=calcStandings();
-  const teamCard=t=>`<div class="team-card" id="tc-${t.id}" onclick="toggleRoster(${t.id})"><div class="team-emblem">${initials(t.name)}</div><div class="team-name">${t.name}</div><div class="team-captain">Capt: ${t.captain}</div><div class="team-record">${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>`;
+  const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
+  const teamCard=t=>`<div class="team-card" id="tc-${t.id}" onclick="toggleRoster(${idAttr(t.id)})"><div class="team-emblem">${initials(t.name)}</div><div class="team-name">${t.name}</div><div class="team-captain">Capt: ${t.captain}</div><div class="team-record">${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>`;
   document.getElementById('teams-grid').innerHTML=['Mecca','Medina'].map(conf=>`
     <div style="margin-bottom:1.6rem;">
       <div style="font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.75rem;padding-bottom:0.35rem;border-bottom:1px solid rgba(200,168,75,0.2);">${confLabel(conf)}</div>
@@ -543,7 +694,9 @@ function toggleRoster(id){
   if(activeTeam===id){closeRoster();return;}
   activeTeam=id;
   const t=DB.teams.find(x=>x.id===id),rec=calcStandings();
-  document.getElementById('tc-'+id).classList.add('selected');
+  if(!t) return;
+  const tc=document.getElementById('tc-'+id);
+  if(tc) tc.classList.add('selected');
   document.getElementById('roster-content').innerHTML=`<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${t.conf} Conference · Capt: ${t.captain} · ${rec[t.name]?rec[t.name].w+'-'+rec[t.name].l:'0-0'}</div></div>${[t.captain,...(t.players||[])].map((p,i)=>'<div class="roster-player"><span class="roster-num">'+(i+1)+'</span>'+p+'</div>').join('')}`;
   panel.classList.add('open');
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -571,7 +724,7 @@ function renderAwards(week){
     <div class="award-card"><div class="award-label">${motmLabel(2)}</div><div class="award-game">${g2.t1} vs ${g2.t2}</div><div class="award-winner">${wa.motm2||pending()}</div></div>
     <div class="award-card"><div class="award-label">${motmLabel(3)}</div><div class="award-game">${g3.t1} vs ${g3.t2}</div><div class="award-winner">${wa.motm3||pending()}</div></div>`;
   const sa=DB.awards.find(a=>a.champ)||{};
-  document.getElementById('sa-champ').textContent=sa.champ||'Spring 2026 — In Progress';
+  document.getElementById('sa-champ').textContent=sa.champ||`${currentSeasonLabel} — In Progress`;
   document.getElementById('sa-mvp').textContent=sa.mvp||'Season in progress';
   document.getElementById('sa-scoring').textContent=sa.scoring||'Season in progress';
 }
@@ -603,7 +756,43 @@ function showPage(id){
   document.querySelectorAll('.nav-tab').forEach(b=>{if(b.textContent.toLowerCase().trim()===id.toLowerCase())b.classList.add('active');});
   window.scrollTo(0,0);
 }
-function changeSeason(val){document.getElementById('historic-banner').style.display=val==='spring2026'?'none':'block';}
+async function changeSeason(val){
+  if(!val || val === currentSeasonSlug) return;
+  clearError();
+  const dataRes = await fetchSeasonData(val);
+  if(dataRes.error){
+    showError('Could not load season data. Please refresh.');
+    return;
+  }
+  const { season, teams, scores, awards, stats, sponsorOverrides } = dataRes.data;
+  DB = { teams, scores, awards, stats };
+  applySponsorOverrides(sponsorOverrides);
+  const { TOTAL_WEEKS: tw, CURRENT_WEEK: cw } = deriveWeeks(scores);
+  TOTAL_WEEKS = tw; CURRENT_WEEK = cw;
+  currentSeasonLabel = season?.label || 'Spring 2026';
+  currentSeasonIsCurrent = season?.is_current ?? true;
+  currentSeasonSlug = season?.slug || val;
+  const sa = awards?.find(a => a.champ);
+  const showHistoric = !currentSeasonIsCurrent || (sa && sa.champ);
+  const hb = document.getElementById('historic-banner');
+  if(hb) hb.style.display = showHistoric ? 'block' : 'none';
+  if(showHistoric && sa){
+    document.getElementById('hb-champ').textContent = sa.champ || '—';
+    document.getElementById('hb-mvp').textContent = sa.mvp || '—';
+    document.getElementById('hb-scoring').textContent = sa.scoring || '—';
+  }
+  renderAll();
+}
+
+window.showPage = showPage;
+window.changeSeason = changeSeason;
+window.toggleRoster = toggleRoster;
+window.closeRoster = closeRoster;
+window.goToTeam = goToTeam;
+window.toggleAcc = toggleAcc;
+window.renderScores = renderScores;
+window.renderAwards = renderAwards;
+window.renderMedia = renderMedia;
 
 loadAll();
 </script>

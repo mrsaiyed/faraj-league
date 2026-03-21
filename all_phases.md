@@ -9,7 +9,7 @@
 
 ---
 
-## Phase 1 — Foundation (DB schema + public API)
+## Phase 1 — Foundation (DB schema + public API) COMPLETE
 
 ### Agent tasks
 
@@ -56,7 +56,7 @@
 
 ---
 
-## Phase 2 — Public site uses API
+## Phase 2 — Public site uses API 
 
 ### Agent tasks
 
@@ -82,6 +82,36 @@
 2. Test locally: open `index.html` or a simple local server; confirm Network tab shows successful API calls.
 3. Push to your dev repo; test on GitHub Pages preview if you use it.
 4. If CORS errors: share error with agent; agent updates Supabase CORS or docs.
+
+---
+
+## Phase 2.5 — Code structure refactor (maintainability & scalability)
+
+Refactor the public site from a single `index.html` into a proper file structure for maintainability, readability, and scalability. Do this after Phase 2 and before Phase 3 so the admin app is built on a clean foundation.
+
+### Agent tasks
+
+1. **Extract into separate files**
+   - `index.html` — HTML structure only; link to external CSS and JS.
+   - `css/` (e.g. `css/main.css`) — All styles, or split by page/component if preferred.
+   - `js/` — Separate modules using ES modules (`type="module"`):
+     - `js/config.js` — API URL, anon key, sponsor constants, TOTAL_WEEKS.
+     - `js/data.js` — Data fetching (`fetchSeasons`, `fetchSeasonData`), Supabase transform.
+     - `js/render.js` — All render functions (renderHome, renderStandings, etc.).
+     - `js/app.js` — loadAll, changeSeason, event handlers, init.
+
+2. **No build step**
+   - Use native ES modules; browser loads scripts via `<script type="module">`.
+   - Deployment remains static (same as current).
+
+3. **Preserve behavior**
+   - All pages and features work identically after refactor.
+   - `lib/api.js` can be used by `js/data.js` or inlined fetch logic.
+
+### Your tasks
+
+1. Test locally after refactor; confirm all pages work.
+2. Verify static deployment (e.g. GitHub Pages) still works.
 
 ---
 
@@ -234,6 +264,10 @@ Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient
 **Phase 2**
 
 > Implement Phase 2: Change index.html to load data from the Supabase API instead of Google Sheets. Add fetchSeasonData() and wire the season dropdown to the API. Default to is_current season. Handle API errors.
+
+**Phase 2.5**
+
+> Implement Phase 2.5: Refactor public site from single index.html into separate HTML, css/, and js/ modules (config, data, render, app). Use ES modules, no build step. Preserve all behavior.
 
 **Phase 3**
 
