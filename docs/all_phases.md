@@ -7,6 +7,12 @@
 - **Flow**: develop in your repo → when ready, update fork → farajleague.org reflects changes
 - **Phase 0 done**: Supabase project created; URL and anon key available
 
+**Principles**
+
+- **Scalability** — Structure and schema should support growth (new seasons, teams, stats, etc.).
+- **Admin editability** — Data users see on the public site should be editable via the admin page. Avoid hardcoded or non-editable content.
+- **Admin ease of use** — Admin UI should have clear navigation, validation feedback, and obvious save/update flows. Prefer simple, direct workflows over complex multi-step wizards.
+
 ---
 
 ## Phase 1 — Foundation (DB schema + public API) COMPLETE
@@ -56,7 +62,7 @@
 
 ---
 
-## Phase 2 — Public site uses API 
+## Phase 2 — Public site uses API COMPLETE
 
 ### Agent tasks
 
@@ -135,16 +141,30 @@ Refactor the public site from a single `index.html` into a proper file structure
    - All admin API calls include `Authorization: Bearer <token>`.
    - Server validates token before allowing writes.
 
-4. **CRUD UI**
+4. **Schema migration**
+   - Add `scheduled_at TIMESTAMPTZ` (nullable) to `games` for game time.
+   - Add `current_week INT` (nullable) to `seasons`; admin sets which week is "current" for a season.
+   - Create `media_items` (id, season_id, week, title, url, type, sort_order) for Media page content.
+   - Create `content_blocks` (id, key, value, season_id nullable) for editable page copy — e.g. `about_intro`, `about_secondary`, `draft_recap`, `draft_placeholder`.
+   - Add RLS with public read for `media_items` and `content_blocks`.
+
+5. **CRUD UI**
    - Season switcher (list seasons, choose one to edit).
+   - Seasons: edit `is_current` (toggle; ensure only one current) and **`current_week`** (admin sets which week is current for that season).
    - Teams: list, add, edit, delete (name, conference, captain).
    - Players: list, add, edit, delete; assign to teams (roster).
-   - Games: list by week; edit scores.
+   - Games/Schedule: list by week; add, edit, delete games; edit scores; edit game time (`scheduled_at`). Full schedule management.
    - Awards: edit weekly (akhlaq, motm1–3) and season (champ, mvp, scoring).
    - Stats: list stat definitions; add new stat type; edit player stat values.
    - Sponsors: edit per season (title, conference, MOTM labels, logos).
+   - Media: list by week; add, edit, delete media items (title, url, type) for Highlights & Interviews.
+   - About: edit league story and secondary text blocks shown on About page.
+   - Draft page: edit Draft Recap paragraph and placeholder text (e.g. "Draft board coming soon").
 
-5. **No public login**
+6. **API / data**
+   - Extend `fetchSeasonData` (or equivalent) to include media_items and content_blocks so the public site renders them.
+
+7. **No public login**
    - No admin login link on public homepage; admin at `/admin` only.
 
 ### Your tasks
@@ -153,6 +173,32 @@ Refactor the public site from a single `index.html` into a proper file structure
 2. Add `ADMIN_PASSWORD` to GitHub Actions secrets (if using Actions) as `ADMIN_PASSWORD`.
 3. Test admin login in incognito; confirm you can edit data.
 4. Confirm no admin UI or password visible on public pages.
+
+---
+
+## Phase 3.5 — Schedule tab (public site)
+
+Add a dedicated Schedule tab so users can view the season schedule, navigate by week, and filter by team. Admin manages the underlying data via Phase 3 Games/Schedule CRUD.
+
+### Agent tasks
+
+1. **Schedule tab (public)**
+   - Add Schedule nav tab and page.
+   - Week dropdown: select focus week (default: current week).
+   - Display three sections: **Previous week** | **Focus week** | **Next week** (hide prev when Week 1, next when last week).
+   - Past weeks: show scores; future/current weeks: show matchups with time (or "TBD" when `scheduled_at` is null).
+   - Team filter: dropdown to view a team's full season schedule.
+   - Each game shows: opponent, time (or TBD).
+
+2. **Data**
+   - Use existing `games` data; include `scheduled_at` in API transform (e.g. `fetchSeasonData` / scores shape).
+   - Derive opponent from `home_team_id` / `away_team_id` (teams lookup).
+
+### Your tasks
+
+1. Verify Schedule tab works with season switcher.
+2. Test team filter and week navigation (prev/focus/next).
+3. Confirm past weeks show scores; upcoming show time/TBD.
 
 ---
 
@@ -194,7 +240,7 @@ Refactor the public site from a single `index.html` into a proper file structure
    - Rate limit login endpoint (e.g. 5 attempts per IP per minute).
 
 2. **Export**
-   - Admin: "Export CSV" for current season (rosters, scores, awards, stats) for backup.
+   - Admin: "Export CSV" for current season (rosters, scores, awards, stats, schedule/games, media, content_blocks) for backup.
 
 3. **Tests**
    - Unit tests for standings calculation and stat aggregation (if not in Supabase functions).
@@ -271,7 +317,11 @@ Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient
 
 **Phase 3**
 
-> Implement Phase 3: Create admin app at admin/index.html with shared-password login, protected API, and CRUD for seasons, teams, players, games, awards, stats, sponsors. No admin link on public homepage.
+> Implement Phase 3: Create admin app at admin/index.html with shared-password login, protected API, and CRUD for seasons (incl. is_current, current_week), teams, players, games (full schedule: add/edit/delete, scores, scheduled_at), awards, stats, sponsors, media, about content, draft page content. Migrations: games.scheduled_at, seasons.current_week, media_items, content_blocks. Extend fetchSeasonData to include media and content_blocks. Admin ease of use: clear nav, validation, save feedback. No admin link on public homepage.
+
+**Phase 3.5**
+
+> Implement Phase 3.5: Add Schedule tab to public site. Week dropdown for focus week; display previous, focus, and next week (hide prev at Week 1, next at last week). Past weeks show scores; future show matchups with time or TBD. Team filter for full season schedule per team.
 
 **Phase 4**
 
@@ -279,4 +329,4 @@ Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient
 
 **Phase 5**
 
-> Implement Phase 5: Add login rate limiting, CSV export in admin, and tests for standings/stat logic.
+> Implement Phase 5: Add login rate limiting, CSV export in admin (rosters, scores, awards, stats, schedule/games, media, content_blocks), and tests for standings/stat logic.

@@ -1,0 +1,149 @@
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#060f1a;color:#f5f0e8;font-family:'Lato',sans-serif;font-weight:300;overflow-x:hidden;height:auto!important;min-height:0!important;}
+nav{position:sticky;top:0;z-index:200;background:#060f1a;border-bottom:2px solid rgba(200,168,75,0.2);}
+.nav-top{display:flex;align-items:center;height:50px;padding:0 1.4rem;gap:0.7rem;border-bottom:1px solid rgba(200,168,75,0.1);}
+.nav-logo{font-family:'Cinzel',serif;font-size:0.95rem;font-weight:700;color:#c8a84b;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.nav-spacer{flex:1;}
+.nav-season-select{background:#0a1f2e;border:1px solid rgba(47,168,154,0.4);color:#2fa89a;font-family:'Lato',sans-serif;font-size:0.8rem;padding:0.3rem 0.6rem;border-radius:3px;cursor:pointer;}
+.nav-season-select option{background:#0a1f2e;color:#f5f0e8;}
+.nav-tabs{display:flex;flex-wrap:wrap;background:#060f1a;padding:0 0.6rem;}
+.nav-tab{background:none;border:none;border-bottom:2px solid transparent;color:#ffffff!important;font-family:'Lato',sans-serif;font-size:0.82rem;font-weight:400;letter-spacing:0.1em;text-transform:uppercase;padding:0.55rem 0.95rem;cursor:pointer;transition:color 0.15s,border-color 0.15s;white-space:nowrap;flex-shrink:0;}
+.nav-tab:hover{color:#c8a84b!important;border-bottom-color:rgba(200,168,75,0.4);}
+.nav-tab.active{color:#c8a84b!important;border-bottom-color:#c8a84b;}
+.page{display:none;}
+.page.active{display:block;}
+.hero{padding:2.5rem 2rem 2rem;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(26,122,110,0.14) 0%,transparent 65%);}
+.hero-geo{position:absolute;inset:0;opacity:0.03;background-image:repeating-linear-gradient(60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%),repeating-linear-gradient(-60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%);background-size:60px 60px;}
+.hero-content{position:relative;z-index:1;max-width:700px;}
+.hero-badge{display:inline-block;border:1px solid rgba(200,168,75,0.2);color:#c8a84b;font-size:0.82rem;letter-spacing:0.2em;text-transform:uppercase;padding:0.32rem 0.95rem;border-radius:2px;margin-bottom:0.85rem;}
+.hero-logo{width:66px;height:66px;border:2px solid #c8a84b;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.85rem;background:rgba(200,168,75,0.07);font-family:'Cinzel',serif;font-size:1.1rem;color:#c8a84b;font-weight:700;}
+.hero h1{font-family:'Cinzel',serif;font-size:clamp(1.7rem,4.2vw,2.8rem);font-weight:700;color:#f5f0e8;letter-spacing:0.08em;line-height:1.15;margin-bottom:0.3rem;}
+.hero-sub{font-family:'Cinzel',serif;font-size:1rem;color:#2fa89a;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.85rem;}
+.hero-divider{width:48px;height:1px;background:linear-gradient(90deg,transparent,#c8a84b,transparent);margin:0.5rem auto;}
+.hero-hadith-ar{font-size:clamp(1.5rem,3.5vw,2.2rem);color:#e2c97e;direction:rtl;margin-bottom:0.4rem;line-height:1.8;}
+.hero-hadith-en{font-size:1rem;color:#c8c0b0;font-style:italic;letter-spacing:0.04em;margin-bottom:0.85rem;}
+.season-tag{font-size:0.85rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;}
+.historic-banner{background:linear-gradient(135deg,#082e2a,#0a1f2e);border-top:1px solid rgba(47,168,154,0.3);border-bottom:1px solid rgba(47,168,154,0.3);padding:0.8rem 2rem;text-align:center;}
+.historic-banner-label{font-family:'Cinzel',serif;font-size:0.85rem;color:#2fa89a;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.5rem;}
+.season-champs{display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;}
+.champ-label{font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8c0b0;}
+.champ-value{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;margin-top:0.1rem;}
+.quick-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(200,168,75,0.2);}
+.qs-item{background:#0a1f2e;padding:1rem 0.8rem;text-align:center;}
+.qs-num{font-family:'Cinzel',serif;font-size:1.6rem;color:#c8a84b;font-weight:700;line-height:1;}
+.qs-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#c8c0b0;margin-top:0.2rem;}
+.section{padding:2rem 2.5rem;}
+.section-title{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:600;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.25rem;}
+.section-line{width:36px;height:2px;background:#c8a84b;margin-bottom:1.3rem;}
+.section-sub{font-size:0.82rem;letter-spacing:0.14em;color:#2fa89a;text-transform:uppercase;margin-bottom:0.2rem;}
+.section-divider{border:none;border-top:1px solid rgba(200,168,75,0.2);margin:1.8rem 0;}
+.card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.25rem;}
+.week-dropdown-wrap{display:flex;align-items:center;gap:0.75rem;margin-bottom:1.2rem;}
+.week-dropdown-label{font-size:0.82rem;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;}
+.week-dropdown{background:#0e2535;border:1px solid #ffffff;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.88rem;padding:0.38rem 0.8rem;border-radius:3px;cursor:pointer;}
+.week-dropdown option{background:#0a1f2e;color:#f5f0e8;}
+.insta-btn{display:inline-flex;align-items:center;background:none;border:1px solid #ffffff;color:#ffffff;font-family:'Lato',sans-serif;font-size:0.8rem;letter-spacing:0.09em;text-transform:uppercase;padding:0.45rem 1rem;border-radius:2px;cursor:pointer;margin-top:0.2rem;transition:background 0.15s;}
+.insta-btn:hover{background:rgba(255,255,255,0.08);}
+.conf-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;}
+.conf-header{font-family:'Cinzel',serif;font-size:0.9rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.75rem;padding-bottom:0.35rem;border-bottom:1px solid rgba(200,168,75,0.2);}
+.standings-table{width:100%;border-collapse:collapse;font-size:0.92rem;}
+.standings-table th{text-align:left;color:#c8c0b0;font-size:0.76rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;padding:0.28rem 0.6rem 0.6rem;}
+.standings-table th:not(:first-child){text-align:center;}
+.standings-table td{padding:0.6rem;border-top:1px solid rgba(200,168,75,0.07);color:#c8c0b0;}
+.standings-table td:not(:first-child){text-align:center;}
+.team-link{color:#f5f0e8;cursor:pointer;transition:color 0.15s;}
+.team-link:hover{color:#c8a84b;}
+.standings-table tr:first-of-type td{border-top:none;}
+.matchups-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;}
+.matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.1rem 1.2rem;}
+.matchup-game-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.6rem;}
+.matchup-row{display:flex;align-items:center;justify-content:space-between;padding:0.25rem 0;}
+.matchup-team{font-size:0.96rem;color:#c8c0b0;}
+.matchup-team.winner{color:#c8a84b;font-weight:700;}
+.matchup-score{font-family:'Cinzel',serif;font-size:1.1rem;color:#c8c0b0;}
+.matchup-score.winner{color:#c8a84b;}
+.matchup-mid{height:1px;background:rgba(200,168,75,0.08);margin:0.32rem 0;}
+.winner-tag{font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.45rem;color:#2fa89a;}
+.home-awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.1rem;margin-top:1.4rem;}
+.award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.1rem;}
+.award-label{font-size:0.78rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.25rem;}
+.award-game{font-size:0.82rem;color:#c8c0b0;margin-bottom:0.45rem;}
+.award-winner{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;}
+.award-winner-sub{font-size:0.82rem;color:#c8c0b0;margin-top:0.12rem;}
+.akhlaq-card{grid-column:1/-1;background:linear-gradient(135deg,#082e2a,#0e2535);border-color:rgba(47,168,154,0.3);}
+.akhlaq-inner{display:flex;align-items:center;gap:1.1rem;}
+.akhlaq-medal{width:46px;height:46px;flex-shrink:0;border-radius:50%;background:#0d4f47;border:2px solid #2fa89a;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
+.awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;}
+.teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.3rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.15s;}
+.team-card:hover{border-color:#2fa89a;transform:translateY(-2px);}
+.team-card.selected{border-color:#c8a84b;}
+.team-emblem{width:50px;height:50px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-family:'Cinzel',serif;font-size:0.95rem;color:#2fa89a;font-weight:600;}
+.team-name{font-family:'Cinzel',serif;font-size:0.95rem;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.18rem;}
+.team-conf{font-size:0.76rem;text-transform:uppercase;letter-spacing:0.12em;color:#c8a84b;}
+.team-captain{font-size:0.82rem;color:#c8c0b0;margin-top:0.35rem;}
+.team-record{font-size:0.86rem;color:#2fa89a;margin-top:0.25rem;}
+.roster-panel{display:none;background:#0a1f2e;border:1px solid rgba(47,168,154,0.3);border-radius:4px;padding:1.3rem;margin-top:1rem;position:relative;}
+.roster-panel.open{display:block;}
+.roster-close{position:absolute;top:0.7rem;right:0.9rem;background:none;border:none;color:#ffffff;font-size:1rem;cursor:pointer;}
+.roster-player{font-size:0.9rem;color:#c8c0b0;padding:0.3rem 0;border-bottom:1px solid rgba(200,168,75,0.06);display:flex;align-items:center;gap:0.55rem;}
+.roster-player:last-child{border-bottom:none;}
+.roster-num{font-size:0.78rem;color:#2fa89a;width:22px;flex-shrink:0;}
+.season-awards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;}
+.season-award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.5rem 1rem;text-align:center;}
+.season-award-icon{font-size:1.7rem;margin-bottom:0.6rem;}
+.season-award-title{font-family:'Cinzel',serif;font-size:0.9rem;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.5rem;}
+.season-award-holder{font-size:0.94rem;color:#c8c0b0;}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.8rem;align-items:start;}
+.about-text p{font-size:0.96rem;color:#c8c0b0;line-height:1.85;margin-bottom:0.9rem;}
+.conf-info-card{background:#0e2535;border:1px solid rgba(47,168,154,0.3);border-radius:4px;padding:1.3rem;}
+.conf-info-title{font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.9rem;}
+.conf-accordion{border:1px solid rgba(200,168,75,0.2);border-radius:3px;margin-bottom:0.5rem;overflow:hidden;}
+.conf-acc-header{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.9rem;cursor:pointer;background:#0a1f2e;transition:background 0.15s;}
+.conf-acc-header:hover{background:rgba(47,168,154,0.08);}
+.conf-acc-title{display:flex;align-items:center;gap:0.55rem;font-size:0.94rem;color:#f5f0e8;}
+.conf-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.conf-acc-arrow{font-size:0.72rem;color:#ffffff;transition:transform 0.2s;}
+.conf-acc-arrow.open{transform:rotate(180deg);}
+.conf-acc-body{display:none;padding:0.55rem 0.9rem 0.75rem 2rem;background:#0e2535;}
+.conf-acc-body.open{display:block;}
+.conf-team-bullet{font-size:0.88rem;color:#c8c0b0;padding:0.22rem 0;display:flex;align-items:center;gap:0.45rem;}
+.conf-team-bullet::before{content:'';width:3px;height:3px;border-radius:50%;background:#c8c0b0;flex-shrink:0;}
+.tier-header{font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.22em;text-transform:uppercase;padding:0.3rem 0.7rem;border-radius:2px;display:inline-block;margin-bottom:0.8rem;}
+.tier-title{background:rgba(200,168,75,0.12);color:#c8a84b;}
+.tier-conf{background:rgba(47,168,154,0.1);color:#2fa89a;}
+.tier-community{background:rgba(245,240,228,0.05);color:#c8c0b0;}
+.sponsor-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.1rem 1.3rem;margin-bottom:0.65rem;}
+.sponsor-open{font-size:0.9rem;color:#c8c0b0;font-style:italic;}
+.media-week-label{font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(200,168,75,0.2);}
+.media-section-title{font-size:0.82rem;letter-spacing:0.16em;text-transform:uppercase;color:#2fa89a;margin:1.1rem 0 0.7rem;}
+.media-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.9rem;}
+.video-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.1rem;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.45rem;min-height:125px;}
+.video-icon{font-size:1.5rem;opacity:0.3;}
+.video-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;}
+.video-title{font-size:0.9rem;color:#c8c0b0;}
+footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:center;}
+.footer-logo{font-family:'Cinzel',serif;font-size:1.1rem;color:#c8a84b;letter-spacing:0.2em;margin-bottom:0.3rem;}
+.footer-hadith{font-size:0.88rem;color:#c8c0b0;font-style:italic;}
+.footer-insta{font-size:0.82rem;color:#2fa89a;letter-spacing:0.1em;margin-top:0.3rem;}
+.pending{color:#c8c0b0;font-style:italic;}
+.loading{text-align:center;padding:2rem;font-size:0.88rem;color:#c8c0b0;font-style:italic;}
+.title-sponsor-bar{background:linear-gradient(135deg,#0a1f2e,#0e2535);border:1px solid rgba(200,168,75,0.25);border-radius:5px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;gap:1.2rem;flex-wrap:wrap;}
+.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.2rem;}
+.title-sponsor-name{font-family:'Cinzel',serif;font-size:1.1rem;color:#f5f0e8;letter-spacing:0.06em;}
+.title-sponsor-logo{max-height:48px;max-width:140px;object-fit:contain;border-radius:3px;}
+.home-standings-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:0;}
+.home-conf-block{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;}
+.home-conf-title{font-family:'Cinzel',serif;font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(200,168,75,0.15);}
+.home-stand-row{display:flex;align-items:center;gap:0.5rem;padding:0.28rem 0;border-bottom:1px solid rgba(200,168,75,0.05);font-size:0.88rem;}
+.home-stand-row:last-child{border-bottom:none;}
+.home-stand-rank{font-size:0.72rem;color:#c8c0b0;width:16px;flex-shrink:0;}
+.home-stand-name{flex:1;color:#f5f0e8;}
+.home-stand-rec{font-size:0.82rem;color:#2fa89a;white-space:nowrap;}
+@media(max-width:700px){
+  .conf-grid,.teams-grid,.awards-grid,.about-grid,.season-awards-grid,.media-grid,.matchups-grid,.home-awards-grid{grid-template-columns:1fr;}
+  .quick-stats{grid-template-columns:repeat(2,1fr);}
+  .akhlaq-card{grid-column:1;}
+  .section{padding:1.5rem 1.2rem;}
+}
