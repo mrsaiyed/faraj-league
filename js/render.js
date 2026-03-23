@@ -3,7 +3,7 @@
  */
 
 import { config } from './config.js';
-import { confLabel, confShortLabel, getConferences, motmLabel, akhlaqLabel, statsTitle } from './config.js';
+import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle } from './config.js';
 import { calcStandings as calcStandingsPure } from '../lib/standings.js';
 
 let activeTeam = null;
@@ -70,20 +70,24 @@ export function renderAll(adminMode = false) {
     }
   }
 
+  const toAssetPath = (url) => {
+    if (!url || url.startsWith('http')) return url;
+    const path = url.startsWith('/') ? url : '/' + url.replace(/^\//, '');
+    return getBasePath() + path;
+  };
   const banner = document.getElementById('title-sponsor-banner');
   if (banner) {
     const titleName = config.SP1 && config.SP1 !== '[SPONSOR 1 NAME AND LOGO]' ? config.SP1 : 'Zabiha Family Ranch';
     const titleLogo = config.SP1_LOGO || 'images/zabiha-logo.png';
-    const logoSrc = (titleLogo.startsWith('/') || titleLogo.startsWith('http')) ? titleLogo : '/' + titleLogo.replace(/^\//, '');
+    const logoSrc = toAssetPath(titleLogo);
   banner.innerHTML = `<div class="title-sponsor-bar"><span class="title-sponsor-eyebrow">Presented by:</span><div class="title-sponsor-logo-wrap"><img src="${logoSrc.replace(/"/g, '&quot;')}" class="title-sponsor-logo" alt="${titleName.replace(/"/g, '&quot;')} logo"></div></div>`;
   }
 
   const blocks = config.DB.contentBlocks || {};
-  const toAbsPath = (url) => (url && !url.startsWith('/') && !url.startsWith('http')) ? '/' + url : url;
   const setLogo = (id, url, alt) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (url) el.innerHTML = `<img src="${toAbsPath(url).replace(/"/g, '&quot;')}" alt="${(alt || 'Sponsor').replace(/"/g, '&quot;')} logo">`;
+    if (url) el.innerHTML = `<img src="${toAssetPath(url).replace(/"/g, '&quot;')}" alt="${(alt || 'Sponsor').replace(/"/g, '&quot;')} logo">`;
     else el.innerHTML = '<span class="sponsor-logo-placeholder">Add logo</span>';
   };
   const setDesc = (id, text, fallback = '') => {

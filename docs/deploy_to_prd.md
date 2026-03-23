@@ -102,7 +102,7 @@ npx supabase db push
    git status
    git add .
    git commit -m "Deploy: Phase 5 complete, all phases done"
-   git push origin main
+   git push origin git 
    ```
 
 2. **Enable GitHub Pages** on your dev repo:
