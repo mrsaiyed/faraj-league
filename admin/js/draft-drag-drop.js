@@ -4,7 +4,7 @@
  * Called from initAdminOverlays after renderAll(true).
  */
 
-import { config } from '../js/config.js';
+import { config } from '../../js/config.js';
 
 let draftTeamSortableInstance = null;
 

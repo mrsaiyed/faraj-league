@@ -2,8 +2,8 @@
  * Admin data loader — fetches season data and hydrates config for mirror sections.
  */
 
-import { fetchSeasonData, deriveWeeks, applySponsorOverrides } from '../js/data.js';
-import { config } from '../js/config.js';
+import { fetchSeasonData, deriveWeeks, applySponsorOverrides } from '../../js/data.js';
+import { config } from '../../js/config.js';
 
 /**
  * Load season data by slug and assign to config. Returns transformed data or null on error.

@@ -3,7 +3,7 @@
  * Admin sets rounds; timer advances on expiry or when a player is dragged to the active team.
  */
 
-import { config } from '../js/config.js';
+import { config } from '../../js/config.js';
 
 const TICK_MS = 1000;
 const DEFAULT_TIMER_SECONDS = 60;
