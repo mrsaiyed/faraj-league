@@ -38,6 +38,19 @@ export const config = {
   DEFAULT_TEAMS,
 };
 
+/**
+ * Base path for asset URLs. On GitHub Pages project sites (e.g. username.github.io/faraj-league/),
+ * returns '/faraj-league' so images resolve correctly. Otherwise returns ''.
+ */
+export function getBasePath() {
+  const p = (typeof location !== 'undefined' && location.pathname) || '';
+  const parts = p.split('/').filter(Boolean);
+  if (parts.length > 0 && typeof location !== 'undefined' && location.hostname.includes('github.io')) {
+    return '/' + parts[0];
+  }
+  return '';
+}
+
 /** Get list of conferences from content_blocks (conferences_layout) or default Mecca/Medina */
 export function getConferences() {
   const blocks = config.DB?.contentBlocks || {};
