@@ -3,6 +3,8 @@
  * Each renderX(content, ctx) populates the content div.
  */
 
+const importRootJs = (name) => import(new URL('../../js/' + name, import.meta.url).href);
+
 export async function renderSeasons(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -90,7 +92,7 @@ export async function renderHome(content, ctx) {
   const { loadAdminSeasonData } = await import('./admin-data.js');
   const { HOME_TEMPLATE } = await import('./page-templates.js');
   const { attachEditOverlay } = await import('./edit-overlays.js');
-  const { renderAll } = await import('../../js/render.js');
+  const { renderAll } = await importRootJs('render.js');
 
   const data = await loadAdminSeasonData(window.adminSeasonSlug);
   if (!data) {
@@ -99,7 +101,7 @@ export async function renderHome(content, ctx) {
   }
 
   content.innerHTML = HOME_TEMPLATE;
-  const renderMod = await import('../../js/render.js');
+  const renderMod = await importRootJs('render.js');
   window.renderAll = renderMod.renderAll;
   window.renderSchedule = renderMod.renderSchedule;
   window.renderScores = renderMod.renderScores;
@@ -162,7 +164,7 @@ export async function renderStandings(content, ctx) {
   }
   const { loadAdminSeasonData } = await import('./admin-data.js');
   const { STANDINGS_TEMPLATE } = await import('./page-templates.js');
-  const renderMod = await import('../../js/render.js');
+  const renderMod = await importRootJs('render.js');
 
   const data = await loadAdminSeasonData(window.adminSeasonSlug);
   if (!data) {
@@ -387,8 +389,8 @@ export async function renderSchedule(content, ctx) {
   }
   const { loadAdminSeasonData } = await import('./admin-data.js');
   const { SCHEDULE_TEMPLATE } = await import('./page-templates.js');
-  const renderMod = await import('../../js/render.js');
-  const { config } = await import('../../js/config.js');
+  const renderMod = await importRootJs('render.js');
+  const { config } = await importRootJs('config.js');
 
   const data = await loadAdminSeasonData(window.adminSeasonSlug);
   if (!data) {
@@ -512,7 +514,7 @@ export function attachAwardsWeeklyOverlays(ctx) {
 
   (async () => {
     const { attachEditOverlay } = await import('./edit-overlays.js');
-    const configMod = await import('../../js/config.js');
+    const configMod = await importRootJs('config.js');
 
     const weekEl = document.getElementById('awards-week-select');
     const getWeek = () => weekEl ? parseInt(weekEl.value, 10) || 1 : 1;
@@ -578,9 +580,9 @@ export async function attachTeamsAdminOverlays(ctx) {
   if (!pageTeams || !teamsGrid || !rosterPanel || !rosterContent) return;
 
   await (async () => {
-    const { config } = await import('../../js/config.js');
-    const { confLabel, confShortLabel, getConferences } = await import('../../js/config.js');
-    const renderMod = await import('../../js/render.js');
+    const { config } = await importRootJs('config.js');
+    const { confLabel, confShortLabel, getConferences } = await importRootJs('config.js');
+    const renderMod = await importRootJs('render.js');
     const { attachEditOverlay } = await import('./edit-overlays.js');
 
     const teams = config.DB.teams || [];
@@ -1018,7 +1020,7 @@ export async function attachScheduleAdminOverlays(ctx) {
   const seasonId = window.adminSeasonId;
   if (!seasonId) return;
 
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   const teams = config.DB.teams || [];
   const scores = config.DB.scores || [];
   const pageSchedule = document.getElementById('page-schedule');
@@ -1126,7 +1128,7 @@ export async function attachScheduleAdminOverlays(ctx) {
 async function openStatSheet(game, content, ctx, onSaved) {
   if (!game) return;
   const { adminFetch, supabase } = ctx;
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   const teams = config.DB.teams || [];
   const teamMap = {};
   teams.forEach(t => { teamMap[t.id] = t.name; });
@@ -1659,8 +1661,8 @@ export async function renderMedia(content, ctx) {
   }
   const { loadAdminSeasonData } = await import('./admin-data.js');
   const { MEDIA_TEMPLATE } = await import('./page-templates.js');
-  const renderMod = await import('../../js/render.js');
-  const { config } = await import('../../js/config.js');
+  const renderMod = await importRootJs('render.js');
+  const { config } = await importRootJs('config.js');
 
   const data = await loadAdminSeasonData(window.adminSeasonSlug);
   if (!data) {
@@ -1729,7 +1731,7 @@ export async function renderMedia(content, ctx) {
 async function openMediaItemModal(item, content, ctx, onSaved) {
   const { adminFetch } = ctx;
   const seasonId = window.adminSeasonId;
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   const currentWeek = parseInt(document.getElementById('media-week-select')?.value || config.CURRENT_WEEK) || 1;
   const backdrop = document.createElement('div');
   backdrop.className = 'admin-modal-backdrop';
@@ -1802,7 +1804,7 @@ async function openMediaItemModal(item, content, ctx, onSaved) {
 async function openMediaSlotModal(week, slotKey, content, ctx, onSaved) {
   const { adminFetch } = ctx;
   const seasonId = window.adminSeasonId;
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   const slot = config.DB.mediaSlots?.[week]?.[slotKey] || {};
   const defaultTitle = MEDIA_SLOT_DEFAULTS[slotKey] || slotKey;
   const backdrop = document.createElement('div');
@@ -1856,7 +1858,7 @@ export async function attachMediaSlotOverlays(ctx) {
   if (!pageMedia) return;
 
   const { attachEditOverlay } = await import('./edit-overlays.js');
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
 
   const saveContent = (key, value) => ctx.adminFetch('admin-content', {
     method: 'POST',
@@ -2024,7 +2026,7 @@ export async function attachMediaSlotOverlays(ctx) {
 }
 
 async function openAddSectionModal(ctx, onSaved) {
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   let layout = { sections: [] };
   try {
     const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
@@ -2045,7 +2047,7 @@ async function openAddSectionModal(ctx, onSaved) {
 }
 
 async function openAddMediaModal(ctx, onSaved) {
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   let layout = { sections: [] };
   try {
     const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
@@ -2121,7 +2123,7 @@ async function openAddMediaModal(ctx, onSaved) {
 }
 
 async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   let layout = { sections: [] };
   try {
     const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
@@ -2189,7 +2191,7 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
 }
 
 async function openInstagramUrlModal(ctx, onSaved) {
-  const { config } = await import('../../js/config.js');
+  const { config } = await importRootJs('config.js');
   const instaUrl = config.DB?.contentBlocks?.instagram_url || '';
   const backdrop = document.createElement('div');
   backdrop.className = 'admin-modal-backdrop';
@@ -2238,7 +2240,7 @@ export async function renderAbout(content, ctx) {
   const { loadAdminSeasonData } = await import('./admin-data.js');
   const { ABOUT_TEMPLATE } = await import('./page-templates.js');
   const { attachEditOverlay } = await import('./edit-overlays.js');
-  const renderMod = await import('../../js/render.js');
+  const renderMod = await importRootJs('render.js');
 
   const data = await loadAdminSeasonData(window.adminSeasonSlug);
   if (!data) {
