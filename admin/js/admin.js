@@ -4,8 +4,8 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-import { config } from '/js/config.js';
-import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from '/js/data.js';
+import { config } from '../js/config.js';
+import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from '../js/data.js';
 import {
   renderAll,
   renderSchedule,
@@ -18,7 +18,7 @@ import {
   toggleRoster,
   openBoxScoreFullscreen,
   closeBoxScoreFullscreen,
-} from '/js/render.js';
+} from '../js/render.js';
 
 const TOKEN_KEY = 'faraj_admin_token';
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
