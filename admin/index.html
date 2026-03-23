@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faraj League — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/admin/css/admin-overlays.css">
+<style>
+/* Admin-only: login, floating button, drawer */
+.admin-login-wrap { position:fixed;inset:0;z-index:9999;display:flex;justify-content:center;align-items:center;background:#060f1a; }
+.admin-login-card { background:#0e2535;border:1px solid rgba(200,168,75,0.3);padding:2rem;border-radius:8px;max-width:360px;width:90%; }
+.admin-login-card h1 { margin:0 0 1.5rem;font-size:1.25rem;color:#c8a84b; }
+.admin-login-card input { width:100%;padding:0.75rem;margin-bottom:1rem;border:1px solid rgba(200,168,75,0.3);border-radius:4px;background:#0a1f2e;color:#f5f0e8; }
+.admin-login-card button { width:100%;padding:0.75rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:700;cursor:pointer; }
+.admin-login-card button:hover { background:#d4b85c; }
+.admin-login-error { color:#f87171;font-size:0.9rem;margin-top:0.5rem; }
+.admin-float-btn { position:fixed;bottom:1.5rem;right:1.5rem;z-index:500;width:48px;height:48px;border-radius:50%;background:rgba(200,168,75,0.9);color:#060f1a;border:2px solid #c8a84b;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.4); }
+.admin-float-btn:hover { background:#c8a84b; }
+.admin-drawer-backdrop { position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.5);display:none; }
+.admin-drawer-backdrop.open { display:block; }
+.admin-drawer { position:fixed;top:0;right:0;width:280px;max-width:90vw;height:100%;background:#0e2535;border-left:1px solid rgba(200,168,75,0.3);z-index:601;padding:1.5rem;overflow-y:auto;transform:translateX(100%);transition:transform 0.2s; }
+.admin-drawer.open { transform:translateX(0); }
+.admin-drawer h3 { margin:0 0 1rem;color:#c8a84b;font-size:1rem; }
+.admin-drawer .admin-drawer-close { position:absolute;top:1rem;right:1rem;background:none;border:none;color:#c8c0b0;font-size:1.2rem;cursor:pointer; }
+.admin-drawer-content { margin-top:2rem; }
+.admin-drawer-section { margin-bottom:1.5rem; }
+.admin-drawer-section label { display:block;margin-bottom:0.5rem;font-size:0.85rem;color:#c8c0b0; }
+.admin-drawer-section input, .admin-drawer-section select { width:100%;padding:0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px; }
+.admin-drawer-section button { padding:0.5rem 1rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;cursor:pointer;font-weight:600;margin-top:0.5rem; }
+.admin-drawer-section button.secondary { background:transparent;color:#c8c0b0;border:1px solid rgba(200,168,75,0.3);margin-left:0.5rem; }
+.admin-drawer-form { display:flex;flex-direction:column;gap:1rem; }
+.admin-drawer-form-row { display:flex;align-items:center;gap:0.75rem;white-space:nowrap; }
+.admin-drawer-form-row input[type="checkbox"] { flex-shrink:0;width:1rem;height:1rem;margin:0; }
+.admin-drawer-form-label { font-size:0.9rem;color:#c8c0b0; }
+.admin-drawer-form-input { width:4rem;min-width:4rem;padding:0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px; }
+.admin-drawer-form-actions { display:flex;flex-direction:column;gap:0.5rem;align-items:flex-start; }
+.admin-drawer-form-actions button { margin-top:0; }
+.msg { padding:0.5rem;border-radius:4px;margin:0.5rem 0;font-size:0.85rem; }
+.msg.success { background:rgba(40,160,80,0.3);color:#4ade80; }
+.msg.error { background:rgba(200,60,60,0.3);color:#f87171; }
+</style>
+</head>
+<body>
+<div id="admin-login-view" class="admin-login-wrap">
+  <div class="admin-login-card">
+    <h1>Faraj League Admin</h1>
+    <form id="admin-login-form">
+      <input type="password" id="admin-password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit">Log in</button>
+      <div id="admin-login-error" class="admin-login-error" style="display:none;"></div>
+    </form>
+  </div>
+</div>
+
+<div id="admin-dashboard-view" style="display:none;">
+<nav>
+  <div class="nav-top">
+    <div class="nav-logo" onclick="adminShowPage('home')">Faraj League</div>
+    <div class="nav-spacer"></div>
+    <select class="nav-season-select" id="admin-season-select" onchange="adminChangeSeason(this.value)">
+      <option value="">Loading...</option>
+    </select>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="home" onclick="adminShowPage('home')">Home</button>
+    <button class="nav-tab" data-page="standings" onclick="adminShowPage('standings')">Standings</button>
+    <button class="nav-tab" data-page="schedule" onclick="adminShowPage('schedule')">Schedule</button>
+    <button class="nav-tab" data-page="teams" onclick="adminShowPage('teams')">Teams</button>
+    <button class="nav-tab" data-page="players" onclick="adminShowPage('players')">Players</button>
+    <button class="nav-tab" data-page="stats" onclick="adminShowPage('stats')">Stats</button>
+    <button class="nav-tab" data-page="awards" onclick="adminShowPage('awards')">Awards</button>
+    <button class="nav-tab" data-page="draft" onclick="adminShowPage('draft')">Draft</button>
+    <button class="nav-tab" data-page="media" onclick="adminShowPage('media')">Media</button>
+    <button class="nav-tab" data-page="about" onclick="adminShowPage('about')">About</button>
+    <button class="nav-tab" data-page="sponsors" onclick="adminShowPage('sponsors')">Sponsors</button>
+  </div>
+</nav>
+
+<div id="api-error-banner" class="historic-banner" style="display:none;">
+  <div class="historic-banner-label" id="api-error-message"></div>
+</div>
+
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div class="hero-bg"></div><div class="hero-geo"></div>
+    <div class="hero-content">
+      <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
+      <img src="/faraj-logo.png" class="hero-league-logo" alt="Faraj League">
+      <div id="title-sponsor-banner"></div>
+      <div class="hero-divider"></div>
+      <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
+      <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>
+      <p class="season-tag" id="season-tag">6 Teams · 42 Players · Ages 17–30</p>
+    </div>
+  </div>
+  <div class="historic-banner" id="historic-banner" style="display:none;">
+    <div class="historic-banner-label">Season Complete</div>
+    <div class="season-champs">
+      <div><div class="champ-label">Champions</div><div class="champ-value" id="hb-champ">—</div></div>
+      <div><div class="champ-label">MVP</div><div class="champ-value" id="hb-mvp">—</div></div>
+      <div><div class="champ-label">Scoring Title</div><div class="champ-value" id="hb-scoring">—</div></div>
+    </div>
+  </div>
+  <div class="quick-stats">
+    <div class="qs-item"><div class="qs-num">6</div><div class="qs-label">Teams</div></div>
+    <div class="qs-item"><div class="qs-num">42</div><div class="qs-label">Players</div></div>
+    <div class="qs-item"><div class="qs-num">2</div><div class="qs-label">Conferences</div></div>
+    <div class="qs-item"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></div>
+  </div>
+  <div class="section">
+    <p class="section-sub" id="home-standings-sub">Spring 2026</p>
+    <h2 class="section-title" id="home-standings-title">Standings</h2>
+    <div class="section-line"></div>
+    <div class="home-standings-wrap" id="home-standings"></div>
+    <hr class="section-divider">
+    <p class="section-sub" id="home-matchup-sub">Week 1 · Upcoming</p>
+    <h2 class="section-title">Recent Matchups</h2>
+    <div class="section-line"></div>
+    <div class="matchups-grid" id="home-matchups"><div class="loading">Loading...</div></div>
+    <div style="margin-top:2rem;">
+      <p class="section-sub" id="home-awards-sub">Week 1 · Latest</p>
+      <h2 class="section-title">Recent Awards</h2>
+      <div class="section-line"></div>
+      <div class="home-awards-grid" id="home-awards"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-standings" class="page">
+  <div class="section">
+    <p class="section-sub" id="standings-section-sub">Spring 2026</p><h2 class="section-title">Standings</h2><div class="section-line"></div>
+    <div class="conf-grid">
+      <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+      <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+    </div>
+    <hr class="section-divider">
+    <p class="section-sub">Results by Week</p><h2 class="section-title">Scores</h2><div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="scores-week-select" onchange="renderScores(this.value)"></select></div>
+    <div id="scores-content"><div class="loading">Loading...</div></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-schedule" class="page">
+  <div class="section">
+    <p class="section-sub" id="schedule-section-sub">Spring 2026</p>
+    <h2 class="section-title">Schedule</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(parseInt(this.value), document.getElementById('schedule-team-filter')?.value || null)"></select></div>
+    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(parseInt(document.getElementById('schedule-week-select')?.value), this.value || null)"><option value="">All teams</option></select>
+    <div id="schedule-prev" style="margin-top:1.5rem;"></div>
+    <div id="schedule-focus" style="margin-top:1.5rem;"></div>
+    <div id="schedule-next" style="margin-top:1.5rem;"></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-teams" class="page">
+  <div class="section">
+    <p class="section-sub" id="teams-section-sub">Spring 2026 · 6 Teams</p><h2 class="section-title">Teams & Rosters</h2><div class="section-line"></div>
+    <div id="teams-grid"></div>
+    <div id="roster-panel" class="roster-panel"><button class="roster-close" onclick="closeRoster()">✕</button><div id="roster-content"></div></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-players" class="page">
+  <div class="section">
+    <p class="section-sub" id="players-section-sub">Spring 2026</p><h2 class="section-title">All Players</h2><div class="section-line"></div>
+    <p style="font-size:0.9rem;color:#c8c0b0;margin-bottom:1rem;">Manage league players. Delete test players before importing real roster. Players in the bank (unassigned) or on teams.</p>
+    <div id="players-content"><p class="loading">Loading...</p></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-stats" class="page">
+  <div class="section">
+    <p class="section-sub" id="stats-section-sub">Spring 2026 · Points Only</p><h2 class="section-title" id="stats-page-title">Player Stats</h2><div class="section-line"></div>
+    <div class="card" style="padding:0;"><table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);"><th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">Team</th><th style="padding:0.75rem 1rem;">GP</th><th style="padding:0.75rem 1rem;">PPG</th><th style="padding:0.75rem 1rem;">Total</th></tr></thead><tbody id="stats-body"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-awards" class="page">
+  <div class="section">
+    <p class="section-sub">Weekly Recognition</p><h2 class="section-title">Awards</h2><div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="awards-week-select" onchange="renderAwards(this.value)"></select></div>
+    <div id="awards-grid" class="awards-grid"></div>
+    <hr class="section-divider">
+    <p class="section-sub">End of Season</p><h2 class="section-title">Season Awards</h2><div class="section-line"></div>
+    <div class="season-awards-grid">
+      <div class="season-award-card"><div class="season-award-icon">🏆</div><div class="season-award-title">Championship</div><div class="season-award-holder" id="sa-champ">Spring 2026 — In Progress</div></div>
+      <div class="season-award-card"><div class="season-award-icon">⭐</div><div class="season-award-title">Most Valuable Player</div><div class="season-award-holder" id="sa-mvp">Season in progress</div></div>
+      <div class="season-award-card"><div class="season-award-icon">📊</div><div class="season-award-title">Scoring Title</div><div class="season-award-holder" id="sa-scoring">Season in progress</div></div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-draft" class="page">
+  <div class="section">
+    <p class="section-sub" id="draft-section-sub">Spring 2026</p><h2 class="section-title">Draft Day</h2><div class="section-line"></div>
+    <div id="draft-controls-area" class="draft-controls-area">
+      <div id="draft-admin-controls" class="draft-admin-controls" style="display:none;">
+        <label class="draft-label">Rounds: <select id="draft-rounds-select" class="draft-select"></select></label>
+        <label class="draft-label">Timer: <select id="draft-timer-select" class="draft-select"></select></label>
+        <button type="button" class="draft-btn" id="draft-start-btn">Draft Start</button>
+        <button type="button" class="draft-btn" id="draft-pause-btn">Pause Draft</button>
+        <button type="button" class="draft-btn" id="draft-end-btn">End Draft</button>
+        <span class="draft-nav-arrows">
+          <button type="button" class="draft-btn draft-arrow-btn" id="draft-prev-btn" title="Previous pick">←</button>
+          <button type="button" class="draft-btn draft-arrow-btn" id="draft-next-btn" title="Next pick">→</button>
+        </span>
+      </div>
+      <div id="draft-timer-wrap" class="draft-timer-wrap" style="display:none;"><span id="draft-timer" class="draft-timer">1:00</span></div>
+    </div>
+    <div id="draft-placeholder-card" class="card" style="text-align:center;padding:2.2rem;"><div id="draft-placeholder" style="font-size:0.92rem;color:#c8c0b0;font-style:italic;">Draft board coming soon.</div></div>
+    <div id="draft-board-wrap"></div>
+    <div id="draft-bank"></div>
+    <div id="draft-add-players-wrap" class="draft-add-players-wrap" style="display:none;">
+      <button type="button" class="draft-btn" id="draft-add-players-btn">Add Players</button>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-media" class="page">
+  <div class="section">
+    <p class="section-sub">Highlights & Interviews</p><h2 class="section-title">Media</h2><div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="media-week-select" onchange="renderMedia(this.value)"></select></div>
+    <div id="media-content"></div>
+    <div id="media-follow-wrap" style="margin-top:1.5rem;text-align:center;"><button class="insta-btn">Follow @farajleague on Instagram</button></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-about" class="page">
+  <div class="section">
+    <p class="section-sub">Who We Are</p><h2 class="section-title">About the League</h2><div class="section-line"></div>
+    <div class="about-grid">
+      <div class="about-text">
+        <div id="about-text" class="about-text-block">The Faraj League is a community basketball league built on brotherhood and the spirit of collective preparation. Our name is drawn from the narration of the Holy Prophet (s.a.w.s.): <em style="color:#e2c97e;">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</em> — "The best worship is awaiting the reappearance."
+
+TBD</div>
+      </div>
+      <div>
+        <div class="conf-info-card">
+          <div class="conf-info-title" id="about-conf-title">Spring 2026 Structure</div>
+          <div class="conf-accordion">
+            <div class="conf-acc-header" onclick="toggleAcc('mecca')"><div class="conf-acc-title"><div class="conf-dot" style="background:#c8a84b"></div><span id="about-mecca-label">Mecca Conference</span></div><span class="conf-acc-arrow" id="arrow-mecca">▾</span></div>
+            <div class="conf-acc-body" id="body-mecca"></div>
+          </div>
+          <div class="conf-accordion">
+            <div class="conf-acc-header" onclick="toggleAcc('medina')"><div class="conf-acc-title"><div class="conf-dot" style="background:#2fa89a"></div><span id="about-medina-label">Medina Conference</span></div><span class="conf-acc-arrow" id="arrow-medina">▾</span></div>
+            <div class="conf-acc-body" id="body-medina"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-sponsors" class="page">
+  <div class="section sponsors-page">
+    <p class="section-sub" id="sponsors-section-sub">Spring 2026</p>
+    <h2 class="section-title">Sponsors</h2>
+    <div class="section-line"></div>
+
+    <div class="sponsors-tier sponsors-tier-title">
+      <div class="sponsors-tier-label tier-title">Title Sponsor</div>
+      <div id="sponsor-title-logo" class="sponsor-logo-title"></div>
+      <p id="sponsor-title-desc" class="sponsor-tagline"></p>
+    </div>
+
+    <div class="sponsors-divider"></div>
+
+    <div class="sponsors-tier sponsors-tier-conf">
+      <div class="sponsors-tier-label tier-conf">Conference Sponsors</div>
+      <div class="sponsors-conf-grid">
+        <div class="sponsors-conf-col">
+          <div class="sponsors-conf-label" id="sponsors-conf-label-mecca">Mecca</div>
+          <div id="sponsor-mecca-logo" class="sponsor-logo-conf"></div>
+          <p id="sponsor-mecca-desc" class="sponsor-info-small"></p>
+        </div>
+        <div class="sponsors-conf-col">
+          <div class="sponsors-conf-label" id="sponsors-conf-label-medina">Medina</div>
+          <div id="sponsor-medina-logo" class="sponsor-logo-conf"></div>
+          <p id="sponsor-medina-desc" class="sponsor-info-small"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sponsors-divider"></div>
+
+    <div class="sponsors-tier sponsors-tier-community">
+      <div class="sponsors-tier-label tier-community">Community Partners</div>
+      <div class="sponsors-community-grid">
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-1-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-1-desc" class="sponsor-community-desc"></p>
+        </div>
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-2-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-2-desc" class="sponsor-community-desc"></p>
+        </div>
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-3-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-3-desc" class="sponsor-community-desc"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="box-score-fullscreen" class="box-score-fullscreen" style="display:none;" aria-hidden="true">
+  <div class="box-score-fullscreen-drag" id="box-score-drag-hint">↓ Swipe down to close</div>
+  <div class="box-score-fullscreen-content" id="box-score-fullscreen-content"></div>
+</div>
+
+<button type="button" class="admin-float-btn" id="admin-float-btn" title="Admin" aria-label="Admin settings">⚙</button>
+<div class="admin-drawer-backdrop" id="admin-drawer-backdrop"></div>
+<div class="admin-drawer" id="admin-drawer">
+  <button type="button" class="admin-drawer-close" id="admin-drawer-close" aria-label="Close">✕</button>
+  <h3>Admin</h3>
+  <div class="admin-drawer-content">
+    <div class="admin-drawer-section" id="admin-season-settings">
+      <label>Season settings</label>
+      <div id="admin-season-settings-content"></div>
+    </div>
+    <div class="admin-drawer-section">
+      <button type="button" class="secondary" id="admin-logout-btn">Log out</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script type="module" src="/admin/js/admin.js"></script>
+</body>
+</html>

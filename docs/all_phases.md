@@ -12,6 +12,10 @@
 - **Scalability** — Structure and schema should support growth (new seasons, teams, stats, etc.).
 - **Admin editability** — Data users see on the public site should be editable via the admin page. Avoid hardcoded or non-editable content.
 - **Admin ease of use** — Admin UI should have clear navigation, validation feedback, and obvious save/update flows. Prefer simple, direct workflows over complex multi-step wizards.
+- **Admin = public site + edit overlays** — Admin uses the **exact same HTML structure** as the public site. Same nav, same layout, same width, same CSS. No sidebar or container that changes the layout. Admin-only controls (season switcher, settings, logout) live in a **floating overlay** (drawer/modal). Edit affordances are overlaid on every editable text element. Admins see precisely what visitors see; they edit in context. No separate form-based dashboards.
+- **Static deployment** — Public site remains static (no build step). Admin is static HTML + JS; writes go through Edge Functions.
+- **Transform at boundary** — Map Supabase response → app data shape in one place; render logic stays unchanged.
+- **No secrets in client** — Only `SUPABASE_ANON_KEY` in frontend. Never expose `SUPABASE_SERVICE_ROLE_KEY`; auth and writes stay in Edge Functions.
 
 ---
 
@@ -121,7 +125,7 @@ Refactor the public site from a single `index.html` into a proper file structure
 
 ---
 
-## Phase 3 — Admin v1 (login + CRUD)
+## Phase 3 — Admin v1 (login + CRUD) COMPLETE
 
 ### Agent tasks
 
@@ -158,7 +162,7 @@ Refactor the public site from a single `index.html` into a proper file structure
    - Stats: list stat definitions; add new stat type; edit player stat values.
    - Sponsors: edit per season (title, conference, MOTM labels, logos).
    - Media: list by week; add, edit, delete media items (title, url, type) for Highlights & Interviews.
-   - About: edit league story and secondary text blocks shown on About page.
+   - About (optional): edit league story and secondary text blocks shown on About page, if that content is actively managed.
    - Draft page: edit Draft Recap paragraph and placeholder text (e.g. "Draft board coming soon").
 
 6. **API / data**
@@ -166,6 +170,8 @@ Refactor the public site from a single `index.html` into a proper file structure
 
 7. **No public login**
    - No admin login link on public homepage; admin at `/admin` only.
+
+**Note:** Phase 3.7 refactors Home, Standings, Schedule, Media, About to visual mirror (edit overlays on the actual public pages instead of separate form dashboards).
 
 ### Your tasks
 
@@ -176,7 +182,7 @@ Refactor the public site from a single `index.html` into a proper file structure
 
 ---
 
-## Phase 3.5 — Schedule tab (public site)
+## Phase 3.5 — Schedule tab (public site) DONE
 
 Add a dedicated Schedule tab so users can view the season schedule, navigate by week, and filter by team. Admin manages the underlying data via Phase 3 Games/Schedule CRUD.
 
@@ -199,36 +205,139 @@ Add a dedicated Schedule tab so users can view the season schedule, navigate by 
 1. Verify Schedule tab works with season switcher.
 2. Test team filter and week navigation (prev/focus/next).
 3. Confirm past weeks show scores; upcoming show time/TBD.
+4. Confirm homepage "Recent Matchups" and "Recent Awards" show previous week's data when `current_week` is set (e.g. current week 4 → show week 3).
 
 ---
 
-## Phase 4 — Draft (player bank + drag/drop + autosave)
+## Phase 3.6 — Game stat sheets (Stats + Games) DONE
+
+**Business goal:** Replace paper stat sheets with digital ones. Fill out stat sheets live during games (or retroactively). Track points, fouls, and admin-configurable stats per player per game. Enable live score tracking for fans at home.
 
 ### Agent tasks
 
-1. **Draft data**
-   - `draft_players` or `draft_pool` (season_id, player_id, team_id nullable, pick_order).
-   - Player bank = players with `team_id` null (or equivalent).
-   - Draft config: num teams, players per team (from admin or DB).
+1. **Schema**
+   - Create `game_stat_values` (game_id, player_id, stat_definition_id, value) for per-game, per-player stats.
+   - Add `scope` or equivalent to `stat_definitions` to distinguish game-level stats (points, fouls) vs season-level if needed; or treat all stats as game-scoped for stat sheets.
+   - Admin can add new stat types (points, fouls, rebounds, etc.) from the admin page.
 
-2. **Draft API**
-   - `GET /draft/:seasonId` — players by team + bank.
-   - `PATCH /draft/:seasonId/pick` — assign player to team (and optionally pick_order).
-   - Idempotent, with validation (player not already assigned, team exists).
+2. **Games + Stats UI (admin)**
+   - Merge Games and Stats into a unified flow (or keep Games tab but add stat-sheet entry as primary action when viewing a game).
+   - Select a game → show stat sheet: **Team 1 vs Team 2**, 7 players per team (from rosters).
+   - One row per player; columns for each stat (points, fouls, + any admin-defined stats).
+   - Input fields for each cell; save per game. Optimistic UI; clear validation feedback.
+   - Support live entry during games; auto-save or manual save with obvious feedback.
 
-3. **Draft UI**
-   - Player bank (bottom).
-   - Team boxes (6 by default; configurable).
-   - Drag-and-drop (HTML5 or library) from bank to team and team to team.
-   - On drop: call PATCH immediately; optimistic UI with rollback on error.
+3. **Score derivation**
+   - Game score (home_score, away_score) can be derived from points stat or entered separately; document the chosen approach. If derived, update games on stat save.
 
-4. **Admin config**
-   - Admin can change number of teams and roster size for the season's draft.
+4. **Public site**
+   - Expose game stat sheets and live (or near-live) scores so fans can follow along.
+   - Stats tab: continue to show season aggregates; optionally link to per-game stat sheets.
+
+5. **Public Schedule — expandable box score**
+   - Matchup cards on Schedule (and Scores on Standings) are expandable (click or chevron to expand).
+   - **Played games:** Expand to show full box score — team score + per-player stats table (PTS, Fouls, etc.).
+   - **Unplayed games:** Expand to show skeleton — team names, empty score line, empty stat rows (or "Stats will appear after the game").
+   - Same expandable behavior wherever games are shown (Schedule, Standings Scores).
+
+6. **Live score behavior**
+   - "Live" = fans see updates after page refresh (static site; no real-time push).
+   - Optional future: auto-refresh when Schedule is open (e.g. every 30s) for near-live feel.
+
+7. **Data layer**
+   - Extend `fetchSeasonData` or add `fetchGameStats(gameId)` to include game_stat_values.
+   - Include `game_id` in scores shape (config.DB.scores) for box score lookups.
+   - Ensure standings and scoring title use correct aggregation (from game stats or player_stat_values as decided).
 
 ### Your tasks
 
-1. Run a test draft (screenshare-style): drag players, confirm data updates in Supabase.
-2. Verify undo/error handling if agent implements it.
+1. Test live stat entry during a simulated game.
+2. Confirm scores update and are visible on the public site for fans.
+3. Verify stat types can be added from admin and appear in the stat sheet.
+4. Verify expandable box score works on Schedule; played games show full stats, unplayed show skeleton.
+
+---
+
+## Phase 3.7 — Admin mirrors public site + editable media slots DONE
+
+**Business goal:** Admin is the public site with edit overlays — nothing more. Same HTML structure, same layout, same width, same CSS. The only addition: Edit affordances overlaid on every editable text element. Admin controls (season switcher, settings, logout) live in a **floating overlay** (drawer/modal), **not** a sidebar. No layout-changing admin chrome.
+
+**Scope:** Home, Standings, Schedule, **Teams**, Media, About, Sponsors, and other sections with public pages. Every editable text gets an overlay: hero badge, season tag, team names, captains, player names, conference labels, media titles/URLs, about text, sponsor taglines in About accordions, etc. All media slots (Top Plays, Baseline Episodes, Match Highlights) editable. No hardcoded "Coming soon" that admins cannot replace.
+
+### Agent tasks
+
+1. **Admin layout = public layout**
+   - Admin page uses the **exact same structure** as the public site: same `<nav>`, same `main`, same `css/main.css`, same body background and width. No sidebar.
+   - **Floating admin control:** A single control (e.g. gear icon) that opens a drawer with: season switcher, season settings (is_current, current_week), logout. When closed, the page looks identical to public.
+   - Nav order: **Home** | **Standings** | **Schedule** | **Teams** | **Players** | **Stats** | **Awards** | **Draft** | **Media** | **About** | **Sponsors**. (Roster edits via Teams panel; Players tab for full CRUD and bulk delete—added in Phase 4.)
+
+2. **Edit overlays on every editable text**
+   - Home: hero badge, season tag; link to Awards; link to Schedule.
+   - Standings: Edit Schedule button.
+   - Schedule: Edit on each matchup card; add game; stat sheet modal centered; week and team filter preserved after edits.
+   - **Teams:** Edit overlays on season label, conference headers (with add/remove conference), team names, captains, roster player names. Dynamic conferences via `conferences_layout`; full label editing with `display_label`; drag-and-drop reorder and move between conferences; optimistic Add team.
+   - Media: Edit on each Top Play and each Baseline/Highlights card.
+   - About: Edit on merged `about_text` block; editable sponsor taglines inside conference accordions (`about_conf_taglines`); sponsor text derived from conference label when possible.
+   - Stats, Awards, Draft, Sponsors: visual mirror where a public page exists; Sponsors page redesigned (title sponsor, conference sponsors, community partners) and mirrored with edit overlays.
+
+3. **Media slots schema**
+   - Create `media_slots` (season_id, week, slot_key, title, url) for defined slots.
+   - Slot keys: baseline_ep1, baseline_ep2, baseline_ep3, highlights_g1, highlights_g2, highlights_g3.
+   - Admin assigns title and URL via edit overlay on Media cards.
+
+4. **Public Media page**
+   - Consume media_slots for Baseline and Highlights. Show link when URL set; "Coming soon" when empty.
+
+5. **Additional refinements (implemented)**
+   - Box score: redesigned layout — prominent game score, team names above tables, clear division between teams, alternating rows, points emphasized.
+   - Admin drawer: season settings form uses aligned layout (admin-drawer-form, admin-drawer-form-row).
+   - Sponsors: newlines preserved in descriptions (`white-space: pre-line`); Medina fallback logo (`images/wellness-logo.png`).
+   - Richtext: newlines preserved in edit overlays (display: `\n` → `<br>`; textarea for editing).
+
+### Your tasks
+
+1. Navigate admin; confirm the page looks **identical** to public (same layout, same width) with only Edit overlays as the difference.
+2. Edit hero badge, season tag, team names, media slots, about text, conference taglines; verify changes appear on public site.
+3. Confirm no media slot is permanently hardcoded.
+
+---
+
+## Phase 4 — Draft (player bank + drag/drop + autosave) COMPLETE
+
+**Business goal:** Replace manual draft with interactive drag-and-drop. League staff run the draft via admin; public views a read-only draft board (team slots only, no bank). See **phase4.md** for full step-by-step tasks.
+
+### Implemented
+
+1. **Draft data (no new schema)**
+   - Use existing `rosters`. Player bank = season players with no roster entry; assigned = players in rosters.
+   - Team order: `draft_team_order` in content_blocks (JSON array of team IDs). Fallback: teams by sort_order.
+   - Team slot count = `teams.length` (6, 7, 8 — whatever exists for the season).
+
+2. **Draft API**
+   - Use `admin-players` for assign: `{ id, team_id }`; unassign: `{ id, team_id: null }`; delete: `{ delete: true, id }` (clears team.captain when applicable).
+   - Use `admin-content` for `draft_team_order` (team card display order).
+   - Use `admin-teams` for captain: `{ id: team_id, captain: player_name }`.
+
+3. **Draft UI — Public**
+   - Team cards with strong dividers; captain (turquoise box) and players (gold chips) per team. No player bank.
+
+4. **Draft UI — Admin**
+   - Same layout as public + player bank at bottom. Drag-and-drop: bank↔team, team↔team, team→bank.
+   - Captain slot is drop zone; drag player to assign captain. Captain chip draggable.
+   - Team cards draggable to reorder (Sortable.js); save to `draft_team_order`.
+   - Add Players (bulk); draft timer, rounds, start/pause/end, manual prev/next.
+   - Autosave on drop; optimistic UI with rollback on error.
+
+5. **Players tab (admin)**
+   - New nav tab: list all players, Add/Edit/Delete, "Delete all players" bulk action. Used to clear test data before importing real roster.
+
+6. **Captain display logic**
+   - Only show captain when they exist in roster; ghost/deleted captains show "—". `admin-players` clears team.captain on player delete.
+
+### Your tasks
+
+1. Run a test draft: drag players, reorder teams, assign captains, confirm data updates in Supabase.
+2. Verify public sees only team slots (no bank); admin sees bank and can drag.
 
 ---
 
@@ -240,7 +349,7 @@ Add a dedicated Schedule tab so users can view the season schedule, navigate by 
    - Rate limit login endpoint (e.g. 5 attempts per IP per minute).
 
 2. **Export**
-   - Admin: "Export CSV" for current season (rosters, scores, awards, stats, schedule/games, media, content_blocks) for backup.
+   - Admin: "Export CSV" for current season (rosters, scores, awards, stats, schedule/games, game_stat_values, media_items, media_slots, content_blocks) for backup. content_blocks includes keys such as hero_badge, season_tag, about_text, about_conf_taglines, conferences_layout, media_layout, draft_team_order, draft_recap, draft_placeholder, sponsor tiers, etc.
 
 3. **Tests**
    - Unit tests for standings calculation and stat aggregation (if not in Supabase functions).
@@ -321,12 +430,20 @@ Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient
 
 **Phase 3.5**
 
-> Implement Phase 3.5: Add Schedule tab to public site. Week dropdown for focus week; display previous, focus, and next week (hide prev at Week 1, next at last week). Past weeks show scores; future show matchups with time or TBD. Team filter for full season schedule per team.
+> Implement Phase 3.5: Add Schedule tab to public site nav. Week dropdown for focus week; display previous, focus, and next week (hide prev at Week 1, next at last week). Past weeks show scores; future show matchups with time or TBD. Team filter for full season schedule per team. Homepage Recent Matchups/Awards show previous week when current_week is set.
 
-**Phase 4**
+**Phase 3.6**
 
-> Implement Phase 4: Add draft UI with player bank, team boxes, drag-and-drop, and autosave. API endpoints for draft state and picks.
+> Implement Phase 3.6: Add game stat sheets. Schema: game_stat_values (game_id, player_id, stat_definition_id, value). Admin: Games tab — "Stat sheet" per game; Team 1 vs Team 2, players from rosters, input cells per stat (points, fouls, etc.). Live/retro entry; derive or manual scores. Public: Schedule matchup cards expandable — played games show full box score; unplayed show skeleton. Include game_id in scores shape. Stats tab keeps season aggregates from game stats.
+
+**Phase 3.7**
+
+> Implement Phase 3.7: Admin is the public site + edit overlays. Same HTML structure, same layout, same width — no sidebar. Admin controls (season switcher, settings, logout) in a floating drawer/modal. Edit overlays on every editable text: hero badge, season tag, team names, captains, player names, conference labels (dynamic via conferences_layout), media titles/URLs, about_text, about_conf_taglines (sponsor taglines in accordions). Nav: Home, Standings, Schedule, Teams, Stats, Awards, Draft, Media, About, Sponsors (player/roster in Teams panel). Media slots (media_slots): baseline_ep1–3, highlights_g1–3. Public Media: consume slots; no hardcoded "Coming soon" unless slot empty. Reuse public render functions with adminMode flag; shared lib/api + transform.
+
+**Phase 4** *(complete)*
+
+> Implement Phase 4 from phase4.md: Draft UI with player bank (admin only), team boxes with strong dividers, drag-and-drop (players: bank↔team, team↔team; teams: reorder). Captain slot drop zone; captain chip draggable. Use admin-players (assign/unassign/delete); admin-content (draft_team_order); admin-teams (captain). Players tab for full CRUD and bulk delete. Shared renderDraft(adminMode). Turquoise captain section, gold player chips. Autosave on drop, optimistic UI.
 
 **Phase 5**
 
-> Implement Phase 5: Add login rate limiting, CSV export in admin (rosters, scores, awards, stats, schedule/games, media, content_blocks), and tests for standings/stat logic.
+> Implement Phase 5: Add login rate limiting, CSV export in admin (rosters, scores, awards, stats, schedule/games, game_stat_values, media_items, media_slots, content_blocks), and tests for standings/stat logic.

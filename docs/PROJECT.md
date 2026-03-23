@@ -1,135 +1,132 @@
-## Faraj League – Project Overview
+# Faraj League — Project Overview
 
-This repository contains the code for the Faraj League public site (`farajleague.org`). It is a **static, single-page web app** that runs entirely in the browser and uses **Google Sheets as its data source** (a “Sheets-as-backend” architecture). There is **no traditional server or database** in this repo.
+This repository contains the code for the **Faraj League** public site (farajleague.org) and its admin app. It is a **static frontend** backed by **Supabase** (PostgreSQL + Edge Functions). Public site and admin deploy as static assets; writes go through Edge Functions.
+
+---
+
+## Current Position
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Complete | DB schema, Supabase project, public API, seed data |
+| Phase 2 | ✅ Complete | Public site uses Supabase API instead of Google Sheets |
+| Phase 2.5 | ✅ Complete | Code refactored into `js/`, `css/`, `lib/` modules |
+| Phase 3 | ✅ Complete | Admin v1: login, CRUD for seasons, teams, players, games, awards, stats, sponsors, media, draft |
+| Phase 3.5 | ✅ Complete | Schedule tab (public site); homepage previous week |
+| Phase 3.6 | ✅ Complete | Game stat sheets; live scores for fans |
+| Phase 3.7 | ✅ Complete | Admin = public + edit overlays; floating controls; media slots; dynamic conferences; Sponsors redesign |
+| Phase 4 | ✅ Complete | Draft UI: player bank, drag/drop, captain assign, team reorder, Players tab, Add Players bulk, draft timer |
+| Phase 5 | ⏳ Next | Hardening: rate limiting, CSV export, tests |
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: Vanilla HTML, CSS, and JavaScript in `index.html`
-- **Backend**: None in this repo (no Node/Express, Django, etc.)
-- **Data source**: Google Sheets published as CSV
-- **Hosting**: Any static host (e.g. GitHub Pages, Netlify, Vercel)
-- **Fonts & assets**: Google Fonts + local logo images
+- **Public site**: Static HTML, CSS, JS (ES modules); no build step
+- **Admin**: Static SPA at `/admin`; uses the **same structure** as the public site (same nav, same layout, same width); floating Admin control (drawer) for season switcher, settings, logout; Edit overlays on every editable region; password login; CRUD via Edge Functions
+- **Backend**: Supabase (PostgreSQL, RLS, Edge Functions)
+- **Auth**: Shared password → JWT; admin writes require valid token
+- **Hosting**: GitHub Pages (static); Supabase hosts API and Edge Functions
 
 ---
 
 ## Repository Structure
 
-- `index.html`  
-  - Contains:
-    - All HTML for the single-page layout (Home, Standings, Teams, Stats, Awards, Draft, Media, About, Sponsors)
-    - Embedded CSS styling for the full site
-    - Embedded JavaScript for data loading, parsing, and UI rendering
-- `faraj-logo.png` / `faraj-logo.jpeg`  
-  - Brand/logo assets used on the homepage
-- `README.md`  
-  - Minimal, currently just the project name
-- `PROJECT.md` (this file)  
-  - High-level documentation and architecture overview
+```
+├── index.html           # Public site entry
+├── css/main.css         # Public site styles
+├── js/
+│   ├── config.js        # API URL, anon key, sponsor constants
+│   ├── data.js          # fetchSeasons, fetchSeasonData, transform
+│   ├── render.js        # renderHome, renderStandings, etc.
+│   └── app.js           # loadAll, changeSeason, init
+├── lib/api.js           # Supabase queries (getSeasons, getSeasonData)
+├── admin/
+│   ├── index.html       # Admin SPA
+│   ├── css/             # Admin overlays
+│   └── js/
+│       ├── admin.js     # Login, token, adminFetch, nav
+│       ├── sections.js  # CRUD UI per entity
+│       ├── draft-drag-drop.js   # Draft DnD handlers
+│       └── draft-timer.js       # Draft timer/rounds
+├── supabase/
+│   ├── migrations/      # Schema (002_phase3_schema.sql)
+│   └── functions/       # auth-login, admin-*
+├── docs/
+│   ├── all_phases.md    # Master plan (phases 1–5)
+│   ├── phase3.md        # Phase 3 step-by-step
+│   ├── API.md           # API reference
+│   └── PROJECT.md       # This file
+└── .env                 # SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_PASSWORD
+```
 
 ---
 
-## Data & “Backend” Architecture
+## Data Architecture
 
-### Google Sheets as Data Source
+### Supabase Tables
 
-All dynamic data (rosters, scores, awards, stats) lives in a Google Sheet that is **published as CSV**. The app uses a single sheet ID plus per-tab `gid` values:
+- **seasons** — slug, label, is_current, current_week
+- **teams**, **players**, **rosters** — teams and rosters per season
+- **games** — week, game_index, home/away, scores, scheduled_at
+- **awards** — weekly (akhlaq, motm1–3) and season (champ, mvp, scoring)
+- **stat_definitions**, **player_stat_values** — stats (points, etc.)
+- **sponsors** — per-season sponsor overrides
+- **media_items** — Media page Top Plays by week
+- **media_slots** — Media page Baseline Episodes and Match Highlights (season_id, week, slot_key, title, url)
+- **content_blocks** — Editable copy (hero_badge, season_tag, about_text, about_conf_taglines, conferences_layout, draft_recap, draft_placeholder, draft_team_order, media_layout, sponsor tiers)
 
-- `SHEET_ID`: the public Google Sheet identifier
-- `BASE`: `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?output=csv`
-- `TABS`:
-  - `rosters`: team and player data
-  - `scores`: weekly game results
-  - `awards`: weekly and season awards
-  - `stats`: per-player stats (GP, total points, etc.)
+### Public Data Flow
 
-On page load, the frontend issues `fetch` requests directly from the browser to these URLs, parses the CSV responses, and stores them in an in-memory object.
+1. `fetchSeasons()` → list seasons; default to `is_current`
+2. `fetchSeasonData(slug)` → teams, games, awards, stats, sponsors, media_items, media_slots, content_blocks
+3. `transformSeasonData()` maps Supabase shape → app `DB` shape
+4. `renderAll()` updates UI from `config.DB`
 
-### In-memory Data Model
+### Admin Data Flow
 
-The core data structure is `DB`:
-
-- `DB.teams`: array of team objects (`{ id, name, conf, captain, players[] }`)
-- `DB.scores`: array of game objects (`{ week, game, t1, s1, t2, s2 }`)
-- `DB.awards`: array of weekly award objects (`{ week, akhlaq, motm1, motm2, motm3, champ, mvp, scoring }`)
-- `DB.stats`: array of player stats (`{ name, team, gp, total }`)
-
-There is also a `DEFAULT_TEAMS` fallback used when the sheet is empty or fails to load, so the UI still renders with placeholder teams.
-
----
-
-## Application Flow
-
-### Page Load
-
-1. Browser loads `index.html` and static assets (logo, fonts).
-2. The script at the bottom of `index.html` runs `loadAll()`.
-3. `loadAll()`:
-   - Fetches all four CSV tabs in parallel (`rosters`, `scores`, `awards`, `stats`).
-   - Parses each CSV into arrays of rows.
-   - Transforms the rows into typed objects via `parseRosters`, `parseScores`, `parseAwards`, `parseStats`.
-   - Populates the global `DB` object.
-   - Calls `renderAll()` to update the UI.
-
-### Rendering
-
-`renderAll()` orchestrates the main render passes:
-
-- `renderHome()` – hero, quick stats, mini standings, recent matchups, and recent awards
-- `renderStandings()` – full Mecca/Medina conference standings and weekly scores section
-- `renderTeams()` – team cards by conference and roster drawer
-- `renderStats()` – player stats table (sorted by total points)
-- `renderAwards(week)` – weekly award cards and season awards summary
-- `renderScores(week)` – scores by week or for all weeks
-- `renderMedia(week)` – media placeholders and Instagram call-to-action
-- `renderAbout()` – league story and conference breakdown
-
-The nav bar buttons call `showPage(id)` to toggle which `div.page` is visible. There is no routing or backend navigation; everything is client-side.
+1. Login → `auth-login` Edge Function → JWT stored in localStorage
+2. Reads: direct Supabase client (anon key, public RLS)
+3. Writes: `adminFetch(fnName, body)` → Edge Function with `X-Admin-Token` + anon key
 
 ---
 
-## Configuration
+## Overall Goals
 
-Key configuration values live at the bottom of `index.html`:
+1. **farajleague.org** remains a static site; content editable via admin
+2. **Admin** lets league staff manage seasons, teams, players, games, awards, stats, sponsors, media, and draft content
+3. **Admin = public + edit overlays (Phase 3.7)**: Admin is the public site with Edit affordances layered on top. Same HTML structure, same layout, same width — no sidebar. Admin controls (season switcher, settings, logout) live in a floating drawer. Edit overlays on every editable text: hero badge, season tag, team names, captains, player names, conference labels (dynamic conferences via conferences_layout), media titles/URLs, about text, sponsor taglines in About accordions, etc. Nav: Home, Standings, Schedule, Teams, Players, Stats, Awards, Draft, Media, About, Sponsors. All media slots editable; no hardcoded "Coming soon" that admins cannot replace. Every save shows success/error feedback.
+4. **Phase 3.6**: Digital stat sheets; live entry during games; live scores for fans
+5. **Phase 4** *(complete)*: Interactive draft UI with player bank, drag/drop (bank↔team, team↔team, team reorder), captain drag-and-drop, Players tab (CRUD + bulk delete), Add Players bulk, draft timer
+6. **Phase 5**: Rate limiting, CSV export, tests
 
-- **Sponsor configuration**:
-  - `SP1`, `SP1_LOGO`: title sponsor name and logo
-  - `SP2A`, `SP2B`: conference sponsor names
-  - `SP3A`, `SP3B`, `SP3C`: Man of the Match sponsors by game
-  - Helper functions (`confLabel`, `motmLabel`, `akhlaqLabel`, `statsTitle`) compute display text
-- **Sheet configuration**:
-  - `SHEET_ID`: Google Sheet ID
-  - `TABS`: per-tab CSV URLs with `gid`
-  - `TOTAL_WEEKS`, `CURRENT_WEEK`: season configuration
-
-Changing these values lets you:
-
-- Swap out the data source (new Google Sheet) without changing rendering logic.
-- Update sponsor branding and labels in one place.
+**Engineering principles (preserved):** Static deployment, transform at boundary, no secrets in client. Admin mirrors public so admins edit in context — same render functions, same CSS, same layout. The admin page is the public page with edit overlays; no separate admin chrome that alters structure or width.
 
 ---
 
-## Request / Data Flow Summary
+## Outlook
 
-1. **HTTP**: User hits `farajleague.org` → static host serves `index.html` and assets.
-2. **Client data fetch**: JavaScript calls `fetchCSV(TABS.rosters | scores | awards | stats)` → Google publishes CSV.
-3. **Parsing & state**: CSV is parsed and stored into `DB` (`teams`, `scores`, `awards`, `stats`).
-4. **Rendering**: UI functions read from `DB` to:
-   - Compute standings, records, and weeks played.
-   - Render tables, cards, and dropdowns per page.
-5. **Interaction**: All user interactions (tab switches, week dropdowns, team roster toggles) operate purely in the browser, with no additional backend requests.
+**Phase 5 (next):** Hardening — rate limiting on login, CSV export for backup, tests for standings and stat aggregation.
+
+**Post–Phase 5:** One-time import from Google Sheets (if needed); ongoing maintenance and feature refinements.
 
 ---
 
-## Future Improvements / Next Steps
+## Deploy Flow
 
-If you want to evolve this into a more “traditional” engineered stack, common next steps include:
+- **Dev repo** (this repo) → develop and test locally
+- **Fork** → production; merge when ready
+- **farajleague.org** → served from fork (GitHub Pages)
+- **Edge Functions** → deploy separately: `npx supabase functions deploy <name>`
 
-- Extracting JS into separate modules (data layer vs UI layer)
-- Adding TypeScript for typed `DB` structures and safer refactors
-- Introducing a real backend + database (e.g. Node/Express or Next.js API routes with Postgres) and gradually moving data off Google Sheets
-- Adding basic tests around standings/awards/stat calculations
+---
 
-This file is meant as an onboarding guide and architectural snapshot of the current state.
+## References
 
+- **all_phases.md** — Full phase plan with principles, agent tasks, prompt templates
+- **phase3.md** — Phase 3 implementation checklist
+- **phase3.5.md** — Phase 3.5 Schedule tab implementation
+- **phase3.6.md** — Phase 3.6 Game stat sheets implementation
+- **phase3.7.md** — Phase 3.7 Admin visual mirror; editable media slots
+- **phase4.md** — Phase 4 Draft UI (player bank, drag/drop, autosave) ✅
+- **API.md** — Public API and Supabase query patterns

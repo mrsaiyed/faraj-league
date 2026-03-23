@@ -19,6 +19,7 @@
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('home')">Home</button>
     <button class="nav-tab" onclick="showPage('standings')">Standings</button>
+    <button class="nav-tab" onclick="showPage('schedule')">Schedule</button>
     <button class="nav-tab" onclick="showPage('teams')">Teams</button>
     <button class="nav-tab" onclick="showPage('stats')">Stats</button>
     <button class="nav-tab" onclick="showPage('awards')">Awards</button>
@@ -38,13 +39,13 @@
     <div class="hero-bg"></div><div class="hero-geo"></div>
     <div class="hero-content">
       <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
+      <img src="faraj-logo.png" class="hero-league-logo" alt="Faraj League">
       <div id="title-sponsor-banner"></div>
-      <img src="faraj-logo.png" style="width:340px;height:340px;mix-blend-mode:screen;" alt="Faraj League">
       <!-- <h1>Faraj League</h1> -->
       <div class="hero-divider"></div>
       <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
       <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>
-      <p class="season-tag">6 Teams · 42 Players · Ages 17–30</p>
+      <p class="season-tag" id="season-tag">6 Teams · 42 Players · Ages 17–30</p>
     </div>
   </div>
   <div class="historic-banner" id="historic-banner" style="display:none;">
@@ -96,6 +97,20 @@
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
 
+<div id="page-schedule" class="page">
+  <div class="section">
+    <p class="section-sub" id="schedule-section-sub">Spring 2026</p>
+    <h2 class="section-title">Schedule</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(parseInt(this.value), document.getElementById('schedule-team-filter').value || null)"></select></div>
+    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(parseInt(document.getElementById('schedule-week-select').value), this.value || null)"><option value="">All teams</option></select>
+    <div id="schedule-prev" style="margin-top:1.5rem;"></div>
+    <div id="schedule-focus" style="margin-top:1.5rem;"></div>
+    <div id="schedule-next" style="margin-top:1.5rem;"></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
 <div id="page-teams" class="page">
   <div class="section">
     <p class="section-sub" id="teams-section-sub">Spring 2026 · 6 Teams</p><h2 class="section-title">Teams & Rosters</h2><div class="section-line"></div>
@@ -132,8 +147,18 @@
 <div id="page-draft" class="page">
   <div class="section">
     <p class="section-sub" id="draft-section-sub">Spring 2026</p><h2 class="section-title">Draft Recap</h2><div class="section-line"></div>
-    <div class="card" style="margin-bottom:1.2rem;"><p style="font-size:0.96rem;color:#c8c0b0;line-height:1.85;">The inaugural Faraj League draft established all 6 team rosters from a pool of 42 players ages 17–30. Six captains selected their squads to compete across the Mecca and Medina conferences.</p></div>
-    <div class="card" style="text-align:center;padding:2.2rem;"><div style="font-size:0.92rem;color:#c8c0b0;font-style:italic;">Draft board coming soon.</div></div>
+    <div id="draft-controls-area" class="draft-controls-area">
+      <div id="draft-admin-controls" class="draft-admin-controls" style="display:none;">
+        <label class="draft-label">Rounds: <select id="draft-rounds-select" class="draft-select"></select></label>
+        <label class="draft-label">Timer: <select id="draft-timer-select" class="draft-select"></select></label>
+        <button type="button" class="draft-btn" id="draft-start-btn">Draft Start</button>
+        <button type="button" class="draft-btn" id="draft-pause-btn">Pause Draft</button>
+      </div>
+      <div id="draft-timer-wrap" class="draft-timer-wrap" style="display:none;"><span id="draft-timer" class="draft-timer">1:00</span></div>
+    </div>
+    <div id="draft-placeholder-card" class="card" style="text-align:center;padding:2.2rem;"><div id="draft-placeholder" style="font-size:0.92rem;color:#c8c0b0;font-style:italic;">Draft board coming soon.</div></div>
+    <div id="draft-board-wrap"></div>
+    <div id="draft-bank"></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
@@ -143,7 +168,7 @@
     <p class="section-sub">Highlights & Interviews</p><h2 class="section-title">Media</h2><div class="section-line"></div>
     <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="media-week-select" onchange="renderMedia(this.value)"></select></div>
     <div id="media-content"></div>
-    <div style="margin-top:1.5rem;text-align:center;"><button class="insta-btn">Follow @farajleague on Instagram</button></div>
+    <div id="media-follow-wrap" style="margin-top:1.5rem;text-align:center;"><button class="insta-btn">Follow @farajleague on Instagram</button></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
@@ -153,8 +178,9 @@
     <p class="section-sub">Who We Are</p><h2 class="section-title">About the League</h2><div class="section-line"></div>
     <div class="about-grid">
       <div class="about-text">
-        <p>The Faraj League is a community basketball league built on brotherhood and the spirit of collective preparation. Our name is drawn from the narration of the Holy Prophet (s.a.w.s.): <em style="color:#e2c97e;">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</em> — "The best worship is awaiting the reappearance."</p>
-        <p style="font-style:italic;">TBD</p>
+        <div id="about-text" class="about-text-block">The Faraj League is a community basketball league built on brotherhood and the spirit of collective preparation. Our name is drawn from the narration of the Holy Prophet (s.a.w.s.): <em style="color:#e2c97e;">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</em> — "The best worship is awaiting the reappearance."
+
+TBD</div>
       </div>
       <div>
         <div class="conf-info-card">
@@ -175,14 +201,61 @@
 </div>
 
 <div id="page-sponsors" class="page">
-  <div class="section">
-    <p class="section-sub" id="sponsors-section-sub">Spring 2026</p><h2 class="section-title">Sponsors</h2><div class="section-line"></div>
-    <p style="font-size:0.96rem;color:#c8c0b0;margin-bottom:1.8rem;line-height:1.85;">The Faraj League is supported by community partners who share our mission.</p>
-    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-title">Title Sponsor</div><div class="sponsor-card"><div id="sponsor-title-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Sponsor name</div><div id="sponsor-title-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
-    <div style="margin-bottom:1.8rem;"><div class="tier-header tier-conf">Conference Sponsors</div><div class="sponsor-card"><div id="sponsor-mecca-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 1</div><div id="sponsor-mecca-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div id="sponsor-medina-name" style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Conference Sponsor 2</div><div id="sponsor-medina-desc" class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
-    <div><div class="tier-header tier-community">Community Partners</div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 1</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 2</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div><div class="sponsor-card"><div style="font-family:'Cinzel',serif;font-size:0.92rem;color:#c8c0b0;font-style:italic;margin-bottom:0.4rem;">Community Partner 3</div><div class="sponsor-open">Details, social media, and website link will appear here once confirmed.</div></div></div>
+  <div class="section sponsors-page">
+    <p class="section-sub" id="sponsors-section-sub">Spring 2026</p>
+    <h2 class="section-title">Sponsors</h2>
+    <div class="section-line"></div>
+
+    <div class="sponsors-tier sponsors-tier-title">
+      <div class="sponsors-tier-label tier-title">Title Sponsor</div>
+      <div id="sponsor-title-logo" class="sponsor-logo-title"></div>
+      <p id="sponsor-title-desc" class="sponsor-tagline"></p>
+    </div>
+
+    <div class="sponsors-divider"></div>
+
+    <div class="sponsors-tier sponsors-tier-conf">
+      <div class="sponsors-tier-label tier-conf">Conference Sponsors</div>
+      <div class="sponsors-conf-grid">
+        <div class="sponsors-conf-col">
+          <div class="sponsors-conf-label" id="sponsors-conf-label-mecca">Mecca</div>
+          <div id="sponsor-mecca-logo" class="sponsor-logo-conf"></div>
+          <p id="sponsor-mecca-desc" class="sponsor-info-small"></p>
+        </div>
+        <div class="sponsors-conf-col">
+          <div class="sponsors-conf-label" id="sponsors-conf-label-medina">Medina</div>
+          <div id="sponsor-medina-logo" class="sponsor-logo-conf"></div>
+          <p id="sponsor-medina-desc" class="sponsor-info-small"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sponsors-divider"></div>
+
+    <div class="sponsors-tier sponsors-tier-community">
+      <div class="sponsors-tier-label tier-community">Community Partners</div>
+      <div class="sponsors-community-grid">
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-1-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-1-desc" class="sponsor-community-desc"></p>
+        </div>
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-2-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-2-desc" class="sponsor-community-desc"></p>
+        </div>
+        <div class="sponsors-community-item">
+          <div id="sponsor-community-3-logo" class="sponsor-logo-community"></div>
+          <p id="sponsor-community-3-desc" class="sponsor-community-desc"></p>
+        </div>
+      </div>
+    </div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="box-score-fullscreen" class="box-score-fullscreen" style="display:none;" aria-hidden="true">
+  <div class="box-score-fullscreen-drag" id="box-score-drag-hint">↓ Swipe down to close</div>
+  <div class="box-score-fullscreen-content" id="box-score-fullscreen-content"></div>
 </div>
 
 <script type="module" src="js/app.js"></script>

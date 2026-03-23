@@ -1,0 +1,2273 @@
+/**
+ * Admin CRUD section renderers.
+ * Each renderX(content, ctx) populates the content div.
+ */
+
+export async function renderSeasons(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  let season;
+  try {
+    const result = await supabase.from('seasons').select('*').eq('id', seasonId).single();
+    season = result.data;
+    if (result.error) {
+      console.error('Supabase seasons error:', result.error);
+      content.innerHTML = `<p class="msg error">Failed to load season: ${result.error.message}</p>`;
+      return;
+    }
+  } catch (e) {
+    console.error('Supabase fetch failed:', e);
+    content.innerHTML = `<p class="msg error">Failed to load season: ${e.message}</p>`;
+    return;
+  }
+  if (!season) {
+    content.innerHTML = '<p>Season not found.</p>';
+    return;
+  }
+  const weekVal = season.current_week != null && Number.isFinite(Number(season.current_week))
+    ? Number(season.current_week) : '';
+  content.innerHTML = `
+    <div id="seasons-msg"></div>
+    <form id="seasons-form" class="admin-drawer-form">
+      <div class="admin-drawer-form-row">
+        <input type="checkbox" id="seasons-is-current" ${season.is_current ? 'checked' : ''}>
+        <span class="admin-drawer-form-label">Current season</span>
+      </div>
+      <div class="admin-drawer-form-row">
+        <span class="admin-drawer-form-label">Current week</span>
+        <input type="number" id="seasons-current-week" value="${weekVal}" min="1" class="admin-drawer-form-input">
+      </div>
+      <div class="admin-drawer-form-actions">
+        <button type="submit">Save</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('seasons-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('seasons-msg');
+    try {
+      await adminFetch('admin-seasons', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: seasonId,
+          is_current: document.getElementById('seasons-is-current').checked,
+          current_week: parseInt(document.getElementById('seasons-current-week').value) || null,
+        }),
+      });
+      msg.innerHTML = '<p class="msg success">Saved.</p>';
+      msg.style.display = 'block';
+    } catch (err) {
+      msg.innerHTML = `<p class="msg error">${err.message}</p>`;
+    }
+  });
+}
+
+function calcStandingsForAdmin(teams, games) {
+  const rec = {};
+  (teams || []).forEach(t => { rec[t.name] = { w: 0, l: 0 }; });
+  (games || []).forEach(g => {
+    if (g.home_score == null || g.away_score == null) return;
+    const home = teams?.find(t => t.id === g.home_team_id)?.name;
+    const away = teams?.find(t => t.id === g.away_team_id)?.name;
+    if (!home || !away || !rec[home] || !rec[away]) return;
+    const s1 = Number(g.home_score), s2 = Number(g.away_score);
+    if (s1 > s2) { rec[home].w++; rec[away].l++; } else { rec[away].w++; rec[home].l++; }
+  });
+  return rec;
+}
+
+export async function renderHome(content, ctx) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { loadAdminSeasonData } = await import('./admin-data.js');
+  const { HOME_TEMPLATE } = await import('./page-templates.js');
+  const { attachEditOverlay } = await import('./edit-overlays.js');
+  const { renderAll } = await import('/js/render.js');
+
+  const data = await loadAdminSeasonData(window.adminSeasonSlug);
+  if (!data) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+
+  content.innerHTML = HOME_TEMPLATE;
+  const renderMod = await import('/js/render.js');
+  window.renderAll = renderMod.renderAll;
+  window.renderSchedule = renderMod.renderSchedule;
+  window.renderScores = renderMod.renderScores;
+  window.toggleAcc = renderMod.toggleAcc;
+  window.goToTeam = () => document.querySelector('[data-section="teams"]')?.click();
+  renderAll();
+
+  const heroBadge = content.querySelector('#hero-badge');
+  const seasonTag = content.querySelector('#season-tag');
+  const saveContent = (key, value) => adminFetch('admin-content', {
+    method: 'POST',
+    body: JSON.stringify([{ key, value, season_id: seasonId }]),
+  });
+
+  if (heroBadge) {
+    attachEditOverlay({
+      element: heroBadge,
+      key: 'hero_badge',
+      getValue: () => heroBadge.textContent || '',
+      saveFn: (val) => saveContent('hero_badge', val),
+      contentType: 'text',
+      onSaved: () => { renderAll(); },
+    });
+  }
+  if (seasonTag) {
+    attachEditOverlay({
+      element: seasonTag,
+      key: 'season_tag',
+      getValue: () => seasonTag.textContent || '',
+      saveFn: (val) => saveContent('season_tag', val),
+      contentType: 'text',
+      onSaved: () => { renderAll(); },
+    });
+  }
+
+  const editAwardsBtn = document.createElement('a');
+  editAwardsBtn.href = '#';
+  editAwardsBtn.textContent = 'Edit season awards';
+  editAwardsBtn.style.cssText = 'display:inline-block;margin-top:0.5rem;font-size:0.85rem;color:#c8a84b;';
+  editAwardsBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelector('[data-section="awards"]')?.click();
+  });
+  const section = content.querySelector('.section');
+  if (section) section.appendChild(editAwardsBtn);
+
+  const editScheduleBtn = document.createElement('button');
+  editScheduleBtn.type = 'button';
+  editScheduleBtn.textContent = 'Edit Schedule';
+  editScheduleBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
+  editScheduleBtn.addEventListener('click', () => document.querySelector('[data-section="schedule"]')?.click());
+  if (section) section.appendChild(editScheduleBtn);
+}
+
+export async function renderStandings(content, ctx) {
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { loadAdminSeasonData } = await import('./admin-data.js');
+  const { STANDINGS_TEMPLATE } = await import('./page-templates.js');
+  const renderMod = await import('/js/render.js');
+
+  const data = await loadAdminSeasonData(window.adminSeasonSlug);
+  if (!data) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+
+  content.innerHTML = STANDINGS_TEMPLATE;
+  window.renderAll = renderMod.renderAll;
+  window.renderSchedule = renderMod.renderSchedule;
+  window.renderScores = renderMod.renderScores;
+  window.goToTeam = () => document.querySelector('[data-section="teams"]')?.click();
+  renderAll();
+
+  const editScheduleBtn = document.createElement('button');
+  editScheduleBtn.type = 'button';
+  editScheduleBtn.textContent = 'Edit Schedule';
+  editScheduleBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
+  editScheduleBtn.addEventListener('click', () => document.querySelector('[data-section="schedule"]')?.click());
+  const section = content.querySelector('.section');
+  if (section) section.appendChild(editScheduleBtn);
+}
+
+export async function renderTeams(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { data: teams } = await supabase.from('teams').select('*').eq('season_id', seasonId).order('sort_order');
+  const inp = (id, val = '') => ` style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;border-radius:4px;width:100%;"`;
+  content.innerHTML = `
+    <div id="teams-msg"></div>
+    <p><button id="teams-add-btn">Add team</button></p>
+    <ul id="teams-list" style="list-style:none;padding:0;"></ul>
+    <div id="teams-form-wrap" style="display:none;margin-top:1rem;max-width:400px;">
+      <h4 id="teams-form-title">Add team</h4>
+      <form id="teams-form">
+        <input type="hidden" id="teams-id">
+        <label style="display:block;margin-bottom:0.5rem;">Name: <input type="text" id="teams-name" required${inp()}></label>
+        <label style="display:block;margin-bottom:0.5rem;">Conference: <select id="teams-conference"${inp()}>
+          <option value="Mecca">Mecca</option><option value="Medina">Medina</option>
+        </select></label>
+        <label style="display:block;margin-bottom:0.5rem;">Captain: <input type="text" id="teams-captain"${inp()}></label>
+        <button type="submit">Save</button>
+        <button type="button" id="teams-cancel">Cancel</button>
+      </form>
+    </div>
+  `;
+  const list = document.getElementById('teams-list');
+  list.innerHTML = (teams || []).map(t => `
+    <li style="padding:0.5rem 0;border-bottom:1px solid #333;">
+      <strong>${escapeHtml(t.name)}</strong> — ${t.conference} | Captain: ${escapeHtml(t.captain || '—')}
+      <button data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-conf="${t.conference}" data-captain="${escapeHtml(t.captain || '')}" class="edit-btn">Edit</button>
+      <button data-id="${t.id}" data-name="${escapeHtml(t.name)}" class="delete-btn">Delete</button>
+    </li>
+  `).join('') || '<li>No teams yet.</li>';
+
+  const wrap = document.getElementById('teams-form-wrap');
+  const showForm = (t = null) => {
+    wrap.style.display = 'block';
+    document.getElementById('teams-form-title').textContent = t ? 'Edit team' : 'Add team';
+    document.getElementById('teams-id').value = t?.id || '';
+    document.getElementById('teams-name').value = t?.name || '';
+    document.getElementById('teams-conference').value = t?.conference || 'Mecca';
+    document.getElementById('teams-captain').value = t?.captain || '';
+  };
+  const hideForm = () => { wrap.style.display = 'none'; };
+
+  document.getElementById('teams-add-btn').addEventListener('click', () => showForm());
+  document.getElementById('teams-cancel').addEventListener('click', hideForm);
+  list.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => showForm({
+      id: btn.dataset.id, name: btn.dataset.name, conference: btn.dataset.conf, captain: btn.dataset.captain
+    }));
+  });
+  list.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Delete team "${btn.dataset.name}"?`)) return;
+      try {
+        await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+        renderTeams(content, ctx);
+      } catch (e) { document.getElementById('teams-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+    });
+  });
+  document.getElementById('teams-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('teams-id').value;
+    const body = {
+      name: document.getElementById('teams-name').value,
+      conference: document.getElementById('teams-conference').value,
+      captain: document.getElementById('teams-captain').value || null,
+    };
+    if (id) body.id = id; else body.season_id = seasonId;
+    try {
+      await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('teams-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      hideForm();
+      renderTeams(content, ctx);
+    } catch (e) { document.getElementById('teams-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+  });
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML.replace(/"/g, '&quot;');
+}
+
+export async function renderPlayers(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const [{ data: players }, { data: teams }, { data: rosters }] = await Promise.all([
+    supabase.from('players').select('*').eq('season_id', seasonId),
+    supabase.from('teams').select('*').eq('season_id', seasonId),
+    supabase.from('rosters').select('*'),
+  ]);
+  const rosterMap = {};
+  (rosters || []).forEach(r => { rosterMap[r.player_id] = r.team_id; });
+  const teamMap = {};
+  (teams || []).forEach(t => { teamMap[t.id] = t.name; });
+  content.innerHTML = `
+    <div id="players-msg"></div>
+    <p style="margin-bottom:1rem;">
+      <button id="players-add-btn" class="insta-btn" style="padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">Add player</button>
+      ${(players || []).length > 0 ? `<button type="button" id="players-delete-all-btn" style="margin-left:0.5rem;padding:0.4rem 0.8rem;background:transparent;border:1px solid #e85555;color:#e85555;border-radius:4px;cursor:pointer;font-size:0.85rem;">Delete all players</button>` : ''}
+    </p>
+    <table style="width:100%;border-collapse:collapse;"><thead><tr><th>Name</th><th>#</th><th>Team</th><th></th></tr></thead>
+    <tbody id="players-tbody"></tbody></table>
+    <div id="players-form-wrap" style="display:none;margin-top:1rem;max-width:400px;">
+      <h4 id="players-form-title">Add player</h4>
+      <form id="players-form">
+        <input type="hidden" id="players-id">
+        <label style="display:block;margin-bottom:0.5rem;">Name: <input type="text" id="players-name" required style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin-bottom:0.5rem;">Jersey #: <input type="number" id="players-jersey" style="padding:0.4rem;width:100px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin-bottom:0.5rem;">Team: <select id="players-team" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"><option value="">—</option>${(teams || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}</select></label>
+        <button type="submit">Save</button>
+        <button type="button" id="players-cancel">Cancel</button>
+      </form>
+    </div>
+  `;
+  const tbody = document.getElementById('players-tbody');
+  tbody.innerHTML = (players || []).map(p => `
+    <tr><td>${escapeHtml(p.name)}</td><td>${p.jersey_number ?? '—'}</td><td>${escapeHtml(teamMap[rosterMap[p.id]] || '—')}</td>
+    <td><button data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-jersey="${p.jersey_number ?? ''}" data-team="${rosterMap[p.id] || ''}" class="pl-edit">Edit</button>
+    <button data-id="${p.id}" data-name="${escapeHtml(p.name)}" class="pl-del">Delete</button></td></tr>
+  `).join('') || '<tr><td colspan="4">No players yet.</td></tr>';
+
+  const wrap = document.getElementById('players-form-wrap');
+  const showForm = (p = null) => {
+    wrap.style.display = 'block';
+    document.getElementById('players-form-title').textContent = p ? 'Edit player' : 'Add player';
+    document.getElementById('players-id').value = p?.id || '';
+    document.getElementById('players-name').value = p?.name || '';
+    document.getElementById('players-jersey').value = p?.jersey_number ?? '';
+    document.getElementById('players-team').value = p?.team_id || '';
+  };
+  document.getElementById('players-add-btn').onclick = () => showForm();
+  document.getElementById('players-cancel').onclick = () => { wrap.style.display = 'none'; };
+  const deleteAllBtn = document.getElementById('players-delete-all-btn');
+  if (deleteAllBtn) {
+    deleteAllBtn.onclick = async () => {
+      if (!confirm(`Delete all ${(players || []).length} players? This cannot be undone.`)) return;
+      const msgEl = document.getElementById('players-msg');
+      msgEl.innerHTML = '<p class="msg">Deleting...</p>';
+      try {
+        for (const p of players || []) {
+          await adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ delete: true, id: p.id }) });
+        }
+        msgEl.innerHTML = '<p class="msg success">All players deleted.</p>';
+        if (ctx.onPlayersChanged) await ctx.onPlayersChanged();
+        renderPlayers(content, ctx);
+      } catch (e) {
+        msgEl.innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`;
+      }
+    };
+  }
+  tbody.querySelectorAll('.pl-edit').forEach(btn => {
+    btn.onclick = () => showForm({ id: btn.dataset.id, name: btn.dataset.name, jersey_number: btn.dataset.jersey || null, team_id: btn.dataset.team || null });
+  });
+  tbody.querySelectorAll('.pl-del').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm(`Delete player "${btn.dataset.name}"?`)) return;
+      try {
+        await adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+        if (ctx.onPlayersChanged) await ctx.onPlayersChanged();
+        renderPlayers(content, ctx);
+      } catch (e) { document.getElementById('players-msg').innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`; }
+    };
+  });
+  document.getElementById('players-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('players-id').value;
+    const body = {
+      name: document.getElementById('players-name').value,
+      jersey_number: parseInt(document.getElementById('players-jersey').value) || null,
+      team_id: document.getElementById('players-team').value || null,
+    };
+    if (id) body.id = id; else body.season_id = seasonId;
+    try {
+      await adminFetch('admin-players', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('players-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      wrap.style.display = 'none';
+      if (ctx.onPlayersChanged) await ctx.onPlayersChanged();
+      renderPlayers(content, ctx);
+    } catch (e) { document.getElementById('players-msg').innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`; }
+  };
+}
+
+export async function renderSchedule(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { loadAdminSeasonData } = await import('./admin-data.js');
+  const { SCHEDULE_TEMPLATE } = await import('./page-templates.js');
+  const renderMod = await import('/js/render.js');
+  const { config } = await import('/js/config.js');
+
+  const data = await loadAdminSeasonData(window.adminSeasonSlug);
+  if (!data) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+
+  content.innerHTML = SCHEDULE_TEMPLATE;
+  window.renderAll = renderMod.renderAll;
+  window.renderSchedule = renderMod.renderSchedule;
+  window.openBoxScoreFullscreen = renderMod.openBoxScoreFullscreen;
+  renderAll();
+
+  const teams = config.DB.teams || [];
+  const scores = config.DB.scores || [];
+  const teamNameToId = {};
+  teams.forEach(t => { teamNameToId[t.name] = t.id; });
+
+  function openGameModal(game = null) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    const isEdit = !!game;
+    const body = {
+      week: game?.week ?? 1,
+      game_index: game?.game ?? 1,
+      home_team_id: game?.t1Id || teams[0]?.id || '',
+      away_team_id: game?.t2Id || teams[1]?.id || '',
+      home_score: game?.s1 !== '' ? parseInt(game.s1) : null,
+      away_score: game?.s2 !== '' ? parseInt(game.s2) : null,
+      scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
+    };
+    backdrop.innerHTML = `
+      <div class="admin-modal" style="max-width:420px;">
+        <h4>${isEdit ? 'Edit game' : 'Add game'}</h4>
+        <form id="schedule-game-form">
+          <input type="hidden" id="sg-id" value="${game?.gameId || ''}">
+          <label style="display:block;margin:0.5rem 0;">Week: <input type="number" id="sg-week" min="1" value="${body.week}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Game #: <input type="number" id="sg-game-index" min="1" value="${body.game_index}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+          <div class="admin-modal-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-secondary" id="sg-cancel">Cancel</button>
+          </div>
+        </form>
+        <div id="sg-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    const close = () => backdrop.remove();
+    backdrop.querySelector('#sg-cancel').onclick = close;
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+    backdrop.querySelector('#schedule-game-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const id = backdrop.querySelector('#sg-id').value;
+      const body = {
+        week: parseInt(backdrop.querySelector('#sg-week').value),
+        game_index: parseInt(backdrop.querySelector('#sg-game-index').value),
+        home_team_id: backdrop.querySelector('#sg-home').value,
+        away_team_id: backdrop.querySelector('#sg-away').value,
+        home_score: backdrop.querySelector('#sg-home-score').value ? parseInt(backdrop.querySelector('#sg-home-score').value) : null,
+        away_score: backdrop.querySelector('#sg-away-score').value ? parseInt(backdrop.querySelector('#sg-away-score').value) : null,
+        scheduled_at: backdrop.querySelector('#sg-scheduled').value || null,
+      };
+      if (id) body.id = id; else body.season_id = seasonId;
+      const msgEl = backdrop.querySelector('#sg-msg');
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify(body) });
+        close();
+        renderSchedule(content, ctx);
+      } catch (err) {
+        msgEl.textContent = err.message || 'Save failed.';
+        msgEl.className = 'admin-edit-msg error';
+        msgEl.style.display = 'block';
+      }
+    };
+  }
+
+  content.querySelectorAll('.schedule-expand-btn').forEach(btn => {
+    const card = btn.closest('.matchup-card');
+    if (!card) return;
+    const gameId = btn.dataset.gameId;
+    const game = scores.find(s => s.gameId === gameId);
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'admin-edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.style.position = 'relative';
+    editBtn.style.marginRight = '0.5rem';
+    editBtn.onclick = () => openGameModal(game);
+    btn.parentNode.insertBefore(editBtn, btn);
+    const statBtn = document.createElement('button');
+    statBtn.type = 'button';
+    statBtn.className = 'admin-edit-btn';
+    statBtn.textContent = 'Stat sheet';
+    statBtn.style.position = 'relative';
+    statBtn.onclick = () => openStatSheet(game, content, ctx);
+    btn.parentNode.insertBefore(statBtn, btn);
+  });
+
+  const addGameBtn = document.createElement('button');
+  addGameBtn.type = 'button';
+  addGameBtn.textContent = 'Add game';
+  addGameBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
+  addGameBtn.onclick = () => openGameModal(null);
+  const section = content.querySelector('.section');
+  if (section) section.appendChild(addGameBtn);
+}
+
+/**
+ * Attach edit overlays to weekly award winners (akhlaq, motm1, motm2, motm3).
+ * Call after renderAwards — week comes from awards-week-select.
+ */
+export function attachAwardsWeeklyOverlays(ctx) {
+  const { adminFetch, seasonId, refresh } = ctx;
+  if (!seasonId) return;
+
+  (async () => {
+    const { attachEditOverlay } = await import('./edit-overlays.js');
+    const configMod = await import('/js/config.js');
+
+    const weekEl = document.getElementById('awards-week-select');
+    const getWeek = () => weekEl ? parseInt(weekEl.value, 10) || 1 : 1;
+    const getWa = () => {
+      const awardsList = configMod.config?.DB?.awards || [];
+      return awardsList.find(a => Number(a.week) === getWeek()) || {};
+    };
+
+    const saveWeeklyAward = (field, value) => {
+      const currentWeek = getWeek();
+      const wa = getWa();
+      return adminFetch('admin-awards', {
+        method: 'POST',
+        body: JSON.stringify({
+          season_id: seasonId,
+          week: currentWeek,
+          akhlaq: field === 'akhlaq' ? (value || null) : (wa.akhlaq ?? null),
+          motm1: field === 'motm1' ? (value || null) : (wa.motm1 ?? null),
+          motm2: field === 'motm2' ? (value || null) : (wa.motm2 ?? null),
+          motm3: field === 'motm3' ? (value || null) : (wa.motm3 ?? null),
+          champ: wa.champ ?? null,
+          mvp: wa.mvp ?? null,
+          scoring: wa.scoring ?? null,
+        }),
+      });
+    };
+
+    ['akhlaq', 'motm1', 'motm2', 'motm3'].forEach(field => {
+      const el = document.getElementById('award-winner-' + field);
+      if (!el || el.dataset.awardsOverlayAttached) return;
+      el.dataset.awardsOverlayAttached = '1';
+      attachEditOverlay({
+        element: el,
+        key: 'award_' + field,
+        getValue: () => {
+          const t = (el.textContent || '').trim();
+          return t === 'Pending' ? '' : t;
+        },
+        saveFn: (val) => saveWeeklyAward(field, val),
+        contentType: 'text',
+        onSaved: refresh,
+      });
+    });
+  })();
+}
+
+/**
+ * Attach admin overlays to Teams page: edit team cards (name, captain, conference),
+ * add/delete teams, and roster panel with full player CRUD.
+ */
+export async function attachTeamsAdminOverlays(ctx) {
+  const { adminFetch, supabase } = ctx;
+  const onTeamsSaved = ctx.onTeamsSaved || (() => {});
+  const onContentUpdated = ctx.onContentUpdated || (() => {});
+
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) return;
+
+  const pageTeams = document.getElementById('page-teams');
+  const teamsGrid = document.getElementById('teams-grid');
+  const rosterPanel = document.getElementById('roster-panel');
+  const rosterContent = document.getElementById('roster-content');
+  if (!pageTeams || !teamsGrid || !rosterPanel || !rosterContent) return;
+
+  await (async () => {
+    const { config } = await import('/js/config.js');
+    const { confLabel, confShortLabel, getConferences } = await import('/js/config.js');
+    const renderMod = await import('/js/render.js');
+    const { attachEditOverlay } = await import('./edit-overlays.js');
+
+    const teams = config.DB.teams || [];
+    const rec = renderMod.calcStandings ? renderMod.calcStandings() : {};
+    const saveContent = (key, value) => adminFetch('admin-content', { method: 'POST', body: JSON.stringify([{ key, value, season_id: seasonId }]) });
+
+    function getConferencesLayout() {
+      try {
+        const parsed = JSON.parse(config.DB?.contentBlocks?.conferences_layout || '{}');
+        if (parsed?.conferences?.length) return parsed;
+      } catch (_) {}
+      const blocks = config.DB?.contentBlocks || {};
+      return {
+        conferences: [
+          { id: 'Mecca', name: (blocks.conf_name_mecca || '').trim() || 'Mecca', sort_order: 0 },
+          { id: 'Medina', name: (blocks.conf_name_medina || '').trim() || 'Medina', sort_order: 1 },
+        ],
+      };
+    }
+
+    async function saveConferencesLayout(layout) {
+      const value = JSON.stringify(layout);
+      await saveContent('conferences_layout', value);
+      if (!config.DB.contentBlocks) config.DB.contentBlocks = {};
+      config.DB.contentBlocks.conferences_layout = value;
+      refresh();
+    }
+
+    function refresh() { onTeamsSaved(); }
+
+    // --- Team cards: edit overlays and delete ---
+    document.querySelectorAll('.team-card').forEach(card => {
+      if (card.dataset.teamsOverlayAttached) return;
+      card.dataset.teamsOverlayAttached = '1';
+
+      const teamId = card.id.replace('tc-', '');
+      const t = teams.find(x => x.id === teamId);
+      if (!t) return;
+
+      const nameEl = card.querySelector('.team-name');
+      const captainEl = card.querySelector('.team-captain');
+      if (nameEl) {
+        attachEditOverlay({
+          element: nameEl,
+          key: 'team_name',
+          getValue: () => nameEl.textContent || '',
+          saveFn: async (val) => {
+            await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: teamId, name: val }) });
+          },
+          contentType: 'text',
+          onSaved: refresh,
+        });
+        card.querySelectorAll('.admin-edit-btn').forEach(btn => btn.addEventListener('click', e => e.stopPropagation()));
+      }
+      if (captainEl) {
+        attachEditOverlay({
+          element: captainEl,
+          key: 'team_captain',
+          getValue: () => (captainEl.textContent || '').replace(/^Capt:\s*/i, ''),
+          saveFn: async (val) => {
+            const v = (val || '').trim();
+            await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: teamId, captain: (v && v !== '—') ? v : null }) });
+          },
+          contentType: 'text',
+          onSaved: refresh,
+        });
+        card.querySelectorAll('.admin-edit-btn').forEach(btn => btn.addEventListener('click', e => e.stopPropagation()));
+      }
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.textContent = 'Delete';
+      delBtn.className = 'admin-edit-btn';
+      delBtn.style.cssText = 'margin-top:0.4rem;font-size:0.75rem;padding:0.2rem 0.5rem;background:transparent;color:#c87070;border:1px solid #c87070;border-radius:4px;cursor:pointer;';
+      delBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete team "${t.name}"? This will remove all roster links.`)) return;
+        try {
+          await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ delete: true, id: teamId }) });
+          refresh();
+        } catch (err) { alert(err.message); }
+      };
+      card.appendChild(delBtn);
+    });
+
+    // --- Conference header edit overlays + Add/Remove (like media sections) ---
+    const conferences = getConferences();
+    conferences.forEach((c) => {
+      const confId = c.id || c.name;
+      const slug = String(confId).toLowerCase().replace(/\W+/g, '_');
+      const header = document.getElementById(`teams-conf-header-${slug}`);
+      const section = header?.closest('.teams-conf-section');
+      if (!header || !section) return;
+      if (header.dataset.confOverlayAttached) return;
+      header.dataset.confOverlayAttached = '1';
+
+      attachEditOverlay({
+        element: header,
+        key: 'conf_' + confId,
+        getValue: () => confLabel(confId),
+        saveFn: async (val) => {
+          const layout = getConferencesLayout();
+          const conf = layout.conferences.find(x => (x.id || x.name) === confId);
+          if (conf) {
+            const trimVal = (val || '').trim();
+            if (trimVal) {
+              conf.display_label = trimVal;
+            } else {
+              delete conf.display_label;
+            }
+            await saveConferencesLayout(layout);
+          } else {
+            const trimVal = (val || '').trim();
+            await saveContent('conf_name_' + (confId === 'Mecca' ? 'mecca' : confId === 'Medina' ? 'medina' : slug), trimVal);
+            if (!config.DB.contentBlocks) config.DB.contentBlocks = {};
+            config.DB.contentBlocks['conf_name_' + (confId === 'Mecca' ? 'mecca' : confId === 'Medina' ? 'medina' : slug)] = trimVal;
+            refresh();
+          }
+        },
+        contentType: 'text',
+        onSaved: refresh,
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.textContent = 'Remove conference';
+      removeBtn.className = 'admin-edit-btn';
+      removeBtn.style.cssText = 'margin-left:0.5rem;font-size:0.7rem;padding:0.2rem 0.4rem;background:transparent;color:#c87070;border:1px solid #c87070;border-radius:4px;cursor:pointer;';
+      removeBtn.onclick = async () => {
+        const teamCount = teams.filter(t => t.conf === confId).length;
+        if (teamCount > 0 && !confirm(`"${confShortLabel(confId)}" has ${teamCount} team(s). Move them to another conference first, or they will be unassigned. Remove anyway?`)) return;
+        const layout = getConferencesLayout();
+        if (layout.conferences.length <= 1) {
+          alert('Keep at least one conference.');
+          return;
+        }
+        const fallback = layout.conferences.find(x => (x.id || x.name) !== confId)?.id || layout.conferences.find(x => (x.id || x.name) !== confId)?.name || 'Mecca';
+        layout.conferences = layout.conferences.filter(x => (x.id || x.name) !== confId);
+        try {
+          await saveConferencesLayout(layout);
+          if (teamCount > 0) {
+            for (const t of teams.filter(x => x.conf === confId)) {
+              await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: t.id, conference: fallback }) });
+            }
+          }
+          refresh();
+        } catch (err) { alert(err.message); }
+      };
+      const headerWrap = header.closest('.admin-edit-overlay') || header.parentElement;
+      if (headerWrap?.classList?.contains('admin-edit-overlay')) headerWrap.appendChild(removeBtn);
+      else header.parentNode?.insertBefore(removeBtn, header.nextSibling);
+    });
+
+    // --- Add conference + Add team buttons (top, side by side) ---
+    let addConfBtn = document.getElementById('admin-teams-add-conf-btn');
+    let addTeamBtn = document.getElementById('admin-teams-add-btn');
+    let btnWrap = document.getElementById('admin-teams-buttons-wrap');
+    if (!btnWrap) {
+      btnWrap = document.createElement('div');
+      btnWrap.id = 'admin-teams-buttons-wrap';
+      btnWrap.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center;';
+      const section = pageTeams.querySelector('.section');
+      if (section) section.insertBefore(btnWrap, teamsGrid);
+    }
+    if (!addConfBtn) {
+      addConfBtn = document.createElement('button');
+      addConfBtn.type = 'button';
+      addConfBtn.id = 'admin-teams-add-conf-btn';
+      addConfBtn.textContent = 'Add conference';
+      addConfBtn.className = 'insta-btn';
+      addConfBtn.style.cssText = 'padding:0.4rem 0.8rem;font-size:0.85rem;';
+      addConfBtn.onclick = async () => {
+        const name = prompt('Conference name:');
+        if (!name || !name.trim()) return;
+        const layout = getConferencesLayout();
+        const newId = 'Conf_' + Date.now();
+        layout.conferences.push({ id: newId, name: name.trim(), sort_order: layout.conferences.length });
+        try {
+          await saveConferencesLayout(layout);
+        } catch (err) { alert(err.message); }
+      };
+      btnWrap.appendChild(addConfBtn);
+    } else if (addConfBtn.parentNode !== btnWrap) {
+      btnWrap.appendChild(addConfBtn);
+    }
+    if (!addTeamBtn) {
+      addTeamBtn = document.createElement('button');
+      addTeamBtn.type = 'button';
+      addTeamBtn.id = 'admin-teams-add-btn';
+      addTeamBtn.textContent = 'Add team';
+      addTeamBtn.className = 'insta-btn';
+      addTeamBtn.style.cssText = 'padding:0.4rem 0.8rem;font-size:0.85rem;';
+      addTeamBtn.onclick = () => openAddTeamModal();
+      btnWrap.appendChild(addTeamBtn);
+    } else if (addTeamBtn.parentNode !== btnWrap) {
+      btnWrap.appendChild(addTeamBtn);
+    }
+
+    // --- Drag and drop for team order / conference ---
+    if (typeof Sortable !== 'undefined') {
+      const dropZones = teamsGrid.querySelectorAll('.teams-drop-zone');
+      dropZones.forEach(zone => {
+        if (zone.dataset.sortableInit) return;
+        zone.dataset.sortableInit = '1';
+        new Sortable(zone, {
+          group: 'teams',
+          animation: 150,
+          delay: 150,
+          onEnd: async (evt) => {
+            const teamId = evt.item.dataset.teamId;
+            const fromConf = evt.from.dataset.conf;
+            const toConf = evt.to.dataset.conf;
+            const toIds = [...evt.to.querySelectorAll('.team-card')].map(c => c.dataset.teamId);
+            const fromIds = [...evt.from.querySelectorAll('.team-card')].map(c => c.dataset.teamId);
+            try {
+              for (let i = 0; i < toIds.length; i++) {
+                const id = toIds[i];
+                const payload = { id, sort_order: i };
+                if (id === teamId && toConf !== fromConf) payload.conference = toConf;
+                await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify(payload) });
+              }
+              if (toConf !== fromConf && fromIds.length > 0) {
+                for (let i = 0; i < fromIds.length; i++) {
+                  await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: fromIds[i], sort_order: i }) });
+                }
+              }
+              refresh();
+            } catch (err) {
+              alert(err.message || 'Failed to update');
+              refresh();
+            }
+          },
+        });
+      });
+    }
+
+    function openAddTeamModal() {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'admin-modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="admin-modal" style="max-width:400px;">
+          <h4>Add team</h4>
+          <form id="admin-add-team-form">
+            <label style="display:block;margin:0.5rem 0;">Name: <input type="text" id="at-name" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+            <label style="display:block;margin:0.5rem 0;">Conference: <select id="at-conf" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">${getConferences().map(c => { const id = c.id || c.name; return `<option value="${String(id).replace(/"/g, '&quot;')}">${confLabel(id)}</option>`; }).join('')}</select></label>
+            <label style="display:block;margin:0.5rem 0;">Captain: <input type="text" id="at-captain" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+            <div style="margin-top:1rem;"><button type="submit" class="btn-primary">Save</button><button type="button" class="btn-secondary" id="at-cancel">Cancel</button></div>
+          </form>
+          <div id="at-msg" style="margin-top:0.5rem;color:#f87171;"></div>
+        </div>`;
+      document.body.appendChild(backdrop);
+      backdrop.querySelector('#at-cancel').onclick = () => backdrop.remove();
+      backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+      backdrop.querySelector('#admin-add-team-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const name = backdrop.querySelector('#at-name').value.trim();
+        const conference = backdrop.querySelector('#at-conf').value;
+        const captain = backdrop.querySelector('#at-captain').value.trim() || null;
+        try {
+          const teamsInConf = (config.DB.teams || []).filter(t => t.conf === conference);
+          const sortOrder = teamsInConf.length > 0
+            ? Math.max(...teamsInConf.map(t => t.sort_order ?? 0)) + 1
+            : 0;
+          const res = await adminFetch('admin-teams', {
+            method: 'POST',
+            body: JSON.stringify({ season_id: seasonId, name, conference, captain, sort_order: sortOrder }),
+          });
+          backdrop.remove();
+          const newId = res?.id;
+          if (newId && config.DB.teams) {
+            config.DB.teams.push({
+              id: newId,
+              name,
+              conf: conference,
+              captain: captain || '',
+              players: [],
+              roster: [],
+              sort_order: sortOrder,
+            });
+            onContentUpdated();
+          } else {
+            refresh();
+          }
+        } catch (err) { backdrop.querySelector('#at-msg').textContent = err.message; }
+      };
+    }
+
+    // --- Override toggleRoster for admin roster panel with edit ---
+    const baseToggleRoster = window.toggleRoster;
+    const baseCloseRoster = window.closeRoster;
+
+    window.toggleRoster = (id) => {
+      document.querySelectorAll('.team-card').forEach(c => c.classList.remove('selected'));
+      if (window._adminActiveTeam === id) {
+        rosterPanel.classList.remove('open');
+        window._adminActiveTeam = null;
+        return;
+      }
+      window._adminActiveTeam = id;
+      const t = teams.find(x => x.id === id);
+      if (!t) return;
+      const tc = document.getElementById('tc-' + id);
+      if (tc) tc.classList.add('selected');
+
+      const rosterOrdered = [...(t.roster || [])];
+      const captainNorm = (t.captain || '').trim().toLowerCase();
+      const captainInRoster = captainNorm && rosterOrdered.some(r => String(r.name || '').trim().toLowerCase() === captainNorm);
+      if (captainInRoster) {
+        rosterOrdered.sort((a, b) => (String(a.name || '').trim().toLowerCase() === captainNorm ? -1 : String(b.name || '').trim().toLowerCase() === captainNorm ? 1 : 0));
+      }
+      const capDisplay = captainInRoster ? (rosterOrdered.find(r => String(r.name || '').trim().toLowerCase() === captainNorm)?.name || '—') : '—';
+
+      rosterContent.innerHTML = `
+        <div id="roster-header" style="margin-bottom:0.9rem;">
+          <div id="roster-team-name" style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${escapeHtml(t.name)}</div>
+          <div id="roster-sub" style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">
+            <span id="roster-conf-val">${confLabel(t.conf)}</span> · Capt: <span id="roster-captain-val">${escapeHtml(capDisplay)}</span> · ${rec[t.name] ? rec[t.name].w + '-' + rec[t.name].l : '0-0'}
+          </div>
+        </div>
+        <div id="roster-players-list"></div>
+        <button type="button" id="roster-add-player-btn" style="margin-top:0.8rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;">Add player</button>
+      `;
+
+      const listEl = document.getElementById('roster-players-list');
+      rosterOrdered.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'roster-player admin-roster-row';
+        row.dataset.playerId = p.id || '';
+        row.dataset.playerName = p.name;
+        const isCaptain = captainNorm && String(p.name || '').trim().toLowerCase() === captainNorm;
+        const isPlaceholder = !p.id;
+        const actionBtns = isPlaceholder
+          ? `<span style="font-size:0.75rem;color:#c8a84b;">(C) — assign via Draft</span>`
+          : `<button type="button" class="admin-roster-edit" data-id="${p.id}" data-name="${escapeHtml(p.name)}">Edit</button><button type="button" class="admin-roster-remove" data-id="${p.id}" data-name="${escapeHtml(p.name)}">Remove</button>`;
+        row.innerHTML = `<span class="roster-num">${i + 1}</span><span class="roster-player-name">${escapeHtml(p.name)}</span>${isCaptain ? ' <span style="color:#c8a84b;font-size:0.8rem;">(C)</span>' : ''} ${actionBtns}`;
+        listEl.appendChild(row);
+      });
+
+      attachEditOverlay({
+        element: document.getElementById('roster-team-name'),
+        key: 'roster_team_name',
+        getValue: () => document.getElementById('roster-team-name')?.textContent || '',
+        saveFn: async (val) => {
+          await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: t.id, name: val }) });
+        },
+        contentType: 'text',
+        onSaved: refresh,
+      });
+
+      const confEl = document.getElementById('roster-conf-val');
+      if (confEl) {
+        attachEditOverlay({
+          element: confEl,
+          key: 'roster_conf',
+          getValue: () => t.conf || 'Mecca',
+          saveFn: async (val) => {
+            const conf = (val || 'Mecca').trim();
+            const validConfs = getConferences().map(c => c.id || c.name);
+            if (!validConfs.includes(conf)) throw new Error('Conference must be one of: ' + validConfs.join(', '));
+            await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: t.id, conference: conf }) });
+          },
+          contentType: 'text',
+          onSaved: refresh,
+        });
+      }
+
+      const captainEl = document.getElementById('roster-captain-val');
+      if (captainEl) {
+        attachEditOverlay({
+          element: captainEl,
+          key: 'roster_captain',
+          getValue: () => captainEl.textContent || '',
+          saveFn: async (val) => {
+            const v = (val || '').trim();
+            await adminFetch('admin-teams', { method: 'POST', body: JSON.stringify({ id: t.id, captain: (v && v !== '—') ? v : null }) });
+          },
+          contentType: 'text',
+          onSaved: refresh,
+        });
+      }
+
+      listEl.querySelectorAll('.admin-roster-edit').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const pid = btn.dataset.id;
+          const currentName = btn.dataset.name;
+          const newName = prompt('Player name:', currentName);
+          if (newName != null && newName.trim() !== currentName) {
+            adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ id: pid, name: newName.trim() }) })
+              .then(() => refresh())
+              .catch(err => alert(err.message));
+          }
+        };
+      });
+
+      listEl.querySelectorAll('.admin-roster-remove').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          if (!confirm(`Remove "${btn.dataset.name}" from ${t.name}?`)) return;
+          try {
+            await adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+            refresh();
+          } catch (err) { alert(err.message); }
+        };
+      });
+
+      document.getElementById('roster-add-player-btn').onclick = () => {
+        const name = prompt('Player name:');
+        if (!name || !name.trim()) return;
+        adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ season_id: seasonId, name: name.trim(), team_id: t.id }) })
+          .then(() => refresh())
+          .catch(err => alert(err.message));
+      };
+
+      rosterPanel.classList.add('open');
+      rosterPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    window.closeRoster = () => {
+      window._adminActiveTeam = null;
+      document.querySelectorAll('.team-card').forEach(c => c.classList.remove('selected'));
+      rosterPanel.classList.remove('open');
+    };
+  })();
+}
+
+/**
+ * Attach admin Edit/Stat sheet/Add game overlays to schedule page.
+ * Use when admin uses visual mirror layout (renderAll populates #page-schedule).
+ * Call after renderAll(); pass ctx.onScheduleSaved for refresh callback.
+ */
+export async function attachScheduleAdminOverlays(ctx) {
+  const { adminFetch, supabase } = ctx;
+  const onScheduleSaved = ctx.onScheduleSaved || (() => {});
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) return;
+
+  const { config } = await import('/js/config.js');
+  const teams = config.DB.teams || [];
+  const scores = config.DB.scores || [];
+  const pageSchedule = document.getElementById('page-schedule');
+  if (!pageSchedule) return;
+
+  const section = pageSchedule.querySelector('.section');
+  if (!section) return;
+
+  function openGameModal(game = null) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    const isEdit = !!game;
+    const body = {
+      week: game?.week ?? 1,
+      game_index: game?.game ?? 1,
+      home_team_id: game?.t1Id || teams[0]?.id || '',
+      away_team_id: game?.t2Id || teams[1]?.id || '',
+      home_score: game?.s1 !== '' ? parseInt(game.s1) : null,
+      away_score: game?.s2 !== '' ? parseInt(game.s2) : null,
+      scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
+    };
+    backdrop.innerHTML = `
+      <div class="admin-modal" style="max-width:420px;">
+        <h4>${isEdit ? 'Edit game' : 'Add game'}</h4>
+        <form id="schedule-game-form">
+          <input type="hidden" id="sg-id" value="${game?.gameId || ''}">
+          <label style="display:block;margin:0.5rem 0;">Week: <input type="number" id="sg-week" min="1" value="${body.week}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Game #: <input type="number" id="sg-game-index" min="1" value="${body.game_index}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+          <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+          <div class="admin-modal-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-secondary" id="sg-cancel">Cancel</button>
+          </div>
+        </form>
+        <div id="sg-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    const close = () => backdrop.remove();
+    backdrop.querySelector('#sg-cancel').onclick = close;
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+    backdrop.querySelector('#schedule-game-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const id = backdrop.querySelector('#sg-id').value;
+      const body = {
+        week: parseInt(backdrop.querySelector('#sg-week').value),
+        game_index: parseInt(backdrop.querySelector('#sg-game-index').value),
+        home_team_id: backdrop.querySelector('#sg-home').value,
+        away_team_id: backdrop.querySelector('#sg-away').value,
+        home_score: backdrop.querySelector('#sg-home-score').value ? parseInt(backdrop.querySelector('#sg-home-score').value) : null,
+        away_score: backdrop.querySelector('#sg-away-score').value ? parseInt(backdrop.querySelector('#sg-away-score').value) : null,
+        scheduled_at: backdrop.querySelector('#sg-scheduled').value || null,
+      };
+      if (id) body.id = id; else body.season_id = seasonId;
+      const msgEl = backdrop.querySelector('#sg-msg');
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify(body) });
+        close();
+        onScheduleSaved();
+      } catch (err) {
+        msgEl.textContent = err.message || 'Save failed.';
+        msgEl.className = 'admin-edit-msg error';
+        msgEl.style.display = 'block';
+      }
+    };
+  }
+
+  pageSchedule.querySelectorAll('.schedule-expand-btn').forEach(btn => {
+    if (btn.previousElementSibling?.classList?.contains('admin-edit-btn')) return;
+    const gameId = btn.dataset.gameId;
+    const game = scores.find(s => String(s.gameId) === String(gameId));
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'admin-edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.style.cssText = 'position:relative;margin-right:0.5rem;';
+    editBtn.onclick = () => openGameModal(game);
+    btn.parentNode.insertBefore(editBtn, btn);
+    const statBtn = document.createElement('button');
+    statBtn.type = 'button';
+    statBtn.className = 'admin-edit-btn';
+    statBtn.textContent = 'Stat sheet';
+    statBtn.style.cssText = 'position:relative;margin-right:0.5rem;';
+    statBtn.onclick = () => openStatSheet(game, pageSchedule, ctx, onScheduleSaved);
+    btn.parentNode.insertBefore(statBtn, btn);
+  });
+
+  let addGameBtn = section.querySelector('#admin-schedule-add-game-btn');
+  if (!addGameBtn) {
+    addGameBtn = document.createElement('button');
+    addGameBtn.type = 'button';
+    addGameBtn.id = 'admin-schedule-add-game-btn';
+    addGameBtn.textContent = 'Add game';
+    addGameBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
+    addGameBtn.onclick = () => openGameModal(null);
+    section.appendChild(addGameBtn);
+  }
+}
+
+async function openStatSheet(game, content, ctx, onSaved) {
+  if (!game) return;
+  const { adminFetch, supabase } = ctx;
+  const { config } = await import('/js/config.js');
+  const teams = config.DB.teams || [];
+  const teamMap = {};
+  teams.forEach(t => { teamMap[t.id] = t.name; });
+  const wrap = document.createElement('div');
+  wrap.id = 'admin-stat-sheet-wrap';
+  wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;overflow:auto;padding:2rem;';
+  wrap.innerHTML = `
+    <div style="background:#2a2a2a;max-width:900px;margin:0 auto;padding:1.5rem;border-radius:8px;">
+      <h4>Stat sheet — ${escapeHtml(teamMap[game.t1Id] || '')} vs ${escapeHtml(teamMap[game.t2Id] || '')}</h4>
+      <p id="stat-sheet-scores" style="margin:0.5rem 0;">Score: ${game.s1 || '?'} – ${game.s2 || '?'}</p>
+      <div id="stat-sheet-content"></div>
+      <div style="margin-top:1rem;">
+        <button id="stat-sheet-save" style="padding:0.5rem 1rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;">Save</button>
+        <button id="stat-sheet-close" style="padding:0.5rem 1rem;background:#444;color:#e8e4e0;border:none;border-radius:4px;cursor:pointer;margin-left:0.5rem;">Close</button>
+      </div>
+      <div id="stat-sheet-msg" style="margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }] = await Promise.all([
+    supabase.from('rosters').select('*').or(`team_id.eq.${game.t1Id},team_id.eq.${game.t2Id}`),
+    supabase.from('players').select('*').eq('season_id', window.adminSeasonId),
+    supabase.from('stat_definitions').select('*').order('sort_order'),
+    supabase.from('game_stat_values').select('*').eq('game_id', game.gameId),
+  ]);
+
+  const playerMap = {};
+  (players || []).forEach(p => { playerMap[p.id] = p; });
+  const homeRoster = (rosters || []).filter(r => r.team_id === game.t1Id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+  const awayRoster = (rosters || []).filter(r => r.team_id === game.t2Id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+  const gsvMap = {};
+  (gsv || []).forEach(row => {
+    if (!gsvMap[row.player_id]) gsvMap[row.player_id] = {};
+    gsvMap[row.player_id][row.stat_definition_id] = row.value;
+  });
+  const defs = (statDefs || []).filter(s => s.scope === 'game' || s.scope == null);
+
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div><h5>Home</h5><table><thead><tr><th>Player</th>';
+  defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
+  html += '</tr></thead><tbody>';
+  const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
+  for (let i = 0; i < maxRows; i++) {
+    const p = homeRoster[i];
+    html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
+    defs.forEach(d => {
+      const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+    });
+    html += '</tr>';
+  }
+  html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th>';
+  defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
+  html += '</tr></thead><tbody>';
+  for (let i = 0; i < maxRows; i++) {
+    const p = awayRoster[i];
+    html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
+    defs.forEach(d => {
+      const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+    });
+    html += '</tr>';
+  }
+  html += '</tbody></table></div></div>';
+  wrap.querySelector('#stat-sheet-content').innerHTML = homeRoster.length || awayRoster.length ? html : '<p>Add players to teams first.</p>';
+
+  wrap.querySelector('#stat-sheet-close').onclick = () => wrap.remove();
+  wrap.querySelector('#stat-sheet-save').onclick = async () => {
+    const values = [];
+    wrap.querySelectorAll('input[data-player][data-stat]').forEach(inp => {
+      const pid = inp.dataset.player;
+      if (!pid) return;
+      const val = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
+      values.push({ player_id: pid, stat_definition_id: inp.dataset.stat, value: isNaN(val) ? 0 : val });
+    });
+    try {
+      await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: game.gameId, values }) });
+      wrap.querySelector('#stat-sheet-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      const { data: updated } = await supabase.from('games').select('home_score,away_score').eq('id', game.gameId).single();
+      if (updated) wrap.querySelector('#stat-sheet-scores').textContent = `Score: ${updated.home_score ?? '?'} – ${updated.away_score ?? '?'}`;
+      if (onSaved) await onSaved();
+      else if (content) {
+        const sections = await import('./sections.js');
+        await sections.renderSchedule(content, ctx);
+      }
+    } catch (e) {
+      wrap.querySelector('#stat-sheet-msg').innerHTML = `<p class="msg error">${e.message}</p>`;
+    }
+  };
+}
+
+export async function renderGames(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const [{ data: games }, { data: teams }] = await Promise.all([
+    supabase.from('games').select('*').eq('season_id', seasonId).order('week').order('game_index'),
+    supabase.from('teams').select('*').eq('season_id', seasonId),
+  ]);
+  const teamMap = {};
+  (teams || []).forEach(t => { teamMap[t.id] = t.name; });
+  content.innerHTML = `
+    <div id="games-msg"></div>
+    <p><button id="games-add-btn">Add game</button></p>
+    <div id="games-list"></div>
+    <div id="games-stat-sheet-wrap" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;overflow:auto;padding:2rem;">
+      <div style="background:#2a2a2a;max-width:900px;margin:0 auto;padding:1.5rem;border-radius:8px;">
+        <h4 id="games-stat-sheet-title">Stat sheet</h4>
+        <p id="games-stat-sheet-scores" style="margin:0.5rem 0;"></p>
+        <p id="games-stat-sheet-note" class="msg" style="font-size:0.9rem;display:none;">Scores auto-update from points when stat sheet is saved.</p>
+        <div id="games-stat-sheet-content"></div>
+        <div style="margin-top:1rem;">
+          <button id="games-stat-sheet-save">Save</button>
+          <button id="games-stat-sheet-close">Close</button>
+        </div>
+        <div id="games-stat-sheet-msg"></div>
+      </div>
+    </div>
+    <div id="games-form-wrap" style="display:none;margin-top:1rem;max-width:500px;">
+      <h4 id="games-form-title">Add game</h4>
+      <form id="games-form">
+        <input type="hidden" id="games-id">
+        <label>Week: <input type="number" id="games-week" min="1" required style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label>Game #: <input type="number" id="games-game-index" min="1" required style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label><br>
+        <label style="display:block;margin:0.5rem 0;">Home: <select id="games-home" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;">${(teams || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}</select></label>
+        <label style="display:block;margin:0.5rem 0;">Away: <select id="games-away" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;">${(teams || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}</select></label>
+        <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="games-home-score" min="0" style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="games-away-score" min="0" style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Scheduled at (ISO): <input type="text" id="games-scheduled" placeholder="2026-01-15T18:00:00Z" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+        <button type="submit">Save</button>
+        <button type="button" id="games-cancel">Cancel</button>
+      </form>
+    </div>
+  `;
+  const weeks = [...new Set((games || []).map(g => g.week))].sort((a, b) => a - b);
+  document.getElementById('games-list').innerHTML = weeks.map(w => {
+    const gs = (games || []).filter(g => g.week === w);
+    return `<div style="margin-bottom:1rem;"><strong>Week ${w}</strong><ul style="list-style:none;padding:0;">${gs.map(g => `
+      <li style="padding:0.3rem 0;">${escapeHtml(teamMap[g.home_team_id] || '')} vs ${escapeHtml(teamMap[g.away_team_id] || '')} — ${g.home_score ?? '?'}-${g.away_score ?? '?'}
+      <button data-id="${g.id}" class="game-edit">Edit</button>
+      <button data-id="${g.id}" class="game-stat-sheet">Stat sheet</button>
+      <button data-id="${g.id}" class="game-del">Delete</button></li>
+    `).join('')}</ul></div>`;
+  }).join('') || '<p>No games yet.</p>';
+
+  const wrap = document.getElementById('games-form-wrap');
+  const showForm = (g = null) => {
+    wrap.style.display = 'block';
+    document.getElementById('games-form-title').textContent = g ? 'Edit game' : 'Add game';
+    document.getElementById('games-id').value = g?.id || '';
+    document.getElementById('games-week').value = g?.week ?? '';
+    document.getElementById('games-game-index').value = g?.game_index ?? '';
+    document.getElementById('games-home').value = g?.home_team_id || '';
+    document.getElementById('games-away').value = g?.away_team_id || '';
+    document.getElementById('games-home-score').value = g?.home_score ?? '';
+    document.getElementById('games-away-score').value = g?.away_score ?? '';
+    document.getElementById('games-scheduled').value = g?.scheduled_at ? g.scheduled_at.slice(0, 19) : '';
+  };
+  document.getElementById('games-add-btn').onclick = () => showForm();
+  document.getElementById('games-cancel').onclick = () => { wrap.style.display = 'none'; };
+  document.getElementById('games-list').querySelectorAll('.game-edit').forEach(btn => {
+    const g = games.find(x => x.id === btn.dataset.id);
+    if (g) btn.onclick = () => showForm(g);
+  });
+  document.getElementById('games-list').querySelectorAll('.game-del').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this game?')) return;
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+        renderGames(content, ctx);
+      } catch (e) { document.getElementById('games-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+    };
+  });
+
+  const statSheetWrap = document.getElementById('games-stat-sheet-wrap');
+  const statSheetContent = document.getElementById('games-stat-sheet-content');
+  const statSheetTitle = document.getElementById('games-stat-sheet-title');
+  const statSheetScores = document.getElementById('games-stat-sheet-scores');
+  const statSheetNote = document.getElementById('games-stat-sheet-note');
+  const statSheetMsg = document.getElementById('games-stat-sheet-msg');
+
+  document.getElementById('games-stat-sheet-close').onclick = () => { statSheetWrap.style.display = 'none'; };
+
+  document.getElementById('games-list').querySelectorAll('.game-stat-sheet').forEach(btn => {
+    btn.onclick = async () => {
+      const g = games.find(x => x.id === btn.dataset.id);
+      if (!g) return;
+      statSheetWrap.style.display = 'block';
+      statSheetTitle.textContent = `${teamMap[g.home_team_id] || ''} vs ${teamMap[g.away_team_id] || ''} — Week ${g.week}, Game ${g.game_index}`;
+      statSheetScores.textContent = `Score: ${g.home_score ?? '?'} – ${g.away_score ?? '?'}`;
+      statSheetNote.style.display = 'block';
+      statSheetMsg.innerHTML = '';
+
+      const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }] = await Promise.all([
+        supabase.from('rosters').select('*').or(`team_id.eq.${g.home_team_id},team_id.eq.${g.away_team_id}`),
+        supabase.from('players').select('*').eq('season_id', g.season_id),
+        supabase.from('stat_definitions').select('*').order('sort_order'),
+        supabase.from('game_stat_values').select('*').eq('game_id', g.id),
+      ]);
+
+      const playerMap = {};
+      (players || []).forEach(p => { playerMap[p.id] = p; });
+      const homeRoster = (rosters || []).filter(r => r.team_id === g.home_team_id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+      const awayRoster = (rosters || []).filter(r => r.team_id === g.away_team_id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+
+      const gsvMap = {};
+      (gsv || []).forEach(row => {
+        if (!gsvMap[row.player_id]) gsvMap[row.player_id] = {};
+        gsvMap[row.player_id][row.stat_definition_id] = row.value;
+      });
+
+      const defs = (statDefs || []).filter(s => s.scope === 'game' || s.scope == null);
+      if (homeRoster.length === 0 && awayRoster.length === 0) {
+        statSheetContent.innerHTML = '<p class="msg">Add players to teams in Players tab first.</p>';
+        document.getElementById('games-stat-sheet-save').style.display = 'none';
+        return;
+      }
+      document.getElementById('games-stat-sheet-save').style.display = '';
+
+      const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
+      let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-x:auto;"><div><h5>Home</h5><table><thead><tr><th>Player</th>';
+      defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
+      html += '</tr></thead><tbody>';
+      for (let i = 0; i < maxRows; i++) {
+        const p = homeRoster[i];
+        html += '<tr>';
+        html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
+        defs.forEach(d => {
+          const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+        });
+        html += '</tr>';
+      }
+      html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th>';
+      defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
+      html += '</tr></thead><tbody>';
+      for (let i = 0; i < maxRows; i++) {
+        const p = awayRoster[i];
+        html += '<tr>';
+        html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
+        defs.forEach(d => {
+          const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+        });
+        html += '</tr>';
+      }
+      html += '</tbody></table></div></div>';
+      statSheetContent.innerHTML = html;
+
+      document.getElementById('games-stat-sheet-save').onclick = async () => {
+        const values = [];
+        statSheetContent.querySelectorAll('input[data-player][data-stat]').forEach(inp => {
+          const pid = inp.dataset.player;
+          if (!pid) return;
+          const val = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
+          if (isNaN(val)) return;
+          values.push({ player_id: pid, stat_definition_id: inp.dataset.stat, value: val });
+        });
+        try {
+          await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: g.id, values }) });
+          statSheetMsg.innerHTML = '<p class="msg success">Saved.</p>';
+          const { data: updated } = await supabase.from('games').select('home_score,away_score').eq('id', g.id).single();
+          if (updated) statSheetScores.textContent = `Score: ${updated.home_score ?? '?'} – ${updated.away_score ?? '?'}`;
+          renderGames(content, ctx);
+        } catch (e) {
+          statSheetMsg.innerHTML = `<p class="msg error">${e.message}</p>`;
+        }
+      };
+    };
+  });
+
+  document.getElementById('games-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('games-id').value;
+    const body = {
+      week: parseInt(document.getElementById('games-week').value),
+      game_index: parseInt(document.getElementById('games-game-index').value),
+      home_team_id: document.getElementById('games-home').value,
+      away_team_id: document.getElementById('games-away').value,
+      home_score: document.getElementById('games-home-score').value ? parseInt(document.getElementById('games-home-score').value) : null,
+      away_score: document.getElementById('games-away-score').value ? parseInt(document.getElementById('games-away-score').value) : null,
+      scheduled_at: document.getElementById('games-scheduled').value || null,
+    };
+    if (id) body.id = id; else body.season_id = seasonId;
+    try {
+      await adminFetch('admin-games', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('games-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      wrap.style.display = 'none';
+      renderGames(content, ctx);
+    } catch (e) { document.getElementById('games-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+  };
+}
+
+export async function renderAwards(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { data: awards } = await supabase.from('awards').select('*').eq('season_id', seasonId).order('week');
+  const weekAwards = {};
+  (awards || []).forEach(a => { weekAwards[a.week] = a; });
+  const weeks = [...new Set((awards || []).map(a => a.week))].sort((a, b) => a - b);
+  if (weeks.length === 0) weeks.push(1);
+  content.innerHTML = `
+    <div id="awards-msg"></div>
+    <label>Week: <select id="awards-week" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;">${weeks.map(w => `<option value="${w}">${w}</option>`).join('')}</select></label>
+    <form id="awards-form" style="max-width:500px;margin-top:1rem;">
+      <h4>Weekly</h4>
+      <label style="display:block;margin:0.5rem 0;">Akhlaq: <input type="text" id="awards-akhlaq" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">MOTM 1: <input type="text" id="awards-motm1" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">MOTM 2: <input type="text" id="awards-motm2" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">MOTM 3: <input type="text" id="awards-motm3" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <h4 style="margin-top:1rem;">Season</h4>
+      <label style="display:block;margin:0.5rem 0;">Champ: <input type="text" id="awards-champ" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">MVP: <input type="text" id="awards-mvp" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">Scoring: <input type="text" id="awards-scoring" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <button type="submit" style="margin-top:1rem;">Save</button>
+    </form>
+  `;
+  const loadWeek = (w) => {
+    const a = weekAwards[w] || {};
+    document.getElementById('awards-akhlaq').value = a.akhlaq || '';
+    document.getElementById('awards-motm1').value = a.motm1 || '';
+    document.getElementById('awards-motm2').value = a.motm2 || '';
+    document.getElementById('awards-motm3').value = a.motm3 || '';
+    document.getElementById('awards-champ').value = a.champ || '';
+    document.getElementById('awards-mvp').value = a.mvp || '';
+    document.getElementById('awards-scoring').value = a.scoring || '';
+  };
+  document.getElementById('awards-week').value = weeks[0];
+  loadWeek(weeks[0]);
+  document.getElementById('awards-week').onchange = () => loadWeek(parseInt(document.getElementById('awards-week').value));
+  document.getElementById('awards-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const week = parseInt(document.getElementById('awards-week').value);
+    try {
+      await adminFetch('admin-awards', {
+        method: 'POST',
+        body: JSON.stringify({
+          season_id: seasonId,
+          week,
+          akhlaq: document.getElementById('awards-akhlaq').value,
+          motm1: document.getElementById('awards-motm1').value,
+          motm2: document.getElementById('awards-motm2').value,
+          motm3: document.getElementById('awards-motm3').value,
+          champ: document.getElementById('awards-champ').value,
+          mvp: document.getElementById('awards-mvp').value,
+          scoring: document.getElementById('awards-scoring').value,
+        }),
+      });
+      document.getElementById('awards-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      renderAwards(content, ctx);
+    } catch (e) { document.getElementById('awards-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+  };
+}
+
+export async function renderStats(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  const { data: statDefs } = await supabase.from('stat_definitions').select('*').order('sort_order');
+  const [{ data: players }, { data: playerStats }] = seasonId
+    ? await Promise.all([
+        supabase.from('players').select('*').eq('season_id', seasonId),
+        supabase.from('player_stat_values').select('*'),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const psvMap = {};
+  (playerStats || []).forEach(ps => {
+    const k = `${ps.player_id}-${ps.stat_definition_id}`;
+    psvMap[k] = ps.value;
+  });
+  content.innerHTML = `
+    <div id="stats-msg"></div>
+    <h4>Stat definitions</h4>
+    <p><button id="stats-add-def">Add stat type</button></p>
+    <ul id="stats-defs" style="list-style:none;padding:0;"></ul>
+    <h4 style="margin-top:1.5rem;">Player values (season ${seasonId ? 'selected' : '— select season'})</h4>
+    <div id="stats-values"></div>
+  `;
+  document.getElementById('stats-defs').innerHTML = (statDefs || []).map(s => `
+    <li style="padding:0.3rem 0;">${escapeHtml(s.name)} (${escapeHtml(s.slug)}) — <button data-id="${escapeHtml(s.id)}" class="stat-def-del">Delete</button></li>
+  `).join('') || '<li>None</li>';
+  document.getElementById('stats-add-def').onclick = async () => {
+    const name = prompt('Stat name (e.g. Points):');
+    const slug = prompt('Slug (e.g. points):');
+    const scopeInput = prompt('Scope: game (stat sheets) or season (aggregates only). Leave blank for game:');
+    const scope = (scopeInput || 'game').toLowerCase() === 'season' ? 'season' : 'game';
+    if (!name || !slug) return;
+    try {
+      await adminFetch('admin-stats', { method: 'POST', body: JSON.stringify({ type: 'definition', name, slug, scope }) });
+      renderStats(content, ctx);
+    } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+  };
+  document.getElementById('stats-defs').querySelectorAll('.stat-def-del').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this stat type?')) return;
+      try {
+        await adminFetch('admin-stats', { method: 'POST', body: JSON.stringify({ type: 'definition', delete: true, id: btn.dataset.id }) });
+        renderStats(content, ctx);
+      } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+    };
+  });
+  if (seasonId && players?.length && statDefs?.length) {
+    const pointsDef = statDefs.find(s => s.slug === 'points');
+    if (pointsDef) {
+      document.getElementById('stats-values').innerHTML = `
+        <table style="border-collapse:collapse;"><tr><th>Player</th><th>Points</th></tr>
+        ${(players || []).map(p => {
+          const k = `${p.id}-${pointsDef.id}`;
+          const val = psvMap[k] ?? '';
+          const safeVal = escapeHtml(String(val));
+          return `<tr><td>${escapeHtml(p.name)}</td><td><input type="number" data-pid="${escapeHtml(p.id)}" data-sid="${escapeHtml(pointsDef.id)}" value="${safeVal}" style="width:60px;padding:0.3rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;" class="stat-value-input"></td></tr>`;
+        }).join('')}
+        </table>
+      `;
+      document.getElementById('stats-values').querySelectorAll('.stat-value-input').forEach(input => {
+        input.addEventListener('change', async function () {
+          try {
+            await adminFetch('admin-stats', {
+              method: 'POST',
+              body: JSON.stringify({
+                type: 'value',
+                player_id: this.dataset.pid,
+                stat_definition_id: this.dataset.sid,
+                value: parseFloat(this.value) || 0,
+              }),
+            });
+          } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+        });
+      });
+    } else {
+      document.getElementById('stats-values').innerHTML = '<p>Add a "points" stat definition first.</p>';
+    }
+  } else {
+    document.getElementById('stats-values').innerHTML = '<p>Select a season with players.</p>';
+  }
+}
+
+export async function renderSponsors(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { data: sponsors } = await supabase.from('sponsors').select('*').eq('season_id', seasonId);
+  content.innerHTML = `
+    <div id="sponsors-msg"></div>
+    <p><button id="sponsors-add-btn">Add sponsor</button></p>
+    <ul id="sponsors-list" style="list-style:none;padding:0;"></ul>
+    <div id="sponsors-form-wrap" style="display:none;margin-top:1rem;max-width:400px;">
+      <h4 id="sponsors-form-title">Add sponsor</h4>
+      <form id="sponsors-form">
+        <input type="hidden" id="sponsors-id">
+        <label style="display:block;margin:0.5rem 0;">Type: <select id="sponsors-type" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;">
+          <option value="title">Title</option>
+          <option value="conference_mecca">Conference Mecca</option>
+          <option value="conference_medina">Conference Medina</option>
+          <option value="motm">MOTM</option>
+        </select></label>
+        <label style="display:block;margin:0.5rem 0;">Name: <input type="text" id="sponsors-name" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Logo URL: <input type="text" id="sponsors-logo" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Label: <input type="text" id="sponsors-label" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+        <button type="submit">Save</button>
+        <button type="button" id="sponsors-cancel">Cancel</button>
+      </form>
+    </div>
+  `;
+  document.getElementById('sponsors-list').innerHTML = (sponsors || []).map(s => `
+    <li style="padding:0.5rem 0;border-bottom:1px solid #333;">${s.type}: ${escapeHtml(s.name || '—')}
+    <button data-id="${s.id}" data-type="${s.type}" data-name="${escapeHtml(s.name || '')}" data-logo="${escapeHtml(s.logo_url || '')}" data-label="${escapeHtml(s.label || '')}" class="sp-edit">Edit</button>
+    <button data-id="${s.id}" data-name="${escapeHtml(s.name || '')}" class="sp-del">Delete</button></li>
+  `).join('') || '<li>No sponsors yet.</li>';
+  const wrap = document.getElementById('sponsors-form-wrap');
+  const showForm = (s = null) => {
+    wrap.style.display = 'block';
+    document.getElementById('sponsors-form-title').textContent = s ? 'Edit sponsor' : 'Add sponsor';
+    document.getElementById('sponsors-id').value = s?.id || '';
+    document.getElementById('sponsors-type').value = s?.type || 'title';
+    document.getElementById('sponsors-name').value = s?.name || '';
+    document.getElementById('sponsors-logo').value = s?.logo_url || '';
+    document.getElementById('sponsors-label').value = s?.label || '';
+  };
+  document.getElementById('sponsors-add-btn').onclick = () => showForm();
+  document.getElementById('sponsors-cancel').onclick = () => { wrap.style.display = 'none'; };
+  document.getElementById('sponsors-list').querySelectorAll('.sp-edit').forEach(btn => {
+    btn.onclick = () => showForm({ id: btn.dataset.id, type: btn.dataset.type, name: btn.dataset.name, logo_url: btn.dataset.logo || null, label: btn.dataset.label || null });
+  });
+  document.getElementById('sponsors-list').querySelectorAll('.sp-del').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm(`Delete sponsor "${btn.dataset.name}"?`)) return;
+      try {
+        await adminFetch('admin-sponsors', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+        renderSponsors(content, ctx);
+      } catch (e) { document.getElementById('sponsors-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+    };
+  });
+  document.getElementById('sponsors-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('sponsors-id').value;
+    const body = {
+      type: document.getElementById('sponsors-type').value,
+      name: document.getElementById('sponsors-name').value || null,
+      logo_url: document.getElementById('sponsors-logo').value || null,
+      label: document.getElementById('sponsors-label').value || null,
+    };
+    if (id) body.id = id; else body.season_id = seasonId;
+    try {
+      await adminFetch('admin-sponsors', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('sponsors-msg').innerHTML = '<p class="msg success">Saved.</p>';
+      wrap.style.display = 'none';
+      renderSponsors(content, ctx);
+    } catch (e) { document.getElementById('sponsors-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+  };
+}
+
+const MEDIA_SLOT_KEYS = ['top_plays_default', 'baseline_ep1', 'baseline_ep2', 'baseline_ep3', 'highlights_g1', 'highlights_g2', 'highlights_g3'];
+const MEDIA_SLOT_DEFAULTS = { top_plays_default: 'Top Plays', baseline_ep1: 'Episode 1', baseline_ep2: 'Episode 2', baseline_ep3: 'Episode 3', highlights_g1: 'Game 1 Highlights', highlights_g2: 'Game 2 Highlights', highlights_g3: 'Game 3 Highlights' };
+
+export async function renderMedia(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { loadAdminSeasonData } = await import('./admin-data.js');
+  const { MEDIA_TEMPLATE } = await import('./page-templates.js');
+  const renderMod = await import('/js/render.js');
+  const { config } = await import('/js/config.js');
+
+  const data = await loadAdminSeasonData(window.adminSeasonSlug);
+  if (!data) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+
+  content.innerHTML = MEDIA_TEMPLATE;
+  window.renderAll = renderMod.renderAll;
+  window.renderMedia = renderMod.renderMedia;
+  renderAll();
+
+  const currentWeek = parseInt(content.querySelector('#media-week-select')?.value || config.CURRENT_WEEK) || 1;
+  const mediaItems = config.DB.mediaItems || [];
+  const mediaSlots = config.DB.mediaSlots || {};
+
+  content.querySelectorAll('.media-section-title').forEach((titleEl, titleIdx) => {
+    const section = titleEl.closest('div[style*="margin-bottom"]');
+    if (!section) return;
+    const grids = section.querySelectorAll('.media-grid');
+    const grid = grids[titleIdx];
+    if (!grid) return;
+    const label = titleEl.textContent || '';
+    if (label.includes('Top Plays')) {
+      const weekItems = mediaItems.filter(m => m.week === currentWeek);
+      const cards = grid.querySelectorAll('.video-card');
+      cards.forEach((card, ci) => {
+        const item = weekItems[ci];
+        if (!item) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'admin-edit-btn';
+        btn.textContent = 'Edit';
+        btn.style.cssText = 'position:relative;margin-left:0.5rem;';
+        btn.onclick = () => openMediaItemModal(item, content, ctx);
+        card.style.position = 'relative';
+        card.appendChild(btn);
+      });
+    } else if (label.includes('Baseline') || label.includes('Highlights')) {
+      const slotKeys = label.includes('Baseline') ? ['baseline_ep1', 'baseline_ep2', 'baseline_ep3'] : ['highlights_g1', 'highlights_g2', 'highlights_g3'];
+      const cards = grid.querySelectorAll('.video-card');
+      cards.forEach((card, ci) => {
+        const slotKey = slotKeys[ci];
+        if (!slotKey) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'admin-edit-btn';
+        btn.textContent = 'Edit';
+        btn.style.cssText = 'position:relative;margin-left:0.5rem;';
+        btn.onclick = () => openMediaSlotModal(currentWeek, slotKey, content, ctx);
+        card.style.position = 'relative';
+        card.appendChild(btn);
+      });
+    }
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.textContent = 'Add media item';
+  addBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
+  addBtn.onclick = () => openMediaItemModal(null, content, ctx);
+  const section = content.querySelector('.section');
+  if (section) section.appendChild(addBtn);
+}
+
+async function openMediaItemModal(item, content, ctx, onSaved) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  const { config } = await import('/js/config.js');
+  const currentWeek = parseInt(document.getElementById('media-week-select')?.value || config.CURRENT_WEEK) || 1;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>${item ? 'Edit media item' : 'Add media item'}</h4>
+      <form id="media-item-form">
+        <input type="hidden" id="mi-id" value="${item?.id || ''}">
+        <label style="display:block;margin:0.5rem 0;">Week: <input type="number" id="mi-week" min="1" value="${item?.week ?? currentWeek}" required style="padding:0.4rem;width:80px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Title: <input type="text" id="mi-title" value="${escapeHtml(item?.title || '')}" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="mi-url" value="${escapeHtml(item?.url || '')}" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Type: <select id="mi-type" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">
+          <option value="highlight" ${(item?.type || 'highlight') === 'highlight' ? 'selected' : ''}>Highlight</option>
+          <option value="interview" ${item?.type === 'interview' ? 'selected' : ''}>Interview</option>
+        </select></label>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-secondary" id="mi-cancel">Cancel</button>
+          ${item ? '<button type="button" id="mi-delete" style="padding:0.5rem 1rem;background:#c55;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:auto;">Delete</button>' : ''}
+        </div>
+      </form>
+      <div id="mi-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#mi-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#media-item-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = backdrop.querySelector('#mi-id').value;
+    const body = {
+      week: parseInt(backdrop.querySelector('#mi-week').value),
+      title: backdrop.querySelector('#mi-title').value,
+      url: backdrop.querySelector('#mi-url').value,
+      type: backdrop.querySelector('#mi-type').value,
+    };
+    if (id) body.id = id; else body.season_id = seasonId;
+    try {
+      await adminFetch('admin-media', { method: 'POST', body: JSON.stringify(body) });
+      close();
+      if (onSaved) await onSaved();
+      else if (content) {
+        const sections = await import('./sections.js');
+        await sections.renderMedia(content, ctx);
+      }
+    } catch (err) {
+      backdrop.querySelector('#mi-msg').textContent = err.message || 'Save failed.';
+      backdrop.querySelector('#mi-msg').style.display = 'block';
+    }
+  };
+  backdrop.querySelector('#mi-delete')?.addEventListener('click', async () => {
+    if (!confirm('Delete this media item?')) return;
+    try {
+      await adminFetch('admin-media', { method: 'POST', body: JSON.stringify({ delete: true, id: item.id }) });
+      close();
+      if (onSaved) await onSaved();
+      else if (content) {
+        const sections = await import('./sections.js');
+        await sections.renderMedia(content, ctx);
+      }
+    } catch (err) {
+      backdrop.querySelector('#mi-msg').textContent = err.message || 'Delete failed.';
+      backdrop.querySelector('#mi-msg').style.display = 'block';
+    }
+  });
+}
+
+async function openMediaSlotModal(week, slotKey, content, ctx, onSaved) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  const { config } = await import('/js/config.js');
+  const slot = config.DB.mediaSlots?.[week]?.[slotKey] || {};
+  const defaultTitle = MEDIA_SLOT_DEFAULTS[slotKey] || slotKey;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>Edit ${defaultTitle}</h4>
+      <form id="media-slot-form">
+        <label style="display:block;margin:0.5rem 0;">Title: <input type="text" id="ms-title" value="${escapeHtml(slot.title || defaultTitle)}" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="ms-url" value="${escapeHtml(slot.url || '')}" placeholder="https://..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-secondary" id="ms-cancel">Cancel</button>
+        </div>
+      </form>
+      <div id="ms-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#ms-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#media-slot-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const bulk = [{ season_id: seasonId, week, slot_key: slotKey, title: backdrop.querySelector('#ms-title').value || null, url: backdrop.querySelector('#ms-url').value || null }];
+    try {
+      await adminFetch('admin-media-slots', { method: 'POST', body: JSON.stringify({ bulk }) });
+      close();
+      if (onSaved) await onSaved();
+      else if (content) {
+        const sections = await import('./sections.js');
+        await sections.renderMedia(content, ctx);
+      }
+    } catch (err) {
+      backdrop.querySelector('#ms-msg').textContent = err.message || 'Save failed.';
+      backdrop.querySelector('#ms-msg').style.display = 'block';
+    }
+  };
+}
+
+/**
+ * Attach Edit buttons to media slot cards, section headers, Top Plays items, and Instagram link on the Media page.
+ */
+export async function attachMediaSlotOverlays(ctx) {
+  const onMediaSaved = ctx.onMediaSaved || (() => {});
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) return;
+
+  const pageMedia = document.getElementById('page-media');
+  if (!pageMedia) return;
+
+  const { attachEditOverlay } = await import('./edit-overlays.js');
+  const { config } = await import('/js/config.js');
+
+  const saveContent = (key, value) => ctx.adminFetch('admin-content', {
+    method: 'POST',
+    body: JSON.stringify([{ key, value, season_id: seasonId }]),
+  });
+
+  // --- Media layout sections (new flexible structure) ---
+  let layout = { sections: [] };
+  try {
+    const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
+    if (parsed?.sections?.length) {
+      layout = parsed;
+    } else {
+      const legacy = JSON.parse(config.DB?.contentBlocks?.media_custom_blocks || '[]');
+      if (Array.isArray(legacy) && legacy.length) {
+        layout = { sections: [{ id: 'legacy_1', title: config.DB?.contentBlocks?.media_custom_section_title || 'Custom Media', blocks: legacy }] };
+      }
+    }
+  } catch (_) {}
+
+  if (layout?.sections?.length) {
+    pageMedia.querySelectorAll('.media-section-title[data-editable-title][data-section-id]').forEach(el => {
+      if (el.dataset.sectionTitleOverlay) return;
+      const sectionId = el.dataset.sectionId;
+      el.dataset.sectionTitleOverlay = '1';
+      attachEditOverlay({
+        element: el,
+        key: 'section_title',
+        getValue: () => el.textContent || '',
+        saveFn: async (val) => {
+          const sec = layout.sections.find(s => (s.id || '') === sectionId);
+          if (sec) sec.title = val;
+          await saveContent('media_layout', JSON.stringify(layout));
+        },
+        contentType: 'text',
+        onSaved: onMediaSaved,
+      });
+    });
+
+    pageMedia.querySelectorAll('.media-layout-section[data-section-id]').forEach(sectionEl => {
+      if (sectionEl.querySelector('.admin-delete-section-btn')) return;
+      const sectionId = sectionEl.dataset.sectionId;
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'admin-edit-btn admin-delete-section-btn';
+      delBtn.textContent = 'Delete section';
+      delBtn.style.cssText = 'padding:0.2rem 0.5rem;font-size:0.7rem;background:rgba(200,80,80,0.8);';
+      delBtn.onclick = async () => {
+        if (!confirm('Delete this section and all its blocks?')) return;
+        layout.sections = layout.sections.filter(s => (s.id || '') !== sectionId);
+        await saveContent('media_layout', JSON.stringify(layout));
+        await onMediaSaved();
+      };
+      const headerEl = sectionEl.querySelector('.media-section-header');
+      if (headerEl) headerEl.appendChild(delBtn);
+    });
+
+    pageMedia.querySelectorAll('.video-card[data-section-id][data-block-id]').forEach(card => {
+      if (card.querySelector('.admin-media-block-edit-btn')) return;
+      const sectionId = card.dataset.sectionId;
+      const blockId = card.dataset.blockId;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'admin-edit-btn admin-media-block-edit-btn';
+      btn.textContent = 'Edit';
+      btn.style.cssText = 'margin-left:0.5rem;padding:0.2rem 0.5rem;font-size:0.75rem;';
+      btn.onclick = () => openMediaBlockModal(sectionId, blockId, ctx, onMediaSaved);
+      const label = card.querySelector('.video-label');
+      if (label) label.parentNode.insertBefore(btn, label.nextSibling);
+      else card.appendChild(btn);
+    });
+  }
+
+  // --- Legacy overlays (when using old structure - slot cards, media items) ---
+  pageMedia.querySelectorAll('.video-card[data-slot-key][data-week]').forEach(card => {
+    if (card.querySelector('.admin-media-slot-edit-btn')) return;
+    const slotKey = card.dataset.slotKey;
+    const week = parseInt(card.dataset.week, 10);
+    if (!slotKey || isNaN(week)) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-edit-btn admin-media-slot-edit-btn';
+    btn.textContent = 'Edit';
+    btn.style.cssText = 'margin-left:0.5rem;padding:0.2rem 0.5rem;font-size:0.75rem;';
+    btn.onclick = () => openMediaSlotModal(week, slotKey, null, ctx, onMediaSaved);
+    const label = card.querySelector('.video-label');
+    if (label) label.parentNode.insertBefore(btn, label.nextSibling);
+    else card.appendChild(btn);
+  });
+  pageMedia.querySelectorAll('.video-card[data-item-id]').forEach(card => {
+    if (card.querySelector('.admin-media-item-edit-btn')) return;
+    const itemId = card.dataset.itemId;
+    if (!itemId) return;
+    const item = (config.DB.mediaItems || []).find(m => String(m.id) === String(itemId));
+    if (!item) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-edit-btn admin-media-item-edit-btn';
+    btn.textContent = 'Edit';
+    btn.style.cssText = 'margin-left:0.5rem;padding:0.2rem 0.5rem;font-size:0.75rem;';
+    btn.onclick = () => openMediaItemModal(item, null, ctx, onMediaSaved);
+    const label = card.querySelector('.video-label');
+    if (label) label.parentNode.insertBefore(btn, label.nextSibling);
+    else card.appendChild(btn);
+  });
+
+  // --- Instagram URL (Follow button wrapper on Media page) ---
+  const followWrap = document.getElementById('media-follow-wrap');
+  if (followWrap && !followWrap.dataset.mediaInstaOverlay) {
+    followWrap.dataset.mediaInstaOverlay = '1';
+    const instaUrl = config.DB?.contentBlocks?.instagram_url || '';
+    const overlayWrap = document.createElement('div');
+    overlayWrap.className = 'admin-edit-overlay admin-instagram-overlay';
+    followWrap.parentNode.insertBefore(overlayWrap, followWrap);
+    overlayWrap.appendChild(followWrap);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-edit-btn';
+    btn.textContent = 'Edit Instagram link';
+    btn.style.cssText = 'margin-left:0.5rem;padding:0.2rem 0.5rem;font-size:0.75rem;';
+    btn.onclick = () => openInstagramUrlModal(ctx, onMediaSaved);
+    overlayWrap.appendChild(btn);
+  }
+
+  // --- Add section + Add media buttons ---
+  let addMediaWrap = document.getElementById('admin-media-actions-wrap');
+  if (!addMediaWrap) {
+    addMediaWrap = document.createElement('div');
+    addMediaWrap.id = 'admin-media-actions-wrap';
+    addMediaWrap.style.cssText = 'margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
+    const addSectionBtn = document.createElement('button');
+    addSectionBtn.type = 'button';
+    addSectionBtn.textContent = 'Add section';
+    addSectionBtn.className = 'insta-btn';
+    addSectionBtn.style.cssText = 'padding:0.5rem 1rem;font-size:0.8rem;';
+    addSectionBtn.onclick = () => openAddSectionModal(ctx, onMediaSaved);
+    const addMediaBtn = document.createElement('button');
+    addMediaBtn.type = 'button';
+    addMediaBtn.textContent = 'Add media';
+    addMediaBtn.className = 'insta-btn';
+    addMediaBtn.style.cssText = 'padding:0.5rem 1rem;font-size:0.8rem;';
+    addMediaBtn.onclick = () => openAddMediaModal(ctx, onMediaSaved);
+    addMediaWrap.appendChild(addSectionBtn);
+    addMediaWrap.appendChild(addMediaBtn);
+    const section = pageMedia.querySelector('.section');
+    if (section) section.appendChild(addMediaWrap);
+  }
+
+  // --- Footer insta (first one in page-media) ---
+  const footerInsta = pageMedia.querySelector('.footer-insta');
+  if (footerInsta && !footerInsta.dataset.mediaFooterInstaOverlay) {
+    footerInsta.dataset.mediaFooterInstaOverlay = '1';
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center;gap:0.3rem;';
+    footerInsta.parentNode.insertBefore(wrap, footerInsta);
+    wrap.appendChild(footerInsta);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'admin-edit-btn';
+    btn.textContent = 'Edit';
+    btn.style.cssText = 'font-size:0.7rem;padding:0.15rem 0.4rem;';
+    btn.onclick = () => openInstagramUrlModal(ctx, onMediaSaved);
+    wrap.appendChild(btn);
+  }
+}
+
+async function openAddSectionModal(ctx, onSaved) {
+  const { config } = await import('/js/config.js');
+  let layout = { sections: [] };
+  try {
+    const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
+    if (parsed?.sections) layout = parsed;
+  } catch (_) {}
+  if (!Array.isArray(layout.sections)) layout.sections = [];
+  const newTitle = 'New Section';
+  layout.sections.push({ id: 'sec_' + Date.now(), title: newTitle, blocks: [] });
+  try {
+    await ctx.adminFetch('admin-content', {
+      method: 'POST',
+      body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
+    });
+    await onSaved();
+  } catch (err) {
+    alert(err.message || 'Failed to add section');
+  }
+}
+
+async function openAddMediaModal(ctx, onSaved) {
+  const { config } = await import('/js/config.js');
+  let layout = { sections: [] };
+  try {
+    const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
+    if (parsed?.sections) layout = parsed;
+  } catch (_) {}
+  if (!Array.isArray(layout.sections)) layout.sections = [];
+  const sectionOptions = layout.sections.map((s, i) => `<option value="${escapeHtml(s.id || '')}">${escapeHtml(s.title || 'Section ' + (i + 1))}</option>`).join('');
+  const noSections = !layout.sections.length;
+  const newSectionSelected = noSections ? ' selected' : '';
+  const newSectionWrapDisplay = noSections ? 'block' : 'none';
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>Add media</h4>
+      <form id="add-media-form">
+        <label style="display:block;margin:0.5rem 0;">Section: <select id="am-section" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">${sectionOptions}<option value="__new__"${newSectionSelected}>+ New section</option></select></label>
+        <div id="am-new-section-wrap" style="display:${newSectionWrapDisplay};margin:0.5rem 0;"><label>New section name: <input type="text" id="am-new-section-name" placeholder="Section title" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label></div>
+        <label style="display:block;margin:0.5rem 0;">Block title: <input type="text" id="am-title" required placeholder="e.g. Top Plays" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="am-url" placeholder="https://..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Width: <select id="am-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half">Half (2 per row)</option><option value="full">Full width</option></select></label>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Add</button>
+          <button type="button" class="btn-secondary" id="am-cancel">Cancel</button>
+        </div>
+      </form>
+      <div id="am-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#am-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#am-section').onchange = () => {
+    backdrop.querySelector('#am-new-section-wrap').style.display =
+      backdrop.querySelector('#am-section').value === '__new__' ? 'block' : 'none';
+  };
+
+  backdrop.querySelector('#add-media-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const sectionVal = backdrop.querySelector('#am-section').value;
+    const newSectionName = backdrop.querySelector('#am-new-section-name').value.trim();
+    const blockTitle = backdrop.querySelector('#am-title').value.trim() || 'Media';
+    const url = backdrop.querySelector('#am-url').value.trim() || '';
+    const width = backdrop.querySelector('#am-width').value || 'half';
+    let targetSectionId = sectionVal;
+    if (sectionVal === '__new__') {
+      const newId = 'sec_' + Date.now();
+      layout.sections.push({ id: newId, title: newSectionName || 'New Section', blocks: [] });
+      targetSectionId = newId;
+    }
+    const sec = layout.sections.find(s => (s.id || '') === targetSectionId);
+    if (!sec) {
+      backdrop.querySelector('#am-msg').textContent = 'Section not found.';
+      backdrop.querySelector('#am-msg').style.display = 'block';
+      return;
+    }
+    if (!sec.blocks) sec.blocks = [];
+    sec.blocks.push({ id: 'blk_' + Date.now(), title: blockTitle, url, width });
+    try {
+      await ctx.adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
+      });
+      close();
+      await onSaved();
+    } catch (err) {
+      backdrop.querySelector('#am-msg').textContent = err.message || 'Save failed.';
+      backdrop.querySelector('#am-msg').style.display = 'block';
+    }
+  };
+}
+
+async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
+  const { config } = await import('/js/config.js');
+  let layout = { sections: [] };
+  try {
+    const parsed = JSON.parse(config.DB?.contentBlocks?.media_layout || '{}');
+    if (parsed?.sections?.length) layout = parsed;
+  } catch (_) {}
+  if (!layout.sections) layout.sections = [];
+  const sec = layout.sections.find(s => (s.id || '') === sectionId);
+  const block = sec?.blocks?.find(b => (b.id || '').toString() === blockId.toString());
+  if (!block) return;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>Edit block</h4>
+      <form id="edit-block-form">
+        <label style="display:block;margin:0.5rem 0;">Title: <input type="text" id="eb-title" value="${escapeHtml(block.title || '')}" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="eb-url" value="${escapeHtml(block.url || '')}" placeholder="https://..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Width: <select id="eb-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half" ${(block.width || 'half') === 'half' ? 'selected' : ''}>Half (2 per row)</option><option value="full" ${block.width === 'full' ? 'selected' : ''}>Full width</option></select></label>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-secondary" id="eb-cancel">Cancel</button>
+          <button type="button" id="eb-delete" style="padding:0.5rem 1rem;background:#c55;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:auto;">Delete</button>
+        </div>
+      </form>
+      <div id="eb-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#eb-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#edit-block-form').onsubmit = async (e) => {
+    e.preventDefault();
+    block.title = backdrop.querySelector('#eb-title').value.trim() || 'Media';
+    block.url = backdrop.querySelector('#eb-url').value.trim() || '';
+    block.width = backdrop.querySelector('#eb-width').value || 'half';
+    try {
+      await ctx.adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
+      });
+      close();
+      await onSaved();
+    } catch (err) {
+      backdrop.querySelector('#eb-msg').textContent = err.message || 'Save failed.';
+      backdrop.querySelector('#eb-msg').style.display = 'block';
+    }
+  };
+  backdrop.querySelector('#eb-delete').onclick = async () => {
+    if (!confirm('Delete this block?')) return;
+    sec.blocks = sec.blocks.filter(b => (b.id || '').toString() !== blockId.toString());
+    try {
+      await ctx.adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
+      });
+      close();
+      await onSaved();
+    } catch (err) {
+      backdrop.querySelector('#eb-msg').textContent = err.message || 'Delete failed.';
+      backdrop.querySelector('#eb-msg').style.display = 'block';
+    }
+  };
+}
+
+async function openInstagramUrlModal(ctx, onSaved) {
+  const { config } = await import('/js/config.js');
+  const instaUrl = config.DB?.contentBlocks?.instagram_url || '';
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>Instagram URL</h4>
+      <form id="instagram-url-form">
+        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="iu-url" value="${escapeHtml(instaUrl)}" placeholder="https://instagram.com/..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-secondary" id="iu-cancel">Cancel</button>
+        </div>
+      </form>
+      <div id="iu-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#iu-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#instagram-url-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const url = backdrop.querySelector('#iu-url').value.trim() || '';
+    try {
+      await ctx.adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'instagram_url', value: url, season_id: window.adminSeasonId }]),
+      });
+      close();
+      await onSaved();
+    } catch (err) {
+      backdrop.querySelector('#iu-msg').textContent = err.message || 'Save failed.';
+      backdrop.querySelector('#iu-msg').style.display = 'block';
+    }
+  };
+}
+
+export async function renderAbout(content, ctx) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+  const { loadAdminSeasonData } = await import('./admin-data.js');
+  const { ABOUT_TEMPLATE } = await import('./page-templates.js');
+  const { attachEditOverlay } = await import('./edit-overlays.js');
+  const renderMod = await import('/js/render.js');
+
+  const data = await loadAdminSeasonData(window.adminSeasonSlug);
+  if (!data) {
+    content.innerHTML = '<p>Select a season first.</p>';
+    return;
+  }
+
+  content.innerHTML = ABOUT_TEMPLATE;
+  window.renderAll = renderMod.renderAll;
+  window.toggleAcc = renderMod.toggleAcc;
+  renderAll();
+
+  const aboutText = content.querySelector('#about-text');
+  const saveContent = (key, value) => adminFetch('admin-content', {
+    method: 'POST',
+    body: JSON.stringify([{ key, value, season_id: seasonId }]),
+  });
+
+  if (aboutText) {
+    attachEditOverlay({
+      element: aboutText,
+      key: 'about_text',
+      getValue: () => (aboutText.innerText || '').replace(/\r\n/g, '\n'),
+      saveFn: (val) => saveContent('about_text', val),
+      contentType: 'richtext',
+      onSaved: () => { renderMod.renderAll(); },
+    });
+  }
+}
+
+/** No-op. Draft is rendered by js/render.js renderDraft(adminMode) via renderAll(true). */
+export async function renderDraft() {}

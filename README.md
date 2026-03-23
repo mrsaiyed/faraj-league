@@ -29,6 +29,7 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
 4. **Run migrations**
    - Open Supabase Dashboard → SQL Editor
    - Paste and run the SQL from `supabase/migrations/001_initial_schema.sql`
+   - Then run `supabase/migrations/002_phase3_schema.sql` (Phase 3)
    - Or use Supabase CLI: `npx supabase db push`
 
 5. **Seed the database**
@@ -40,6 +41,10 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
 6. **Enable CORS** (for browser access)
    - Supabase Dashboard → Project Settings → API
    - Add allowed origins: `https://farajleague.org`, `http://localhost:*`, `https://<your-username>.github.io`
+
+7. **Admin (Phase 3):** Set secrets and deploy Edge Functions
+   - Dashboard → Project Settings → Edge Functions → Secrets: add `ADMIN_PASSWORD` (e.g. `Faraj2026`) and `SUPABASE_SERVICE_ROLE_KEY`
+   - Deploy: `npx supabase functions deploy auth-login` and `npx supabase functions deploy admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content`
 
 ---
 

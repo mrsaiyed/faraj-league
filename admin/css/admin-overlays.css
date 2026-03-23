@@ -1,0 +1,202 @@
+/**
+ * Admin edit overlays — buttons, modals, inline editors for visual mirror.
+ */
+
+/* Media page: video cards need positioning context for Edit buttons */
+#page-media .video-card {
+  position: relative;
+}
+#page-media .video-card .admin-edit-btn {
+  top: 0.4rem;
+  right: 0.4rem;
+}
+
+.admin-edit-btn {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  background: rgba(200, 168, 75, 0.9);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.85;
+  z-index: 5;
+}
+.admin-edit-btn:hover {
+  opacity: 1;
+  background: #c8a84b;
+}
+
+/* Media section headers: Edit button inline to the right, no overlap */
+#page-media .media-section-header .admin-edit-overlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+#page-media .media-section-header .admin-edit-overlay .admin-edit-btn {
+  position: static;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* Instagram Follow area: Edit button next to the link, not overlapping */
+#page-media .admin-instagram-overlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+#page-media .admin-instagram-overlay .admin-edit-btn {
+  position: static;
+}
+
+/* About page: Edit buttons below content, no overlap */
+#page-about .about-text .admin-edit-overlay {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+#page-about .about-text .admin-edit-overlay .admin-edit-btn {
+  position: static;
+  margin-top: 0.4rem;
+  display: inline-block;
+}
+
+/* Sponsors page: tier labels, conf cols, community items */
+#page-sponsors .admin-edit-overlay:has(.tier-title),
+#page-sponsors .admin-edit-overlay:has(.tier-conf),
+#page-sponsors .admin-edit-overlay:has(.tier-community) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#page-sponsors .admin-edit-overlay:has(.tier-title) .admin-edit-btn,
+#page-sponsors .admin-edit-overlay:has(.tier-conf) .admin-edit-btn,
+#page-sponsors .admin-edit-overlay:has(.tier-community) .admin-edit-btn {
+  position: static;
+}
+#page-sponsors .sponsors-conf-col .admin-edit-overlay,
+#page-sponsors .sponsors-community-item .admin-edit-overlay {
+  display: block;
+  margin-top: 0.3rem;
+}
+#page-sponsors .sponsors-conf-col .admin-edit-overlay .admin-edit-btn,
+#page-sponsors .sponsors-community-item .admin-edit-overlay .admin-edit-btn {
+  position: static;
+  display: inline-block;
+}
+
+.admin-edit-overlay {
+  position: relative;
+}
+
+.admin-edit-msg {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0;
+}
+.admin-edit-msg.success { color: #4ade80; }
+.admin-edit-msg.error { color: #f87171; }
+
+/* Modal for inline editing */
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.admin-modal {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 90%;
+}
+.admin-modal h4 { margin: 0 0 1rem; color: #c8a84b; font-size: 1rem; }
+.admin-modal textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  color: #e8e4e0;
+  border-radius: 4px;
+  font-family: inherit;
+  resize: vertical;
+}
+.admin-modal input {
+  width: 100%;
+  padding: 0.75rem;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  color: #e8e4e0;
+  border-radius: 4px;
+}
+.admin-modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.admin-modal-actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.admin-modal-actions .btn-primary {
+  background: #c8a84b;
+  color: #1a1a1a;
+  border: none;
+}
+.admin-modal-actions .btn-secondary {
+  background: transparent;
+  color: #b0aca8;
+  border: 1px solid #444;
+}
+
+/* Teams page: draggable cards, conference header edit */
+.teams-drop-zone .team-card {
+  cursor: grab;
+}
+.teams-drop-zone .team-card:active {
+  cursor: grabbing;
+}
+.teams-conf-section > .admin-edit-overlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.teams-conf-section > .admin-edit-overlay .admin-edit-btn {
+  position: static;
+}
+
+/* Teams roster: inline overlay for captain, row action buttons */
+.roster-sub .admin-edit-overlay { display: inline; }
+.admin-roster-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.admin-roster-row .roster-player-name { flex: 1; min-width: 0; }
+.admin-roster-edit, .admin-roster-remove {
+  font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; border: none;
+}
+.admin-roster-edit { background: rgba(200,168,75,0.3); color: #c8a84b; }
+.admin-roster-edit:hover { background: #c8a84b; color: #1a1a1a; }
+.admin-roster-remove { background: transparent; color: #c87070; border: 1px solid #c87070; }
+.admin-roster-remove:hover { background: #c87070; color: #fff; }
+
+/* Mirror sections: injected content is primary; minimize section title */
+#section-home h3,
+#section-standings h3,
+#section-schedule h3,
+#section-media h3,
+#section-about h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: #888;
+  font-weight: 400;
+}
