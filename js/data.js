@@ -4,6 +4,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { getSeasons, getSeasonData } from '../lib/api.js';
+import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
@@ -59,8 +60,6 @@ function transformSeasonData(raw) {
     scoring: a.scoring || '',
   }));
 
-  const pointsDef = (stat_definitions || []).find(s => s.slug === 'points');
-  const stats = [];
   const rosterToTeam = {};
   const playerToTeamId = {};
   (rosters || []).forEach(r => {
@@ -68,47 +67,16 @@ function transformSeasonData(raw) {
     playerToTeamId[r.player_id] = r.team_id;
   });
 
-  // game -> { home_team_id, away_team_id } — only count stats when player's team was in the game
-  const gameTeams = {};
-  (games || []).forEach(g => { gameTeams[g.id] = { home: g.home_team_id, away: g.away_team_id }; });
-
-  if (pointsDef) {
-    const hasGameStats = (game_stat_values || []).length > 0;
-    if (hasGameStats) {
-      // Aggregate from game_stat_values: total points, GP = games with at least one stat
-      // Only count when the player's team was actually in the game (home or away)
-      const playerTotal = {};
-      const playerGames = {};
-      (game_stat_values || []).forEach(gsv => {
-        if (gsv.stat_definition_id !== pointsDef.id) return;
-        const gid = gsv.game_id;
-        const pid = gsv.player_id;
-        const gt = gameTeams[gid];
-        const playerTeamId = playerToTeamId[pid];
-        if (!gt || !playerTeamId) return;
-        if (playerTeamId !== gt.home && playerTeamId !== gt.away) return; // player's team not in this game — game was edited
-        if (!playerTotal[pid]) playerTotal[pid] = 0;
-        if (!playerGames[pid]) playerGames[pid] = new Set();
-        playerTotal[pid] += Number(gsv.value || 0);
-        playerGames[pid].add(gid);
-      });
-      Object.entries(playerTotal).forEach(([pid, total]) => {
-        const p = playerMap[pid];
-        const gp = playerGames[pid]?.size || 0;
-        if (p && gp > 0) stats.push({ name: p.name, team: rosterToTeam[pid] || '', gp, total });
-      });
-    } else {
-      // Fallback: player_stat_values (no GP available)
-      const psvByPlayer = {};
-      (player_stat_values || []).filter(psv => psv.stat_definition_id === pointsDef.id).forEach(psv => {
-        psvByPlayer[psv.player_id] = (psvByPlayer[psv.player_id] || 0) + Number(psv.value || 0);
-      });
-      Object.entries(psvByPlayer).forEach(([pid, total]) => {
-        const p = playerMap[pid];
-        if (p) stats.push({ name: p.name, team: rosterToTeam[pid] || '', gp: 0, total });
-      });
-    }
-  }
+  const stats = aggregateStats({
+    game_stat_values,
+    player_stat_values,
+    stat_definitions,
+    rosters,
+    games,
+    players,
+    rosterToTeam,
+    playerToTeamId,
+  });
 
   const sponsorOverrides = {};
   (sponsors || []).forEach(s => {

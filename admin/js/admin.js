@@ -76,6 +76,28 @@ async function adminFetch(fnName, options = {}) {
   return data;
 }
 
+async function adminFetchBlob(fnName, body) {
+  const token = getToken();
+  if (!token) throw new Error('Not authenticated');
+  const res = await fetch(`${config.SUPABASE_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.SUPABASE_ANON_KEY}`,
+      'X-Admin-Token': token,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed: ${res.status}`);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition');
+  const filenameMatch = cd && cd.match(/filename="?([^";\n]+)"?/);
+  return { blob, filename: filenameMatch ? filenameMatch[1].trim() : null };
+}
+
 function showLogin() {
   document.getElementById('admin-login-view').style.display = 'flex';
   document.getElementById('admin-dashboard-view').style.display = 'none';
@@ -685,6 +707,31 @@ async function setupDashboard() {
   document.getElementById('admin-float-btn').onclick = openDrawer;
   document.getElementById('admin-drawer-backdrop').onclick = closeDrawer;
   document.getElementById('admin-drawer-close').onclick = closeDrawer;
+  document.getElementById('admin-export-csv-btn').onclick = async () => {
+    const btn = document.getElementById('admin-export-csv-btn');
+    const status = document.getElementById('admin-export-status');
+    btn.disabled = true;
+    if (status) status.textContent = 'Exporting…';
+    try {
+      const slug = config.currentSeasonSlug || window.adminSeasonSlug;
+      if (!slug) throw new Error('No season selected');
+      const { blob, filename } = await adminFetchBlob('admin-export-csv', { season_slug: slug });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `faraj-league-export-${slug}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      if (status) {
+        status.textContent = 'Export complete';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      }
+    } catch (err) {
+      if (status) status.textContent = `Export failed: ${err.message || 'Unknown error'}`;
+    } finally {
+      btn.disabled = false;
+    }
+  };
   document.getElementById('admin-logout-btn').onclick = () => {
     clearToken();
     closeDrawer();

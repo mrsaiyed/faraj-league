@@ -4,6 +4,7 @@
 
 import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, motmLabel, akhlaqLabel, statsTitle } from './config.js';
+import { calcStandings as calcStandingsPure } from '../lib/standings.js';
 
 let activeTeam = null;
 
@@ -17,15 +18,7 @@ function getWeeksPlayed() { return new Set(config.DB.scores.filter(g => g.s1 !==
 // Standings use config.DB.scores (from games.home_score, away_score). Score derivation in
 // admin-game-stats Edge Function updates games when stat sheet is saved; getSeasonData brings them in.
 export function calcStandings() {
-  const rec = {};
-  config.DB.teams.forEach(t => { rec[t.name] = { w: 0, l: 0, pf: 0, pa: 0, conf: t.conf, id: t.id }; });
-  config.DB.scores.forEach(g => {
-    if (!g.s1 || !g.s2 || !rec[g.t1] || !rec[g.t2]) return;
-    const s1 = parseInt(g.s1), s2 = parseInt(g.s2);
-    rec[g.t1].pf += s1; rec[g.t1].pa += s2; rec[g.t2].pf += s2; rec[g.t2].pa += s1;
-    if (s1 > s2) { rec[g.t1].w++; rec[g.t2].l++; } else { rec[g.t2].w++; rec[g.t1].l++; }
-  });
-  return rec;
+  return calcStandingsPure(config.DB.teams, config.DB.scores);
 }
 function buildWeekDropdown(elId, includeAll) {
   const el = document.getElementById(elId); if (!el) return; el.innerHTML = '';

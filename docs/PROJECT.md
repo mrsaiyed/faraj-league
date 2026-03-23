@@ -16,7 +16,7 @@ This repository contains the code for the **Faraj League** public site (farajlea
 | Phase 3.6 | ✅ Complete | Game stat sheets; live scores for fans |
 | Phase 3.7 | ✅ Complete | Admin = public + edit overlays; floating controls; media slots; dynamic conferences; Sponsors redesign |
 | Phase 4 | ✅ Complete | Draft UI: player bank, drag/drop, captain assign, team reorder, Players tab, Add Players bulk, draft timer |
-| Phase 5 | ⏳ Next | Hardening: rate limiting, CSV export, tests |
+| Phase 5 | ✅ Complete | Hardening: rate limiting, CSV export, tests |
 
 ---
 
@@ -106,7 +106,7 @@ This repository contains the code for the **Faraj League** public site (farajlea
 
 ## Outlook
 
-**Phase 5 (next):** Hardening — rate limiting on login, CSV export for backup, tests for standings and stat aggregation.
+**Phase 5:** ✅ Complete — rate limiting on login, CSV export for backup, tests for standings and stat aggregation.
 
 **Post–Phase 5:** One-time import from Google Sheets (if needed); ongoing maintenance and feature refinements.
 
@@ -129,4 +129,5 @@ This repository contains the code for the **Faraj League** public site (farajlea
 - **phase3.6.md** — Phase 3.6 Game stat sheets implementation
 - **phase3.7.md** — Phase 3.7 Admin visual mirror; editable media slots
 - **phase4.md** — Phase 4 Draft UI (player bank, drag/drop, autosave) ✅
+- **phase5.md** — Phase 5 Hardening (rate limiting, CSV export, tests)
 - **API.md** — Public API and Supabase query patterns

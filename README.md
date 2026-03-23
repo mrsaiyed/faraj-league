@@ -24,12 +24,13 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
    Edit `.env` and add:
    - `SUPABASE_URL` — from Supabase Dashboard → Settings → API
    - `SUPABASE_ANON_KEY` — anon/public key
-   - `SUPABASE_SERVICE_ROLE_KEY` — for seed script only (Dashboard → Settings → API → service_role)
+   - `SUPABASE_SERVICE_ROLE_KEY` — for seed script and Edge Functions; **required for auth-login** (rate limiting uses `login_attempts` table)
+   - `ADMIN_PASSWORD` — for admin login (set in Supabase Edge Function secrets; not in `.env` for production)
 
 4. **Run migrations**
    - Open Supabase Dashboard → SQL Editor
-   - Paste and run the SQL from `supabase/migrations/001_initial_schema.sql`
-   - Then run `supabase/migrations/002_phase3_schema.sql` (Phase 3)
+   - Run migrations in order: 001, 002, 003, 004, 005, 006
+   - Phase 5 adds `006_phase5_login_attempts.sql` for rate limiting
    - Or use Supabase CLI: `npx supabase db push`
 
 5. **Seed the database**
@@ -42,9 +43,33 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
    - Supabase Dashboard → Project Settings → API
    - Add allowed origins: `https://farajleague.org`, `http://localhost:*`, `https://<your-username>.github.io`
 
-7. **Admin (Phase 3):** Set secrets and deploy Edge Functions
+7. **Admin:** Set secrets and deploy Edge Functions
    - Dashboard → Project Settings → Edge Functions → Secrets: add `ADMIN_PASSWORD` (e.g. `Faraj2026`) and `SUPABASE_SERVICE_ROLE_KEY`
-   - Deploy: `npx supabase functions deploy auth-login` and `npx supabase functions deploy admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content`
+   - Run migration 006 before deploying auth-login
+   - Deploy all functions:
+     ```bash
+     npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
+     ```
+
+---
+
+## Fork sync workflow
+
+1. Develop and test in your dev repo.
+2. When ready: sync or pull from dev to fork (or create a PR).
+3. Merge so the fork's main branch has your changes.
+4. farajleague.org (served from the fork) reflects the merge after GitHub Pages rebuilds.
+5. Edge Functions deploy separately to Supabase (not via the fork).
+
+---
+
+## Running tests
+
+```bash
+npm test
+```
+
+Runs unit tests for standings calculation and stat aggregation. Tests are development-only; they do not affect static deployment.
 
 ---
 
@@ -69,3 +94,4 @@ When migrating from Google Sheets, a one-time import script will populate the da
 | Command | Description |
 |---------|-------------|
 | `npm run seed` | Seed database with placeholder season data |
+| `npm test` | Run unit tests (standings, stats) |
