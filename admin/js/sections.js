@@ -404,7 +404,7 @@ export async function renderSchedule(content, ctx) {
   window.openBoxScoreFullscreen = renderMod.openBoxScoreFullscreen;
   renderAll();
 
-  const teams = config.DB.teams || [];
+  const teams = (config.DB.teams || []).filter(t => t && t.id);
   const scores = config.DB.scores || [];
   const teamNameToId = {};
   teams.forEach(t => { teamNameToId[t.name] = t.id; });
@@ -429,8 +429,8 @@ export async function renderSchedule(content, ctx) {
           <input type="hidden" id="sg-id" value="${game?.gameId || ''}">
           <label style="display:block;margin:0.5rem 0;">Week: <input type="number" id="sg-week" min="1" value="${body.week}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Game #: <input type="number" id="sg-game-index" min="1" value="${body.game_index}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
-          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
           <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
@@ -1021,7 +1021,7 @@ export async function attachScheduleAdminOverlays(ctx) {
   if (!seasonId) return;
 
   const { config } = await importRootJs('config.js');
-  const teams = config.DB.teams || [];
+  const teams = (config.DB.teams || []).filter(t => t && t.id);
   const scores = config.DB.scores || [];
   const pageSchedule = document.getElementById('page-schedule');
   if (!pageSchedule) return;
@@ -1049,8 +1049,8 @@ export async function attachScheduleAdminOverlays(ctx) {
           <input type="hidden" id="sg-id" value="${game?.gameId || ''}">
           <label style="display:block;margin:0.5rem 0;">Week: <input type="number" id="sg-week" min="1" value="${body.week}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Game #: <input type="number" id="sg-game-index" min="1" value="${body.game_index}" required style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
-          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Home: <select id="sg-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.home_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
           <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
