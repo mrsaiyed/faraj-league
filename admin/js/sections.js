@@ -1905,7 +1905,7 @@ export async function attachMediaSlotOverlays(ctx) {
       delBtn.type = 'button';
       delBtn.className = 'admin-edit-btn admin-delete-section-btn';
       delBtn.textContent = 'Delete section';
-      delBtn.style.cssText = 'padding:0.2rem 0.5rem;font-size:0.7rem;background:rgba(200,80,80,0.8);';
+      delBtn.style.cssText = 'position:static;padding:0.2rem 0.5rem;font-size:0.7rem;background:rgba(200,80,80,0.8);cursor:pointer;';
       delBtn.onclick = async () => {
         if (!confirm('Delete this section and all its blocks?')) return;
         layout.sections = layout.sections.filter(s => (s.id || '') !== sectionId);
@@ -1920,15 +1920,37 @@ export async function attachMediaSlotOverlays(ctx) {
       if (card.querySelector('.admin-media-block-edit-btn')) return;
       const sectionId = card.dataset.sectionId;
       const blockId = card.dataset.blockId;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'admin-edit-btn admin-media-block-edit-btn';
-      btn.textContent = 'Edit';
-      btn.style.cssText = 'margin-left:0.5rem;padding:0.2rem 0.5rem;font-size:0.75rem;';
-      btn.onclick = () => openMediaBlockModal(sectionId, blockId, ctx, onMediaSaved);
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'admin-edit-btn admin-media-block-edit-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.style.cssText = 'position:static;margin-left:0.3rem;padding:0.2rem 0.5rem;font-size:0.75rem;cursor:pointer;';
+      editBtn.onclick = () => openMediaBlockModal(sectionId, blockId, ctx, onMediaSaved);
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'admin-edit-btn admin-media-block-delete-btn';
+      delBtn.textContent = 'Delete';
+      delBtn.style.cssText = 'position:static;margin-left:0.3rem;padding:0.2rem 0.5rem;font-size:0.75rem;background:rgba(200,80,80,0.8);cursor:pointer;';
+      delBtn.onclick = async () => {
+        if (!confirm('Delete this media block?')) return;
+        const sec = layout.sections.find(s => (s.id || '') === sectionId);
+        if (sec?.blocks) {
+          sec.blocks = sec.blocks.filter(b => (b.id || '') !== blockId);
+          if (sec.blocks.length === 0) layout.sections = layout.sections.filter(s => (s.id || '') !== sectionId);
+        }
+        await saveContent('media_layout', JSON.stringify(layout));
+        await onMediaSaved();
+      };
       const label = card.querySelector('.video-label');
-      if (label) label.parentNode.insertBefore(btn, label.nextSibling);
-      else card.appendChild(btn);
+      const container = label ? label.parentNode : card;
+      const insertRef = label ? label.nextSibling : null;
+      if (insertRef) {
+        container.insertBefore(editBtn, insertRef);
+        container.insertBefore(delBtn, insertRef);
+      } else {
+        container.appendChild(editBtn);
+        container.appendChild(delBtn);
+      }
     });
   }
 

@@ -110,6 +110,8 @@ This repository contains the code for the **Faraj League** public site (farajlea
 
 **Post–Phase 5:** One-time import from Google Sheets (if needed); ongoing maintenance and feature refinements.
 
+**North star — Complete customization:** The long-term goal is that the admin never has to touch the code or database. All content, structure, and layout should be editable through the admin UI. Every phase we ship is a stepping stone toward that, but none of them reach it fully. We keep adding editable pieces (media layout, sponsor tiers, conferences, etc.); the next step is awards customization (editable titles, add sections, add blocks), then more tiles and config until the admin can control everything.
+
 ---
 
 ## Deploy Flow
