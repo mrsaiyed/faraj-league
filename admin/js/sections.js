@@ -418,8 +418,8 @@ export async function renderSchedule(content, ctx) {
       game_index: game?.game ?? 1,
       home_team_id: game?.t1Id || teams[0]?.id || '',
       away_team_id: game?.t2Id || teams[1]?.id || '',
-      home_score: game?.s1 !== '' ? parseInt(game.s1) : null,
-      away_score: game?.s2 !== '' ? parseInt(game.s2) : null,
+      home_score: (game?.s1 ?? '') !== '' ? parseInt(game?.s1, 10) : null,
+      away_score: (game?.s2 ?? '') !== '' ? parseInt(game?.s2, 10) : null,
       scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
     };
     backdrop.innerHTML = `
@@ -1038,8 +1038,8 @@ export async function attachScheduleAdminOverlays(ctx) {
       game_index: game?.game ?? 1,
       home_team_id: game?.t1Id || teams[0]?.id || '',
       away_team_id: game?.t2Id || teams[1]?.id || '',
-      home_score: game?.s1 !== '' ? parseInt(game.s1) : null,
-      away_score: game?.s2 !== '' ? parseInt(game.s2) : null,
+      home_score: (game?.s1 ?? '') !== '' ? parseInt(game?.s1, 10) : null,
+      away_score: (game?.s2 ?? '') !== '' ? parseInt(game?.s2, 10) : null,
       scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
     };
     backdrop.innerHTML = `
@@ -1113,15 +1113,14 @@ export async function attachScheduleAdminOverlays(ctx) {
     btn.parentNode.insertBefore(statBtn, btn);
   });
 
-  let addGameBtn = section.querySelector('#admin-schedule-add-game-btn');
-  if (!addGameBtn) {
-    addGameBtn = document.createElement('button');
-    addGameBtn.type = 'button';
-    addGameBtn.id = 'admin-schedule-add-game-btn';
-    addGameBtn.textContent = 'Add game';
-    addGameBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
-    addGameBtn.onclick = () => openGameModal(null);
-    section.appendChild(addGameBtn);
+  const addGameBtn = section.querySelector('#admin-schedule-add-game-btn');
+  if (addGameBtn && !addGameBtn.dataset.addGameHandlerAttached) {
+    addGameBtn.dataset.addGameHandlerAttached = '1';
+    addGameBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openGameModal(null);
+    });
   }
 }
 
