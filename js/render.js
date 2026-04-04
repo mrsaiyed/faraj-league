@@ -690,7 +690,7 @@ export function renderDraft(adminMode = false) {
     }).join('');
     const dropZone = adminMode ? ` data-drop-zone="team" data-team-id="${escapeHtmlAttr(t.id)}"` : '';
     const logoSlug = teamLogoSlug(t.name);
-    const logoHtml = `<div class="draft-team-logo-wrap"><img class="draft-team-logo" src="${escapeHtmlAttr(logoBasePath + logoSlug)}.png" alt="${escapeHtmlAttr(t.name)}" onerror="this.parentElement.classList.add('draft-team-logo-missing')"></div>`;
+    const logoHtml = `<div class="draft-team-logo-wrap"><img class="draft-team-logo" src="${escapeHtmlAttr(logoBasePath + logoSlug)}.png" alt="${escapeHtmlAttr(t.name)}" onerror="if(!this.dataset.jpg){this.dataset.jpg=1;this.src='${escapeHtmlAttr(logoBasePath + logoSlug)}.jpg'}else{this.parentElement.classList.add('draft-team-logo-missing')}"></div>`;
     return `<div class="draft-team-card" data-team-id="${escapeHtmlAttr(t.id)}" data-drop-zone="team">
       ${logoHtml}
       <table class="draft-team-table">
