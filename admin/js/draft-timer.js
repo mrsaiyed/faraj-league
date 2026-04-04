@@ -306,8 +306,14 @@ export async function setRounds(rounds, adminFetch) {
  * Set timer length in seconds and persist.
  */
 export async function setTimerSeconds(seconds, adminFetch) {
+  const secs = Math.max(1, Math.min(300, parseInt(seconds, 10) || 60));
+  // Optimistic local update so getTimerSeconds() returns the new value immediately,
+  // even before the async DB save completes.
+  if (config.DB?.contentBlocks) {
+    config.DB.contentBlocks.draft_timer_seconds = String(secs);
+  }
   const state = getState();
-  state.timerSeconds = Math.max(1, Math.min(300, parseInt(seconds, 10) || 60));
+  state.timerSeconds = secs;
   await saveState(state, adminFetch);
   notifyChange();
 }
