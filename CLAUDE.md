@@ -1,0 +1,82 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+npm test          # Run unit tests (vitest)
+npm run seed      # Seed database with placeholder data
+
+# Deploy an Edge Function
+npx supabase functions deploy <function-name>
+
+# Push DB migrations
+npx supabase db push
+```
+
+No build step — this is a static site with ES modules served directly.
+
+## Architecture
+
+**Stack**: Static HTML/CSS/ES modules (no bundler) + Supabase (PostgreSQL + Edge Functions) + GitHub Pages hosting.
+
+### Public Site
+
+`index.html` → `js/app.js` (orchestration) → `js/data.js` (fetch) → `lib/api.js` (Supabase queries) → `js/render.js` (DOM updates).
+
+Data flow:
+1. `fetchSeasons()` populates the season dropdown
+2. `fetchSeasonData(slug)` fetches all season data in parallel (teams, players, rosters, games, awards, stats, sponsors)
+3. `transformSeasonData(raw)` maps Supabase shape → internal `config.DB` shape (run once on fetch)
+4. `renderAll()` updates all page sections from `config.DB`
+5. `changeSeason(slug)` repeats steps 2–4; `showPage(id)` toggles `.page.active`
+
+### Admin Site
+
+`admin/index.html` is the **public site + edit overlays** — same layout, same width, same nav. Admin logic adds edit controls to every editable region.
+
+`admin/js/admin.js` handles login and `adminFetch(fnName, options)` — all writes go through Supabase Edge Functions with `X-Admin-Token` header (JWT stored in localStorage).
+
+`admin/js/sections.js` wires up all CRUD UI (inline edit overlays, modals, floating drawer for season/logout controls).
+
+### Edge Functions (`supabase/functions/`)
+
+All admin writes go through Edge Functions — never direct DB access from the browser:
+- `auth-login` — validates password, returns 24h JWT
+- `admin-{seasons,teams,players,games,awards,stats,sponsors,media,media-slots,game-stats,content,export-csv}` — CRUD handlers
+- `_shared/auth.ts` — JWT verification shared across all admin functions
+
+Public reads use the Supabase anon key directly from `lib/api.js`.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `js/config.js` | Supabase URL, anon key, sponsor/conference constants |
+| `js/data.js` | `fetchSeasons`, `fetchSeasonData`, `transformSeasonData` |
+| `lib/standings.js` | Pure function: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both) |
+| `lib/stats.js` | Pure function: `aggregateStats()` → player stat aggregation; falls back to `player_stat_values` if no game stats |
+| `admin/js/draft-drag-drop.js` | Drag-and-drop for draft UI |
+| `admin/js/draft-timer.js` | Draft timer and round management |
+
+### Database Tables
+
+`seasons`, `teams`, `players`, `rosters`, `games`, `game_stat_values`, `awards`, `stat_definitions`, `player_stat_values`, `sponsors`, `media_items`, `media_slots`, `content_blocks`, `login_attempts` (rate limiting).
+
+RLS allows public read on all tables; writes are enforced by Edge Function JWT validation, not RLS policies.
+
+### Environment
+
+```
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ADMIN_PASSWORD=
+```
+
+Copy `.env.example` to `.env` for local development. The seed script and Edge Functions use `SUPABASE_SERVICE_ROLE_KEY`; the browser uses only `SUPABASE_ANON_KEY`.
+
+### Deploy Flow
+
+Dev repo → pull into fork (production) → GitHub Pages serves the static site. Edge Functions deploy separately per function. Migrations run via Supabase dashboard or `npx supabase db push`.

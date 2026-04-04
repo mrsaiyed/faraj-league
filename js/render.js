@@ -437,7 +437,7 @@ export function toggleRoster(id) {
   const captainMatch = roster.find(p => (t.captain || '').trim() && String(p.name || '').trim().toLowerCase() === (t.captain || '').trim().toLowerCase());
   const captain = captainMatch ? captainMatch.name : '';
   const captainNorm = captain.toLowerCase();
-  const others = (t.players || []).filter(p => String(p).trim().toLowerCase() !== captainNorm);
+  const others = (t.players || []).filter(p => String(p).trim().toLowerCase() !== captainNorm).sort((a, b) => a.localeCompare(b));
   const rosterList = captain ? [captain, ...others] : others;
   const capDisplay = captain || '—';
   if (rosterContent) rosterContent.innerHTML = `<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${confLabel(t.conf)} · Capt: ${capDisplay} · ${rec[t.name] ? rec[t.name].w + '-' + rec[t.name].l : '0-0'}</div></div>${rosterList.map((p, i) => '<div class="roster-player"><span class="roster-num">' + (i + 1) + '</span>' + p + '</div>').join('')}`;

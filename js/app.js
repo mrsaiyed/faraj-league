@@ -10,7 +10,6 @@ import {
   renderScores,
   renderAwards,
   renderMedia,
-  renderDraft,
   toggleRoster,
   closeRoster,
   toggleAcc,
