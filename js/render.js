@@ -670,6 +670,9 @@ export function renderDraft(adminMode = false) {
     ? validOrderIds.map(id => teamMap[id]).filter(Boolean)
     : confTeams.slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
+  const teamLogoSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const logoBasePath = adminMode ? '../images/teams/' : 'images/teams/';
+
   const teamCardsHtml = orderedTeams.map(t => {
     const roster = t.roster || [];
     const captainName = (t.captain || '').trim();
@@ -686,8 +689,10 @@ export function renderDraft(adminMode = false) {
       return `<tr><td><span class="draft-player-chip"${drag} data-player-id="${escapeHtmlAttr(p.id)}" data-team-id="${escapeHtmlAttr(t.id)}">${escapeHtmlAttr(p.name)}${escapeHtmlAttr(j)}</span></td></tr>`;
     }).join('');
     const dropZone = adminMode ? ` data-drop-zone="team" data-team-id="${escapeHtmlAttr(t.id)}"` : '';
+    const logoSlug = teamLogoSlug(t.name);
+    const logoHtml = `<div class="draft-team-logo-wrap"><img class="draft-team-logo" src="${escapeHtmlAttr(logoBasePath + logoSlug)}.png" alt="${escapeHtmlAttr(t.name)}" onerror="this.parentElement.classList.add('draft-team-logo-missing')"></div>`;
     return `<div class="draft-team-card" data-team-id="${escapeHtmlAttr(t.id)}" data-drop-zone="team">
-      <div class="draft-team-logo-placeholder"></div>
+      ${logoHtml}
       <table class="draft-team-table">
         <thead><tr><th class="draft-team-drag-handle" data-team-id="${escapeHtmlAttr(t.id)}">${escapeHtmlAttr(t.name)}</th></tr></thead>
         <tbody${dropZone}>

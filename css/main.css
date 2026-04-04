@@ -47,7 +47,10 @@ nav{position:sticky;top:0;z-index:200;background:#060f1a;border-bottom:2px solid
 #page-draft #draft-placeholder{font-size:1.38rem!important;}
 .draft-board{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;margin-top:1rem;max-width:100%;}
 .draft-team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-left:4px solid #c8a84b;border-radius:4px;overflow:hidden;min-height:140px;}
-.draft-team-logo-placeholder{width:48px;height:48px;margin:0.6rem auto 0;background:rgba(200,168,75,0.08);border:1px dashed rgba(200,168,75,0.35);border-radius:4px;display:flex;align-items:center;justify-content:center;}
+.draft-team-logo-wrap{width:100%;height:110px;display:flex;align-items:center;justify-content:center;padding:0.5rem;box-sizing:border-box;background:rgba(0,0,0,0.15);}
+.draft-team-logo{max-width:100%;max-height:100px;width:auto;height:auto;object-fit:contain;display:block;}
+.draft-team-logo-missing .draft-team-logo{display:none;}
+.draft-team-logo-missing::after{content:'';display:block;width:48px;height:48px;background:rgba(200,168,75,0.08);border:1px dashed rgba(200,168,75,0.35);border-radius:4px;}
 .draft-team-table{width:100%;border-collapse:collapse;font-size:1.32rem;}
 .draft-team-table th{font-family:'Cinzel',serif;font-size:1.32rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;text-align:center;padding:0.6rem 1rem;border-bottom:1px solid rgba(200,168,75,0.2);}
 .draft-team-drag-handle{cursor:grab;}
