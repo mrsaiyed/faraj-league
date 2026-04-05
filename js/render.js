@@ -453,11 +453,29 @@ export function closeRoster() {
 }
 
 export function renderStats() {
-  const tbody = document.getElementById('stats-body');
-  if (!tbody) return;
-  const rows = config.DB.stats.filter(s => s.total > 0).sort((a, b) => b.total - a.total);
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`; return; }
-  tbody.innerHTML = rows.map((r, i) => `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem;color:#f5f0e8">${r.name}</td><td style="padding:0.7rem 1rem">${r.team}</td><td style="padding:0.7rem 1rem">${r.gp}</td><td style="padding:0.7rem 1rem;color:#c8a84b">${r.gp ? (r.total / r.gp).toFixed(1) : '0.0'}</td><td style="padding:0.7rem 1rem">${r.total}</td></tr>`).join('');
+  const wrap = document.getElementById('stats-table-wrap');
+  if (!wrap) return;
+  const defs = config.DB.statDefinitions || [];
+  const rows = (config.DB.stats || [])
+    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0))
+    .sort((a, b) => b.total - a.total);
+  const sub = document.getElementById('stats-section-sub');
+  if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
+  const colspan = 4 + Math.max(defs.length, 1);
+  if (!defs.length) {
+    wrap.innerHTML = `<div style="padding:1.8rem;text-align:center;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stat types defined — add them in the admin Stats tab.</div>`;
+    return;
+  }
+  const theadCells = `<th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">Team</th><th style="padding:0.75rem 1rem;">GP</th>${defs.map(d => `<th style="padding:0.75rem 1rem;">${escapeHtmlAttr(d.name)}</th>`).join('')}`;
+  const noData = `<tr><td colspan="${colspan}" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`;
+  const tbodyRows = rows.map((r, i) => {
+    const defCells = defs.map(d => {
+      const val = r.statValues?.[d.id] ?? 0;
+      return `<td style="padding:0.7rem 1rem${d.slug === 'points' ? ';color:#c8a84b' : ''}">${val > 0 ? val : '—'}</td>`;
+    }).join('');
+    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem;color:#f5f0e8">${r.name}</td><td style="padding:0.7rem 1rem">${r.team}</td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}</tr>`;
+  }).join('');
+  wrap.innerHTML = `<table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);">${theadCells}</tr></thead><tbody>${rows.length ? tbodyRows : noData}</tbody></table>`;
 }
 
 export function renderAwards(week) {
@@ -670,9 +688,6 @@ export function renderDraft(adminMode = false) {
     ? validOrderIds.map(id => teamMap[id]).filter(Boolean)
     : confTeams.slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  const teamLogoSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const logoBasePath = adminMode ? '../images/teams/' : 'images/teams/';
-
   const teamCardsHtml = orderedTeams.map(t => {
     const roster = t.roster || [];
     const captainName = (t.captain || '').trim();
@@ -689,10 +704,8 @@ export function renderDraft(adminMode = false) {
       return `<tr><td><span class="draft-player-chip"${drag} data-player-id="${escapeHtmlAttr(p.id)}" data-team-id="${escapeHtmlAttr(t.id)}">${escapeHtmlAttr(p.name)}${escapeHtmlAttr(j)}</span></td></tr>`;
     }).join('');
     const dropZone = adminMode ? ` data-drop-zone="team" data-team-id="${escapeHtmlAttr(t.id)}"` : '';
-    const logoSlug = teamLogoSlug(t.name);
-    const logoHtml = `<div class="draft-team-logo-wrap" data-team="${escapeHtmlAttr(logoSlug)}"><img class="draft-team-logo" src="${escapeHtmlAttr(logoBasePath + logoSlug)}.png" alt="${escapeHtmlAttr(t.name)}" onerror="if(!this.dataset.jpg){this.dataset.jpg=1;this.src='${escapeHtmlAttr(logoBasePath + logoSlug)}.jpg'}else{this.parentElement.classList.add('draft-team-logo-missing')}"></div>`;
     return `<div class="draft-team-card" data-team-id="${escapeHtmlAttr(t.id)}" data-drop-zone="team">
-      ${logoHtml}
+      <div class="draft-team-logo-placeholder"></div>
       <table class="draft-team-table">
         <thead><tr><th class="draft-team-drag-handle" data-team-id="${escapeHtmlAttr(t.id)}">${escapeHtmlAttr(t.name)}</th></tr></thead>
         <tbody${dropZone}>

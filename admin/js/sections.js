@@ -1503,71 +1503,130 @@ export async function renderStats(content, ctx) {
     const k = `${ps.player_id}-${ps.stat_definition_id}`;
     psvMap[k] = ps.value;
   });
+
+  const inputStyle = 'width:55px;padding:0.25rem 0.3rem;background:#1a2a3a;border:1px solid #444;color:#e8e4e0;border-radius:3px;font-size:0.9rem;';
+  const thStyle = 'padding:0.4rem 0.6rem;text-align:left;color:#c8a84b;font-size:0.8rem;letter-spacing:0.06em;border-bottom:1px solid rgba(200,168,75,0.2);white-space:nowrap;';
+  const tdStyle = 'padding:0.3rem 0.6rem;border-bottom:1px solid rgba(255,255,255,0.05);';
+
+  // Build stat defs list
+  const defsHtml = (statDefs || []).length
+    ? `<table style="border-collapse:collapse;width:100%;margin-bottom:0.5rem;">
+        <thead><tr>
+          <th style="${thStyle}">Name</th>
+          <th style="${thStyle}">Slug</th>
+          <th style="${thStyle}">Scope</th>
+          <th style="${thStyle}">Sort</th>
+          <th style="${thStyle}"></th>
+        </tr></thead>
+        <tbody>
+        ${(statDefs || []).map(s => `
+          <tr>
+            <td style="${tdStyle}">${escapeHtml(s.name)}</td>
+            <td style="${tdStyle};color:#c8c0b0;font-size:0.85rem;">${escapeHtml(s.slug)}</td>
+            <td style="${tdStyle};color:#c8c0b0;font-size:0.85rem;">${escapeHtml(s.scope || 'game')}</td>
+            <td style="${tdStyle};color:#c8c0b0;font-size:0.85rem;">${s.sort_order ?? 0}</td>
+            <td style="${tdStyle}"><button data-id="${escapeHtml(s.id)}" class="stat-def-del" style="padding:0.2rem 0.5rem;font-size:0.78rem;background:rgba(200,80,80,0.7);border:none;border-radius:3px;color:#fff;cursor:pointer;">Delete</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+    : '<p style="color:#c8c0b0;font-style:italic;font-size:0.9rem;">No stat types yet.</p>';
+
+  // Build player values table (all stats)
+  const gameDefs = (statDefs || []).filter(s => s.scope === 'game' || s.scope == null);
+  let valuesHtml = '';
+  if (!seasonId) {
+    valuesHtml = '<p style="color:#c8c0b0;font-size:0.9rem;">Select a season first.</p>';
+  } else if (!players?.length) {
+    valuesHtml = '<p style="color:#c8c0b0;font-size:0.9rem;">No players in this season.</p>';
+  } else if (!gameDefs.length) {
+    valuesHtml = '<p style="color:#c8c0b0;font-size:0.9rem;">Add stat types above first.</p>';
+  } else {
+    const defHeaders = gameDefs.map(d => `<th style="${thStyle}">${escapeHtml(d.name)}</th>`).join('');
+    const playerRows = (players || []).map(p => {
+      const defInputs = gameDefs.map(d => {
+        const val = psvMap[`${p.id}-${d.id}`] ?? '';
+        return `<td style="${tdStyle}"><input type="number" min="0" step="any" data-pid="${escapeHtml(p.id)}" data-sid="${escapeHtml(d.id)}" value="${escapeHtml(String(val))}" style="${inputStyle}" class="stat-value-input"></td>`;
+      }).join('');
+      return `<tr><td style="${tdStyle};color:#e8e4e0;">${escapeHtml(p.name)}</td>${defInputs}</tr>`;
+    }).join('');
+    valuesHtml = `<div style="overflow-x:auto;">
+      <table style="border-collapse:collapse;min-width:100%;">
+        <thead><tr><th style="${thStyle}">Player</th>${defHeaders}</tr></thead>
+        <tbody>${playerRows}</tbody>
+      </table>
+    </div>
+    <p style="font-size:0.8rem;color:#c8c0b0;margin-top:0.5rem;">These season totals are used only when no game stat sheets have been entered.</p>`;
+  }
+
   content.innerHTML = `
     <div id="stats-msg"></div>
-    <h4>Stat definitions</h4>
-    <p><button id="stats-add-def">Add stat type</button></p>
-    <ul id="stats-defs" style="list-style:none;padding:0;"></ul>
-    <h4 style="margin-top:1.5rem;">Player values (season ${seasonId ? 'selected' : '— select season'})</h4>
-    <div id="stats-values"></div>
+    <h4 style="margin:0 0 0.75rem;">Stat Types</h4>
+    <div id="stats-defs">${defsHtml}</div>
+    <form id="stats-add-form" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;margin-top:0.75rem;padding:0.75rem;background:rgba(200,168,75,0.05);border:1px solid rgba(200,168,75,0.15);border-radius:4px;">
+      <div style="display:flex;flex-direction:column;gap:0.25rem;">
+        <label style="font-size:0.75rem;color:#c8a84b;">Name</label>
+        <input id="stat-add-name" type="text" placeholder="e.g. Assists" style="padding:0.35rem 0.5rem;background:#1a2a3a;border:1px solid #555;color:#e8e4e0;border-radius:3px;width:120px;">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.25rem;">
+        <label style="font-size:0.75rem;color:#c8a84b;">Slug</label>
+        <input id="stat-add-slug" type="text" placeholder="e.g. ast" style="padding:0.35rem 0.5rem;background:#1a2a3a;border:1px solid #555;color:#e8e4e0;border-radius:3px;width:90px;">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.25rem;">
+        <label style="font-size:0.75rem;color:#c8a84b;">Scope</label>
+        <select id="stat-add-scope" style="padding:0.35rem 0.5rem;background:#1a2a3a;border:1px solid #555;color:#e8e4e0;border-radius:3px;">
+          <option value="game">Game (box scores)</option>
+          <option value="season">Season only</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.25rem;">
+        <label style="font-size:0.75rem;color:#c8a84b;">Sort</label>
+        <input id="stat-add-sort" type="number" value="${(statDefs || []).length}" min="0" style="padding:0.35rem 0.5rem;background:#1a2a3a;border:1px solid #555;color:#e8e4e0;border-radius:3px;width:60px;">
+      </div>
+      <button type="submit" style="padding:0.4rem 1rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:3px;cursor:pointer;font-weight:600;align-self:flex-end;">Add Stat</button>
+    </form>
+    <h4 style="margin:1.5rem 0 0.5rem;">Season Player Totals</h4>
+    <div id="stats-values">${valuesHtml}</div>
   `;
-  document.getElementById('stats-defs').innerHTML = (statDefs || []).map(s => `
-    <li style="padding:0.3rem 0;">${escapeHtml(s.name)} (${escapeHtml(s.slug)}) — <button data-id="${escapeHtml(s.id)}" class="stat-def-del">Delete</button></li>
-  `).join('') || '<li>None</li>';
-  document.getElementById('stats-add-def').onclick = async () => {
-    const name = prompt('Stat name (e.g. Points):');
-    const slug = prompt('Slug (e.g. points):');
-    const scopeInput = prompt('Scope: game (stat sheets) or season (aggregates only). Leave blank for game:');
-    const scope = (scopeInput || 'game').toLowerCase() === 'season' ? 'season' : 'game';
-    if (!name || !slug) return;
+
+  // Auto-generate slug from name
+  document.getElementById('stat-add-name').addEventListener('input', function () {
+    const slug = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    document.getElementById('stat-add-slug').value = slug;
+  });
+
+  document.getElementById('stats-add-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('stat-add-name').value.trim();
+    const slug = document.getElementById('stat-add-slug').value.trim();
+    const scope = document.getElementById('stat-add-scope').value;
+    const sort_order = parseInt(document.getElementById('stat-add-sort').value) || 0;
+    if (!name || !slug) { document.getElementById('stats-msg').innerHTML = '<p class="msg error">Name and slug are required.</p>'; return; }
     try {
-      await adminFetch('admin-stats', { method: 'POST', body: JSON.stringify({ type: 'definition', name, slug, scope }) });
+      await adminFetch('admin-stats', { method: 'POST', body: JSON.stringify({ type: 'definition', name, slug, scope, sort_order }) });
       renderStats(content, ctx);
-    } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
-  };
+    } catch (e2) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e2.message}</p>`; }
+  });
+
   document.getElementById('stats-defs').querySelectorAll('.stat-def-del').forEach(btn => {
     btn.onclick = async () => {
-      if (!confirm('Delete this stat type?')) return;
+      if (!confirm('Delete this stat type? All recorded values for it will be lost.')) return;
       try {
         await adminFetch('admin-stats', { method: 'POST', body: JSON.stringify({ type: 'definition', delete: true, id: btn.dataset.id }) });
         renderStats(content, ctx);
-      } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+      } catch (e2) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e2.message}</p>`; }
     };
   });
-  if (seasonId && players?.length && statDefs?.length) {
-    const pointsDef = statDefs.find(s => s.slug === 'points');
-    if (pointsDef) {
-      document.getElementById('stats-values').innerHTML = `
-        <table style="border-collapse:collapse;"><tr><th>Player</th><th>Points</th></tr>
-        ${(players || []).map(p => {
-          const k = `${p.id}-${pointsDef.id}`;
-          const val = psvMap[k] ?? '';
-          const safeVal = escapeHtml(String(val));
-          return `<tr><td>${escapeHtml(p.name)}</td><td><input type="number" data-pid="${escapeHtml(p.id)}" data-sid="${escapeHtml(pointsDef.id)}" value="${safeVal}" style="width:60px;padding:0.3rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;" class="stat-value-input"></td></tr>`;
-        }).join('')}
-        </table>
-      `;
-      document.getElementById('stats-values').querySelectorAll('.stat-value-input').forEach(input => {
-        input.addEventListener('change', async function () {
-          try {
-            await adminFetch('admin-stats', {
-              method: 'POST',
-              body: JSON.stringify({
-                type: 'value',
-                player_id: this.dataset.pid,
-                stat_definition_id: this.dataset.sid,
-                value: parseFloat(this.value) || 0,
-              }),
-            });
-          } catch (e) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
+
+  document.querySelectorAll('.stat-value-input').forEach(input => {
+    input.addEventListener('change', async function () {
+      try {
+        await adminFetch('admin-stats', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'value', player_id: this.dataset.pid, stat_definition_id: this.dataset.sid, value: parseFloat(this.value) || 0 }),
         });
-      });
-    } else {
-      document.getElementById('stats-values').innerHTML = '<p>Add a "points" stat definition first.</p>';
-    }
-  } else {
-    document.getElementById('stats-values').innerHTML = '<p>Select a season with players.</p>';
-  }
+      } catch (e2) { document.getElementById('stats-msg').innerHTML = `<p class="msg error">${e2.message}</p>`; }
+    });
+  });
 }
 
 export async function renderSponsors(content, ctx) {
