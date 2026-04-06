@@ -189,13 +189,7 @@ export function renderHome() {
   ];
   const homeMatchups = document.getElementById('home-matchups');
   const homeAwards = document.getElementById('home-awards');
-  if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => {
-    const played = g.s1 !== '' && g.s2 !== '';
-    const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0), w1 = played && s1 > s2, w2 = played && s2 > s1;
-    const gameId = g.gameId || '';
-    const boxScoreBtn = gameId ? `<button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="margin-top:0.5rem;background:transparent;border:none;color:#c8a84b;font-size:0.8rem;cursor:pointer;padding:0;">View box score</button>` : '';
-    return `<div class="matchup-card"><div class="matchup-game-label">Game ${g.game || i + 1}</div><div class="matchup-row"><span class="matchup-team ${w1 ? 'winner' : ''}">${g.t1}</span><span class="matchup-score ${w1 ? 'winner' : ''}">${played ? g.s1 : 'TBD'}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team ${w2 ? 'winner' : ''}">${g.t2}</span><span class="matchup-score ${w2 ? 'winner' : ''}">${played ? g.s2 : 'TBD'}</span></div><div class="winner-tag" style="${played ? '' : 'color:#c8c0b0;font-style:italic'}">${played ? (s1 > s2 ? g.t1 + ' Win' : g.t2 + ' Win') : 'Not yet played'}</div>${boxScoreBtn}</div>`;
-  }).join('');
+  if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
   if (homeAwards) homeAwards.innerHTML = `
     <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
     ${games.map((g, i) => `<div class="award-card"><div class="award-label">${motmLabel(g.game || i + 1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm' + (g.game || i + 1)] || pending()}</div></div>`).join('')}`;
@@ -247,6 +241,56 @@ function formatGameDate(scheduledAt) {
   const d = new Date(scheduledAt);
   if (isNaN(d.getTime())) return '';
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Builds the HTML for a single matchup card.
+ * t1 = home (right, teal), t2 = away (left, white).
+ */
+function buildMatchupCard(g, gameId) {
+  const played = g.s1 !== '' && g.s2 !== '';
+  const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
+  const w1 = played && s1 > s2, w2 = played && s2 > s1;
+
+  // Meta line: "Game N · Apr 6 · 10:00 AM" (scheduled) or "Game N" (played)
+  let metaLine;
+  if (played) {
+    metaLine = `Game ${g.game || 1}`;
+  } else {
+    const dateStr = formatGameDate(g.scheduled_at);
+    const timeStr = formatGameTime(g.scheduled_at, g.game || 1);
+    metaLine = dateStr ? `Game ${g.game || 1} · ${dateStr} · ${timeStr}` : `Game ${g.game || 1} · ${timeStr}`;
+  }
+
+  // Center: score (played) or VS (scheduled)
+  const midContent = played
+    ? `<span class="mc-score ${w2 ? 'winner' : ''}">${g.s2}</span><span class="mc-dash">—</span><span class="mc-score ${w1 ? 'winner' : ''}">${g.s1}</span>`
+    : `<span class="mc-vs">VS</span>`;
+
+  const winnerTag = played
+    ? `<div class="mc-winner-tag">${s1 > s2 ? escapeHtmlAttr(g.t1) : escapeHtmlAttr(g.t2)} Win</div>`
+    : '';
+
+  const boxBtn = gameId
+    ? `<button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="margin-top:0.6rem;background:transparent;border:none;color:#c8a84b;font-size:0.8rem;cursor:pointer;padding:0;">View box score</button>`
+    : '';
+
+  return `<div class="matchup-card">
+    <div class="mc-meta">${metaLine}</div>
+    <div class="mc-matchup">
+      <div class="mc-team mc-away">
+        <div class="mc-logo mc-logo-away">${initials(g.t2 || '?')}</div>
+        <span class="mc-team-name mc-away-name">${escapeHtmlAttr(g.t2)}</span>
+      </div>
+      <div class="mc-mid">${midContent}</div>
+      <div class="mc-team mc-home">
+        <div class="mc-logo mc-logo-home">${initials(g.t1 || '?')}</div>
+        <span class="mc-team-name mc-home-name">${escapeHtmlAttr(g.t1)}</span>
+      </div>
+    </div>
+    ${winnerTag}
+    ${boxBtn}
+  </div>`;
 }
 
 function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
@@ -358,20 +402,7 @@ export function renderSchedule(focusWeek, teamFilter) {
     let games = (config.DB.scores || []).filter(g => g.week === w);
     if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
     if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
-    const cards = games.map(g => {
-      const played = g.s1 !== '' && g.s2 !== '';
-      const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0), w1 = played && s1 > s2, w2 = played && s2 > s1;
-      const gameId = g.gameId || '';
-      let cardInner = '';
-      if (played) {
-        cardInner = `<div class="matchup-game-label">Game ${g.game || 1}</div><div class="matchup-row"><span class="matchup-team ${w1 ? 'winner' : ''}">${g.t1}</span><span class="matchup-score ${w1 ? 'winner' : ''}">${g.s1}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team ${w2 ? 'winner' : ''}">${g.t2}</span><span class="matchup-score ${w2 ? 'winner' : ''}">${g.s2}</span></div><div class="winner-tag">${s1 > s2 ? g.t1 + ' Win' : g.t2 + ' Win'}</div>`;
-      } else {
-        const timeStr = formatGameTime(g.scheduled_at, g.game || 1);
-        const dateStr = formatGameDate(g.scheduled_at);
-        cardInner = `<div class="matchup-game-label" style="display:flex;justify-content:space-between;align-items:center;"><span>Game ${g.game || 1}</span><span style="font-weight:normal;letter-spacing:0;">${timeStr}</span><span style="font-weight:normal;letter-spacing:0;">${dateStr}</span></div><div class="matchup-row"><span class="matchup-team">${g.t1}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team">${g.t2}</span></div>`;
-      }
-      return `<div class="matchup-card"><div class="matchup-card-main">${cardInner}</div><button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="margin-top:0.5rem;background:transparent;border:none;color:#c8a84b;font-size:0.8rem;cursor:pointer;padding:0;">View box score</button></div>`;
-    });
+    const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
     return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
 
@@ -397,13 +428,7 @@ export function renderScores(week) {
   const rw = w => {
     const games = config.DB.scores.filter(g => g.week === w);
     if (!games.length || games.every(g => !g.s1 && !g.s2)) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
-    const cards = games.map(g => {
-      const played = g.s1 !== '' && g.s2 !== '';
-      const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0), w1 = played && s1 > s2, w2 = played && s2 > s1;
-      const gameId = g.gameId || '';
-      const cardInner = `<div class="matchup-game-label">Game ${g.game}</div><div class="matchup-row"><span class="matchup-team ${w1 ? 'winner' : ''}">${g.t1}</span><span class="matchup-score ${w1 ? 'winner' : ''}">${played ? g.s1 : '—'}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team ${w2 ? 'winner' : ''}">${g.t2}</span><span class="matchup-score ${w2 ? 'winner' : ''}">${played ? g.s2 : '—'}</span></div><div class="winner-tag" style="${played ? '' : 'color:#c8c0b0'}">${played ? (s1 > s2 ? g.t1 + ' Win' : g.t2 + ' Win') : 'Not played'}</div>`;
-      return `<div class="matchup-card"><div class="matchup-card-main">${cardInner}</div><button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="margin-top:0.5rem;background:transparent;border:none;color:#c8a84b;font-size:0.8rem;cursor:pointer;padding:0;">View box score</button></div>`;
-    });
+    const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
     return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
   el.innerHTML = week === 'all' ? Array.from({ length: config.TOTAL_WEEKS }, (_, i) => rw(i + 1)).join('') : rw(parseInt(week));
