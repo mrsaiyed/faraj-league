@@ -493,6 +493,21 @@ export async function renderSchedule(content, ctx) {
     statBtn.style.position = 'relative';
     statBtn.onclick = () => openStatSheet(game, content, ctx);
     btn.parentNode.insertBefore(statBtn, btn);
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'admin-edit-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = 'position:relative;margin-right:0.5rem;background:rgba(200,80,80,0.85);';
+    removeBtn.onclick = async () => {
+      if (!game?.gameId || !confirm('Remove this game? This will also delete its stat sheet.')) return;
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ delete: true, id: game.gameId }) });
+        renderSchedule(content, ctx);
+      } catch (err) {
+        alert('Failed to remove game: ' + (err.message || 'Unknown error'));
+      }
+    };
+    btn.parentNode.insertBefore(removeBtn, btn);
   });
 
   const addGameBtn = document.createElement('button');
