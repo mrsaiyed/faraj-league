@@ -243,6 +243,28 @@ function formatGameDate(scheduledAt) {
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
 }
 
+const TEAM_LOGOS = {
+  ansar: 'ansar.png',
+  dukhaan: 'dukhaan.jpg',
+  jaysh: 'jaysh.png',
+  mujahideen: 'mujahideen.png',
+  noor: 'noor.png',
+  raad: 'raad.jpg',
+};
+
+function teamLogoUrl(name) {
+  const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const key = Object.keys(TEAM_LOGOS).find(k => slug.includes(k) || k.includes(slug));
+  return key ? `${getBasePath()}/images/teams/${TEAM_LOGOS[key]}` : null;
+}
+
+function teamLogoHtml(name, side) {
+  const url = teamLogoUrl(name);
+  const cls = `mc-logo mc-logo-${side}`;
+  if (url) return `<img src="${url}" class="${cls} mc-logo-img" alt="${escapeHtmlAttr(name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+  return `<div class="${cls}">${initials(name || '?')}</div>`;
+}
+
 /**
  * Builds the HTML for a single matchup card.
  * t1 = home (right, teal), t2 = away (left, white).
@@ -279,12 +301,12 @@ function buildMatchupCard(g, gameId) {
     <div class="mc-meta">${metaLine}</div>
     <div class="mc-matchup">
       <div class="mc-team mc-away">
-        <div class="mc-logo mc-logo-away">${initials(g.t2 || '?')}</div>
+        ${teamLogoHtml(g.t2, 'away')}
         <span class="mc-team-name mc-away-name">${escapeHtmlAttr(g.t2)}</span>
       </div>
       <div class="mc-mid">${midContent}</div>
       <div class="mc-team mc-home">
-        <div class="mc-logo mc-logo-home">${initials(g.t1 || '?')}</div>
+        ${teamLogoHtml(g.t1, 'home')}
         <span class="mc-team-name mc-home-name">${escapeHtmlAttr(g.t1)}</span>
       </div>
     </div>
