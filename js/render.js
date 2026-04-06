@@ -162,12 +162,13 @@ export function renderHome() {
   const wp = getWeeksPlayed();
   const weeksPlayedEl = document.getElementById('weeks-played');
   if (weeksPlayedEl) weeksPlayedEl.textContent = wp;
-  // Show previous week on homepage (last completed week); use current_week from admin
-  const displayWeek = Math.max(1, config.CURRENT_WEEK - 1);
+  // Week 0 = show week 1 as upcoming; otherwise show previous week's results
+  const upcoming = config.CURRENT_WEEK === 0;
+  const displayWeek = upcoming ? 1 : Math.max(1, config.CURRENT_WEEK - 1);
   const weekGames = config.DB.scores.filter(g => g.week === displayWeek);
   const wa = config.DB.awards.find(a => a.week === displayWeek) || {};
   const t = config.DB.teams;
-  const subLabel = displayWeek < config.CURRENT_WEEK ? 'Previous' : (wp > 0 ? 'Results' : 'Upcoming');
+  const subLabel = upcoming ? 'Upcoming' : (displayWeek < config.CURRENT_WEEK ? 'Previous' : (wp > 0 ? 'Results' : 'Upcoming'));
   const matchupSub = document.getElementById('home-matchup-sub');
   const awardsSub = document.getElementById('home-awards-sub');
   if (matchupSub) matchupSub.textContent = `Week ${displayWeek} · ${subLabel}`;

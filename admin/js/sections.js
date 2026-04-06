@@ -41,7 +41,7 @@ export async function renderSeasons(content, ctx) {
       </div>
       <div class="admin-drawer-form-row">
         <span class="admin-drawer-form-label">Current week</span>
-        <input type="number" id="seasons-current-week" value="${weekVal}" min="1" class="admin-drawer-form-input">
+        <input type="number" id="seasons-current-week" value="${weekVal}" min="0" class="admin-drawer-form-input">
       </div>
       <div class="admin-drawer-form-actions">
         <button type="submit">Save</button>
@@ -57,7 +57,7 @@ export async function renderSeasons(content, ctx) {
         body: JSON.stringify({
           id: seasonId,
           is_current: document.getElementById('seasons-is-current').checked,
-          current_week: parseInt(document.getElementById('seasons-current-week').value) || null,
+          current_week: document.getElementById('seasons-current-week').value !== '' ? parseInt(document.getElementById('seasons-current-week').value) : null,
         }),
       });
       msg.innerHTML = '<p class="msg success">Saved.</p>';
