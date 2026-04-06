@@ -311,5 +311,4 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
   .hero{padding:2rem max(1rem, env(safe-area-inset-right, 0px)) 2rem max(1rem, env(safe-area-inset-left, 0px));}
   .hero-content{padding-left:max(1rem, env(safe-area-inset-left, 0px));padding-right:max(1rem, env(safe-area-inset-right, 0px));}
   #title-sponsor-banner{margin-top:1.15rem;}
-  .mc-team-name{font-size:0.8rem;}
 }
