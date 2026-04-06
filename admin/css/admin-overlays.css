@@ -30,6 +30,14 @@
   background: #c8a84b;
 }
 
+/* Edit Full Schedule: buttons stay in .fse-slot flex rows (global .admin-edit-btn is position:absolute for overlays) */
+#full-schedule-editor .admin-edit-btn {
+  position: static;
+  top: auto;
+  right: auto;
+  opacity: 1;
+}
+
 /* Media section headers: Edit button inline to the right, no overlap */
 #page-media .media-section-header .admin-edit-overlay {
   display: inline-flex;

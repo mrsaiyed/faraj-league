@@ -17,7 +17,7 @@ export const config = {
   // API — Phase 3: use import.meta.env or similar for SUPABASE_URL, SUPABASE_ANON_KEY
   SUPABASE_URL: 'https://ruwihsxedobbxqavrjhl.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1d2loc3hlZG9iYnhxYXZyamhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNTg3NjUsImV4cCI6MjA4OTYzNDc2NX0.wxQEfLBQOKPnShd8wje4Zbu3myR-JZbjcBaZekKOApg',
-  DB: { teams: [...DEFAULT_TEAMS], scores: [], awards: [], stats: [], mediaItems: [], mediaSlots: {}, contentBlocks: {} },
+  DB: { teams: [...DEFAULT_TEAMS], scores: [], awards: [], stats: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, scheduleWeekLabels: {} },
   SP1: '[SPONSOR 1 NAME AND LOGO]',
   SP1_LOGO: null,
   SP1_DESC: '',

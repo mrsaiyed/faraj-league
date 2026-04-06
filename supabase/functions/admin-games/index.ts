@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'season_id, week, game_index, home_team_id, away_team_id required' }, 400);
     }
 
+    // DB may add UNIQUE(season_id, week, game_index) later; duplicate inserts would surface as Postgres errors here.
     const { data, error } = await supabase.from('games').insert({
       season_id,
       week,

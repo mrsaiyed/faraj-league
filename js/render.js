@@ -339,6 +339,12 @@ export function closeBoxScoreFullscreen() {
   document.body.style.overflow = '';
 }
 
+function scheduleWeekTitle(w) {
+  const labels = config.DB.scheduleWeekLabels || {};
+  const c = labels[String(w)] ?? labels[w];
+  return (c != null && String(c).trim() !== '') ? String(c).trim() : `Week ${w}`;
+}
+
 export function renderSchedule(focusWeek, teamFilter) {
   const prevEl = document.getElementById('schedule-prev');
   const focusEl = document.getElementById('schedule-focus');
@@ -351,7 +357,7 @@ export function renderSchedule(focusWeek, teamFilter) {
   const renderWeek = (w, label) => {
     let games = (config.DB.scores || []).filter(g => g.week === w);
     if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
-    if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
+    if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
     const cards = games.map(g => {
       const played = g.s1 !== '' && g.s2 !== '';
       const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0), w1 = played && s1 > s2, w2 = played && s2 > s1;
@@ -380,9 +386,9 @@ export function renderSchedule(focusWeek, teamFilter) {
     });
   }
 
-  if (focusWeek > 1) prevEl.innerHTML = renderWeek(focusWeek - 1, `Week ${focusWeek - 1} — Previous`);
-  focusEl.innerHTML = renderWeek(focusWeek, `Week ${focusWeek}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
-  if (focusWeek < config.TOTAL_WEEKS) nextEl.innerHTML = renderWeek(focusWeek + 1, `Week ${focusWeek + 1} — Next`);
+  if (focusWeek > 1) prevEl.innerHTML = renderWeek(focusWeek - 1, `${scheduleWeekTitle(focusWeek - 1)} — Previous`);
+  focusEl.innerHTML = renderWeek(focusWeek, `${scheduleWeekTitle(focusWeek)}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
+  if (focusWeek < config.TOTAL_WEEKS) nextEl.innerHTML = renderWeek(focusWeek + 1, `${scheduleWeekTitle(focusWeek + 1)} — Next`);
 }
 
 export function renderScores(week) {

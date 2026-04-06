@@ -129,6 +129,16 @@ function transformSeasonData(raw) {
     draftTeamOrder = (rawTeams || []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map(t => t.id);
   }
 
+  /** Parsed from content_blocks.schedule_week_labels JSON; keys are week numbers as strings */
+  let scheduleWeekLabels = {};
+  try {
+    const raw = contentBlocksMap.schedule_week_labels;
+    if (raw && typeof raw === 'string') {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) scheduleWeekLabels = parsed;
+    }
+  } catch (_) {}
+
   return {
     season,
     teams,
@@ -144,6 +154,7 @@ function transformSeasonData(raw) {
     contentBlocks: contentBlocksMap,
     draftBank,
     draftTeamOrder,
+    scheduleWeekLabels,
   };
 }
 

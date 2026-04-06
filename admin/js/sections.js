@@ -284,6 +284,10 @@ function escapeHtml(s) {
   return div.innerHTML.replace(/"/g, '&quot;');
 }
 
+function escapeHtmlAttr(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export async function renderPlayers(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -388,6 +392,10 @@ export async function renderPlayers(content, ctx) {
   };
 }
 
+/**
+ * Rebuilds the Schedule tab from `SCHEDULE_TEMPLATE` and wires admin controls.
+ * Not the same as `js/render.js` `renderSchedule(focusWeek, teamFilter)` (assigned to `window.renderSchedule` after load).
+ */
 export async function renderSchedule(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -543,7 +551,15 @@ export async function renderSchedule(content, ctx) {
 export async function renderFullScheduleEditor(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
-  if (!seasonId) { content.innerHTML = '<p>Select a season first.</p>'; return; }
+  if (!seasonId) {
+    alert('Select a season first.');
+    return;
+  }
+
+  const pageRoot = content.id === 'page-schedule' ? content : (content.querySelector('#page-schedule') || content);
+  const mirror = pageRoot.querySelector('#schedule-mirror-wrap');
+  const mount = pageRoot.querySelector('#schedule-full-editor-mount');
+  const mountEl = mount || content;
 
   const { config } = await importRootJs('config.js');
 
@@ -567,6 +583,64 @@ export async function renderFullScheduleEditor(content, ctx) {
 
   const teamMap = {};
   teams.forEach(t => { teamMap[t.id] = t.name; });
+
+  /** @type {Record<string, number[]>} week number key -> active game_index list */
+  let slotsByWeek = {};
+  /** @type {Record<string, string>} week key -> custom title */
+  let weekLabels = {};
+  const { data: cbMeta } = await supabase.from('content_blocks').select('key,value').eq('season_id', seasonId).in('key', ['schedule_slots_by_week', 'schedule_week_labels']);
+  (cbMeta || []).forEach(row => {
+    try {
+      if (row.key === 'schedule_slots_by_week') slotsByWeek = JSON.parse(row.value || '{}') || {};
+      if (row.key === 'schedule_week_labels') weekLabels = JSON.parse(row.value || '{}') || {};
+    } catch (_) {}
+  });
+  if (config.DB && (cbMeta || []).some(r => r.key === 'schedule_week_labels')) {
+    config.DB.scheduleWeekLabels = { ...weekLabels };
+  }
+
+  function getActiveIndices(w) {
+    const raw = slotsByWeek[String(w)] ?? slotsByWeek[w];
+    if (Array.isArray(raw) && raw.length > 0) {
+      const uniq = [...new Set(raw.map(Number).filter(n => n >= 1 && n <= 3))].sort((a, b) => a - b);
+      if (uniq.length > 0) return uniq;
+    }
+    return [1, 2, 3];
+  }
+
+  async function persistSlots() {
+    await adminFetch('admin-content', {
+      method: 'POST',
+      body: JSON.stringify([{ key: 'schedule_slots_by_week', value: JSON.stringify(slotsByWeek), season_id: seasonId }]),
+    });
+    if (config.DB.contentBlocks) config.DB.contentBlocks.schedule_slots_by_week = JSON.stringify(slotsByWeek);
+  }
+
+  async function persistWeekLabels() {
+    await adminFetch('admin-content', {
+      method: 'POST',
+      body: JSON.stringify([{ key: 'schedule_week_labels', value: JSON.stringify(weekLabels), season_id: seasonId }]),
+    });
+    if (config.DB.contentBlocks) config.DB.contentBlocks.schedule_week_labels = JSON.stringify(weekLabels);
+    config.DB.scheduleWeekLabels = { ...(config.DB.scheduleWeekLabels || {}), ...weekLabels };
+  }
+
+  function openEditorShell() {
+    if (mirror && mount) {
+      mirror.style.display = 'none';
+      mount.style.display = 'block';
+      mount.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeEditorShell() {
+    if (mirror && mount) {
+      mount.innerHTML = '';
+      mount.style.display = 'none';
+      mount.setAttribute('aria-hidden', 'true');
+      mirror.style.display = '';
+    }
+  }
 
   const DEFAULT_TIMES = { 1: '10:00', 2: '11:00', 3: '12:00' };
 
@@ -664,9 +738,16 @@ export async function renderFullScheduleEditor(content, ctx) {
         await refreshGames();
         renderEditor();
       } catch (err) {
-        msgEl.textContent = err.message || 'Save failed.';
+        const text = err.message || 'Save failed.';
+        msgEl.textContent = text;
         msgEl.className = 'admin-edit-msg error';
         msgEl.style.display = 'block';
+        const toolbar = document.getElementById('fse-save-msg');
+        if (toolbar) {
+          toolbar.textContent = text;
+          toolbar.style.color = '#e88';
+          setTimeout(() => { if (toolbar) toolbar.textContent = ''; }, 5000);
+        }
       }
     };
   }
@@ -675,13 +756,20 @@ export async function renderFullScheduleEditor(content, ctx) {
     const weekRows = Array.from({ length: totalWeeks }, (_, i) => {
       const w = i + 1;
       const weekDate = getWeekDate(w);
-      const slots = [1, 2, 3].map(gi => {
+      const activeIndices = getActiveIndices(w);
+      const titleVal = weekLabels[String(w)] ?? weekLabels[w] ?? '';
+      const slots = activeIndices.map(gi => {
         const g = byWeek[w]?.[gi];
+        const canRemoveSlot = activeIndices.length > 1;
+        const slotMinus = canRemoveSlot
+          ? `<button type="button" class="admin-edit-btn fse-slot-remove-btn" data-week="${w}" data-gi="${gi}" title="Remove this slot from the week (blocked if a game exists)" style="position:static;flex-shrink:0;width:30px;">−</button>`
+          : '<span style="width:30px;flex-shrink:0;"></span>';
         if (g) {
           const home = escapeHtml(teamMap[g.home_team_id] || '?');
           const away = escapeHtml(teamMap[g.away_team_id] || '?');
           const timeVal = getISOTime(g.scheduled_at, gi);
           return `<div class="fse-slot" data-week="${w}" data-gi="${gi}">
+            ${slotMinus}
             <span class="fse-game-label">Game ${gi}</span>
             <input type="time" class="fse-time-input" value="${timeVal}" data-week="${w}" data-gi="${gi}" data-game-id="${g.id}" title="Game time">
             <span class="fse-matchup">${home} vs ${away}</span>
@@ -692,22 +780,28 @@ export async function renderFullScheduleEditor(content, ctx) {
           </div>`;
         }
         return `<div class="fse-slot fse-slot-empty" data-week="${w}" data-gi="${gi}">
+            ${slotMinus}
           <span class="fse-game-label">Game ${gi}</span>
           <span class="fse-time-default">${fmtTime(DEFAULT_TIMES[gi])}</span>
           <span class="fse-matchup" style="color:#666;">—</span>
           <button type="button" class="admin-edit-btn fse-add-btn" data-week="${w}" data-gi="${gi}" style="background:#2a5a3a;color:#8bc4a0;margin-left:auto;">+ Add</button>
         </div>`;
       });
+      const addSlotBtn = activeIndices.length < 3
+        ? `<button type="button" class="admin-edit-btn fse-add-slot-btn" data-week="${w}" style="position:static;background:#2a4a6a;color:#c8e0ff;font-size:0.72rem;">+ Slot</button>`
+        : '';
       return `<div class="fse-week" data-week="${w}">
-        <div class="fse-week-header">
-          <span class="fse-week-label">Week ${w}</span>
+        <div class="fse-week-header" style="flex-wrap:wrap;gap:0.5rem;">
+          <input type="text" class="fse-week-title-input" data-week="${w}" value="${escapeHtmlAttr(titleVal)}" placeholder="Week ${w} — custom title" style="flex:1;min-width:160px;background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;padding:0.25rem 0.5rem;border-radius:3px;font-size:0.78rem;">
+          <button type="button" class="admin-edit-btn fse-week-title-save" data-week="${w}" style="position:static;font-size:0.72rem;">Save title</button>
+          ${addSlotBtn}
           <input type="date" class="fse-date-input" data-week="${w}" value="${weekDate}" title="Week date (applies to all games this week)">
         </div>
         ${slots.join('')}
       </div>`;
     });
 
-    content.innerHTML = `
+    mountEl.innerHTML = `
       <div id="full-schedule-editor">
         <div class="fse-topbar">
           <button type="button" id="fse-back-btn" style="padding:0.4rem 0.8rem;background:#444;color:#e8e4e0;border:none;border-radius:4px;cursor:pointer;">← Back</button>
@@ -730,11 +824,9 @@ export async function renderFullScheduleEditor(content, ctx) {
         #full-schedule-editor { padding:1rem; }
         .fse-topbar { display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem; }
         .fse-week { margin-bottom:1.4rem; }
-        .fse-week-header { display:flex;justify-content:space-between;align-items:center;
+        .fse-week-header { display:flex;justify-content:flex-start;align-items:center;
           padding:0.4rem 0.75rem;background:#1e3a4a;border-radius:4px 4px 0 0;
-          border-bottom:2px solid #c8a84b;margin-bottom:1px; }
-        .fse-week-label { font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.15em;
-          text-transform:uppercase;color:#c8a84b; }
+          border-bottom:2px solid #c8a84b;margin-bottom:1px;flex-wrap:wrap;gap:0.5rem; }
         .fse-date-input { background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;
           padding:0.2rem 0.5rem;border-radius:3px;font-size:0.82rem; }
         .fse-slot { display:flex;align-items:center;gap:0.75rem;padding:0.45rem 0.75rem;
@@ -752,6 +844,7 @@ export async function renderFullScheduleEditor(content, ctx) {
 
     const el = document.getElementById('full-schedule-editor');
     el.querySelector('#fse-back-btn').onclick = async () => {
+      closeEditorShell();
       if (typeof ctx.onScheduleSaved === 'function') await ctx.onScheduleSaved();
       else await renderSchedule(content, ctx);
     };
@@ -840,8 +933,57 @@ export async function renderFullScheduleEditor(content, ctx) {
         openMatchupModal(null, w, gi);
       };
     });
+
+    el.querySelectorAll('.fse-slot-remove-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const w = parseInt(btn.dataset.week, 10);
+        const gi = parseInt(btn.dataset.gi, 10);
+        if (byWeek[w]?.[gi]) {
+          alert('Remove this game first (use Remove on the game row), then you can hide this slot.');
+          return;
+        }
+        const cur = getActiveIndices(w);
+        if (cur.length <= 1) return;
+        const next = cur.filter(x => x !== gi);
+        if (next.length < 1) return;
+        slotsByWeek[String(w)] = next;
+        try {
+          await persistSlots();
+          renderEditor();
+        } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      };
+    });
+
+    el.querySelectorAll('.fse-week-title-save').forEach(btn => {
+      btn.onclick = async () => {
+        const w = btn.dataset.week;
+        const input = el.querySelector(`.fse-week-title-input[data-week="${w}"]`);
+        const v = input ? input.value.trim() : '';
+        weekLabels[w] = v;
+        try {
+          await persistWeekLabels();
+          showMsg('Week title saved.');
+        } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      };
+    });
+
+    el.querySelectorAll('.fse-add-slot-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const w = parseInt(btn.dataset.week, 10);
+        const cur = getActiveIndices(w);
+        if (cur.length >= 3) return;
+        const nextIdx = [1, 2, 3].find(n => !cur.includes(n));
+        if (nextIdx == null) return;
+        slotsByWeek[String(w)] = [...cur, nextIdx].sort((a, b) => a - b);
+        try {
+          await persistSlots();
+          renderEditor();
+        } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      };
+    });
   }
 
+  openEditorShell();
   renderEditor();
 }
 
