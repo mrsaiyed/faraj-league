@@ -286,8 +286,7 @@ function teamLogoHtml(name, side) {
   const cls = `mc-logo mc-logo-${side}`;
   if (url) {
     const scale = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
-    const imgStyle = `position:absolute;left:50%;top:50%;width:100%;height:100%;object-fit:contain;transform:translate(-50%,-50%) scale(${scale});transform-origin:center`;
-    return `<div class="${cls}"><div class="mc-logo-crop"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="${imgStyle}" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+    return `<div class="${cls}"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scale})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
   }
   return `<div class="${cls}">${initials(name || '?')}</div>`;
 }
