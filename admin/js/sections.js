@@ -544,8 +544,8 @@ export async function renderSchedule(content, ctx) {
 }
 
 /**
- * Full-season schedule editor: shows all weeks with 3 game slots each.
- * Inline-editable time per game (defaults: 10am/11am/12pm) and date per week.
+ * Full-season schedule editor: all weeks; default 3 slots per week, any count (including zero), unbounded adds.
+ * Inline-editable time per game (defaults: 10am/11am/12pm for first three slots) and date per week.
  * Matchup (teams) editable via modal. No stat sheet editing.
  */
 export async function renderFullScheduleEditor(content, ctx) {
@@ -588,11 +588,14 @@ export async function renderFullScheduleEditor(content, ctx) {
   let slotsByWeek = {};
   /** @type {Record<string, string>} week key -> custom title */
   let weekLabels = {};
-  const { data: cbMeta } = await supabase.from('content_blocks').select('key,value').eq('season_id', seasonId).in('key', ['schedule_slots_by_week', 'schedule_week_labels']);
+  /** @type {Record<string, string>} week key -> YYYY-MM-DD (saved even when week has no games yet) */
+  let datesByWeek = {};
+  const { data: cbMeta } = await supabase.from('content_blocks').select('key,value').eq('season_id', seasonId).in('key', ['schedule_slots_by_week', 'schedule_week_labels', 'schedule_dates_by_week']);
   (cbMeta || []).forEach(row => {
     try {
       if (row.key === 'schedule_slots_by_week') slotsByWeek = JSON.parse(row.value || '{}') || {};
       if (row.key === 'schedule_week_labels') weekLabels = JSON.parse(row.value || '{}') || {};
+      if (row.key === 'schedule_dates_by_week') datesByWeek = JSON.parse(row.value || '{}') || {};
     } catch (_) {}
   });
   if (config.DB && (cbMeta || []).some(r => r.key === 'schedule_week_labels')) {
@@ -601,8 +604,9 @@ export async function renderFullScheduleEditor(content, ctx) {
 
   function getActiveIndices(w) {
     const raw = slotsByWeek[String(w)] ?? slotsByWeek[w];
-    if (Array.isArray(raw) && raw.length > 0) {
-      const uniq = [...new Set(raw.map(Number).filter(n => n >= 1 && n <= 3))].sort((a, b) => a - b);
+    if (Array.isArray(raw)) {
+      if (raw.length === 0) return [];
+      const uniq = [...new Set(raw.map(Number).filter(n => n >= 1))].sort((a, b) => a - b);
       if (uniq.length > 0) return uniq;
     }
     return [1, 2, 3];
@@ -625,6 +629,14 @@ export async function renderFullScheduleEditor(content, ctx) {
     config.DB.scheduleWeekLabels = { ...(config.DB.scheduleWeekLabels || {}), ...weekLabels };
   }
 
+  async function persistDatesByWeek() {
+    await adminFetch('admin-content', {
+      method: 'POST',
+      body: JSON.stringify([{ key: 'schedule_dates_by_week', value: JSON.stringify(datesByWeek), season_id: seasonId }]),
+    });
+    if (config.DB.contentBlocks) config.DB.contentBlocks.schedule_dates_by_week = JSON.stringify(datesByWeek);
+  }
+
   function openEditorShell() {
     if (mirror && mount) {
       mirror.style.display = 'none';
@@ -644,17 +656,30 @@ export async function renderFullScheduleEditor(content, ctx) {
 
   const DEFAULT_TIMES = { 1: '10:00', 2: '11:00', 3: '12:00' };
 
+  /** Default time for new games / empty slots; first three slots keep 10/11/12, rest use 10:00 */
+  function defaultTimeForSlot(gi) {
+    const g = Number(gi);
+    if (g >= 1 && g <= 3) return DEFAULT_TIMES[g];
+    return '10:00';
+  }
+
+  /** Calendar date in local TZ (for date inputs) — avoids UTC day shift near midnight */
   function getISODate(scheduledAt) {
     if (!scheduledAt) return '';
     const d = new Date(scheduledAt);
-    return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+    if (isNaN(d)) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
+  /** HH:mm for <input type="time"> — local wall clock, matches formatGameTime on public schedule */
   function getISOTime(scheduledAt, gameIndex) {
-    if (!scheduledAt) return DEFAULT_TIMES[gameIndex] || '10:00';
+    if (!scheduledAt) return defaultTimeForSlot(gameIndex);
     const d = new Date(scheduledAt);
-    if (isNaN(d)) return DEFAULT_TIMES[gameIndex] || '10:00';
-    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+    if (isNaN(d)) return defaultTimeForSlot(gameIndex);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
   function fmtTime(t) {
@@ -662,12 +687,22 @@ export async function renderFullScheduleEditor(content, ctx) {
     return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
   }
 
+  /**
+   * Store as ISO instant so Postgres timestamptz is correct: date+time are the admin's local wall clock.
+   * (Naive "YYYY-MM-DDTHH:mm:ss" is interpreted as UTC by the DB → 5h wrong for US Eastern vs schedule tab.)
+   */
   function buildScheduledAt(dateStr, timeStr) {
     if (!dateStr || !timeStr) return null;
-    return `${dateStr}T${timeStr}:00`;
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const [hh, mm] = timeStr.split(':').map(Number);
+    if (!y || !mo || !d || Number.isNaN(hh) || Number.isNaN(mm)) return null;
+    const dt = new Date(y, mo - 1, d, hh, mm, 0, 0);
+    return dt.toISOString();
   }
 
   function getWeekDate(w) {
+    const fromMap = datesByWeek[String(w)] ?? datesByWeek[w];
+    if (fromMap != null && String(fromMap).trim() !== '') return String(fromMap).trim().slice(0, 10);
     for (const g of Object.values(byWeek[w] || {})) {
       const d = getISODate(g.scheduled_at);
       if (d) return d;
@@ -726,7 +761,7 @@ export async function renderFullScheduleEditor(content, ctx) {
       let scheduledAt = game?.scheduled_at || null;
       if (!id) {
         const weekDate = document.querySelector(`.fse-date-input[data-week="${week}"]`)?.value || getWeekDate(week);
-        scheduledAt = buildScheduledAt(weekDate, DEFAULT_TIMES[gi] || '10:00');
+        scheduledAt = buildScheduledAt(weekDate, defaultTimeForSlot(gi));
       }
       const body = id
         ? { id, home_team_id: homeId, away_team_id: awayId }
@@ -760,7 +795,7 @@ export async function renderFullScheduleEditor(content, ctx) {
       const titleVal = weekLabels[String(w)] ?? weekLabels[w] ?? '';
       const slots = activeIndices.map(gi => {
         const g = byWeek[w]?.[gi];
-        const canRemoveSlot = activeIndices.length > 1;
+        const canRemoveSlot = activeIndices.length > 0;
         const slotMinus = canRemoveSlot
           ? `<button type="button" class="admin-edit-btn fse-slot-remove-btn" data-week="${w}" data-gi="${gi}" title="Remove this slot from the week (blocked if a game exists)" style="position:static;flex-shrink:0;width:30px;">−</button>`
           : '<span style="width:30px;flex-shrink:0;"></span>';
@@ -782,14 +817,12 @@ export async function renderFullScheduleEditor(content, ctx) {
         return `<div class="fse-slot fse-slot-empty" data-week="${w}" data-gi="${gi}">
             ${slotMinus}
           <span class="fse-game-label">Game ${gi}</span>
-          <span class="fse-time-default">${fmtTime(DEFAULT_TIMES[gi])}</span>
+          <span class="fse-time-default">${fmtTime(defaultTimeForSlot(gi))}</span>
           <span class="fse-matchup" style="color:#666;">—</span>
           <button type="button" class="admin-edit-btn fse-add-btn" data-week="${w}" data-gi="${gi}" style="background:#2a5a3a;color:#8bc4a0;margin-left:auto;">+ Add</button>
         </div>`;
       });
-      const addSlotBtn = activeIndices.length < 3
-        ? `<button type="button" class="admin-edit-btn fse-add-slot-btn" data-week="${w}" style="position:static;background:#2a4a6a;color:#c8e0ff;font-size:0.72rem;">+ Slot</button>`
-        : '';
+      const addSlotBtn = `<button type="button" class="admin-edit-btn fse-add-slot-btn" data-week="${w}" style="position:static;background:#2a4a6a;color:#c8e0ff;font-size:0.72rem;">+ Slot</button>`;
       return `<div class="fse-week" data-week="${w}">
         <div class="fse-week-header" style="flex-wrap:wrap;gap:0.5rem;">
           <input type="text" class="fse-week-title-input" data-week="${w}" value="${escapeHtmlAttr(titleVal)}" placeholder="Week ${w} — custom title" style="flex:1;min-width:160px;background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;padding:0.25rem 0.5rem;border-radius:3px;font-size:0.78rem;">
@@ -869,14 +902,17 @@ export async function renderFullScheduleEditor(content, ctx) {
 
     el.querySelectorAll('.fse-date-input').forEach(input => {
       input.addEventListener('change', async () => {
-        const w = parseInt(input.dataset.week);
+        const w = parseInt(input.dataset.week, 10);
         const newDate = input.value;
+        if (newDate) datesByWeek[String(w)] = newDate;
+        else delete datesByWeek[String(w)];
         const weekGames = Object.values(byWeek[w] || {});
-        if (!weekGames.length) return;
         try {
+          await persistDatesByWeek();
           for (const g of weekGames) {
             const time = getISOTime(g.scheduled_at, g.game_index);
-            const newAt = buildScheduledAt(newDate, time);
+            const datePart = newDate || getISODate(g.scheduled_at) || '';
+            const newAt = datePart && time ? buildScheduledAt(datePart, time) : null;
             await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ id: g.id, scheduled_at: newAt }) });
             g.scheduled_at = newAt;
           }
@@ -943,9 +979,7 @@ export async function renderFullScheduleEditor(content, ctx) {
           return;
         }
         const cur = getActiveIndices(w);
-        if (cur.length <= 1) return;
         const next = cur.filter(x => x !== gi);
-        if (next.length < 1) return;
         slotsByWeek[String(w)] = next;
         try {
           await persistSlots();
@@ -971,9 +1005,7 @@ export async function renderFullScheduleEditor(content, ctx) {
       btn.onclick = async () => {
         const w = parseInt(btn.dataset.week, 10);
         const cur = getActiveIndices(w);
-        if (cur.length >= 3) return;
-        const nextIdx = [1, 2, 3].find(n => !cur.includes(n));
-        if (nextIdx == null) return;
+        const nextIdx = cur.length ? Math.max(...cur) + 1 : 1;
         slotsByWeek[String(w)] = [...cur, nextIdx].sort((a, b) => a - b);
         try {
           await persistSlots();
