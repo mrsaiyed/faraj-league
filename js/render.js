@@ -450,10 +450,12 @@ export function renderSchedule(focusWeek, teamFilter) {
     const cur = config.CURRENT_WEEK;
     const total = config.TOTAL_WEEKS;
     let html = '';
-    // Past
+    // Past — collapsible, collapsed by default
     if (cur > 1) {
-      html += sectionHeader('Past', false);
+      html += `<div class="schedule-section-header schedule-section-header-toggle" id="schedule-past-toggle"><span class="schedule-past-arrow">▸</span><span>Past</span></div>`;
+      html += `<div id="schedule-past-body" style="display:none;">`;
       for (let w = 1; w < cur; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
+      html += `</div>`;
     }
     // Current
     html += sectionHeader('Current Week', true);
@@ -464,6 +466,17 @@ export function renderSchedule(focusWeek, teamFilter) {
       for (let w = cur + 1; w <= total; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
     }
     allEl.innerHTML = html;
+    // Wire Past toggle
+    const pastToggle = allEl.querySelector('#schedule-past-toggle');
+    const pastBody = allEl.querySelector('#schedule-past-body');
+    if (pastToggle && pastBody) {
+      pastToggle.addEventListener('click', () => {
+        const open = pastBody.style.display !== 'none';
+        pastBody.style.display = open ? 'none' : '';
+        const arrow = pastToggle.querySelector('.schedule-past-arrow');
+        if (arrow) arrow.textContent = open ? '▸' : '▾';
+      });
+    }
   } else {
     // Single-week view
     if (allEl) allEl.style.display = 'none';
