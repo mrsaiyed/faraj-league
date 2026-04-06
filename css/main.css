@@ -256,10 +256,10 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .pending{color:#c8c0b0;font-style:italic;}
 .loading{text-align:center;padding:2rem;font-size:0.88rem;color:#c8c0b0;font-style:italic;}
 .hero-league-logo{width:340px;height:340px;mix-blend-mode:screen;margin:0 auto;display:block;}
-/* Wrapper centers a shrink-wrapped bar (avoids full-width flex row stretching eyebrow ↔ logo apart on desktop) */
-#title-sponsor-banner{display:flex;justify-content:center;width:100%;}
-.title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:0.45rem;max-width:100%;}
-.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;white-space:nowrap;padding:0 0.1rem;flex-shrink:0;}
+/* Stacked lines: eyebrow then logo — centered on all viewports (avoids desktop row misalignment) */
+#title-sponsor-banner{display:flex;flex-direction:column;align-items:center;width:100%;margin-top:0.65rem;box-sizing:border-box;}
+.title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:center;justify-content:center;gap:0.45rem;width:100%;max-width:100%;box-sizing:border-box;}
+.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;white-space:nowrap;padding:0 0.35rem;text-align:center;}
 .title-sponsor-name{font-family:'Cinzel',serif;font-size:1.1rem;color:#f5f0e8;letter-spacing:0.06em;}
 .title-sponsor-logo-wrap{line-height:0;overflow:visible;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .title-sponsor-logo{height:120px;width:auto;max-width:min(300px,100%);object-fit:contain;object-position:center;display:block;border-radius:3px;}
@@ -272,11 +272,11 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .home-stand-name{flex:1;color:#f5f0e8;}
 .home-stand-rec{font-size:0.82rem;color:#2fa89a;white-space:nowrap;}
 @media(max-width:1100px){.draft-board{grid-template-columns:repeat(4,1fr);}}
-/* Home hero: stack sponsor row + extra inset so text is not clipped (body has overflow-x:hidden; wide phones/tablets ≤900px) */
+/* Home hero: tighter type + smaller logo on narrow screens; safe-area padding for eyebrow */
 @media(max-width:900px){
   #title-sponsor-banner{margin-top:0.85rem;}
-  .title-sponsor-bar{display:flex;flex-direction:column;flex-wrap:nowrap;gap:0.4rem;width:100%;max-width:100%;align-items:center;box-sizing:border-box;}
-  .title-sponsor-eyebrow{letter-spacing:0.12em;max-width:100%;text-align:center;padding:0 max(0.5rem, env(safe-area-inset-right, 0px)) 0 max(0.5rem, env(safe-area-inset-left, 0px));}
+  .title-sponsor-bar{gap:0.4rem;}
+  .title-sponsor-eyebrow{letter-spacing:0.12em;padding:0 max(0.5rem, env(safe-area-inset-right, 0px)) 0 max(0.5rem, env(safe-area-inset-left, 0px));}
   .title-sponsor-logo{height:min(96px,26vw);max-width:min(240px, calc(100vw - 2rem));}
   .hero-content{padding-left:max(0.75rem, env(safe-area-inset-left, 0px));padding-right:max(0.75rem, env(safe-area-inset-right, 0px));}
   .hero-hadith-en{padding-left:max(0.65rem, env(safe-area-inset-left, 0px));padding-right:max(0.65rem, env(safe-area-inset-right, 0px));padding-bottom:0.4em;}
