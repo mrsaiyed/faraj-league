@@ -496,6 +496,8 @@ export async function renderSchedule(content, ctx) {
 
     backdrop.querySelector('#schedule-game-form').onsubmit = async (e) => {
       e.preventDefault();
+      const submitBtn = e.target.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       const id = backdrop.querySelector('#sg-id').value;
       const body = {
         week: parseInt(backdrop.querySelector('#sg-week').value),
@@ -513,6 +515,7 @@ export async function renderSchedule(content, ctx) {
         close();
         renderSchedule(content, ctx);
       } catch (err) {
+        if (submitBtn) submitBtn.disabled = false;
         msgEl.textContent = err.message || 'Save failed.';
         msgEl.className = 'admin-edit-msg error';
         msgEl.style.display = 'block';
@@ -786,6 +789,8 @@ export async function renderFullScheduleEditor(content, ctx) {
 
     backdrop.querySelector('#fse-matchup-form').onsubmit = async (e) => {
       e.preventDefault();
+      const submitBtn = e.target.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       const id = backdrop.querySelector('#fse-m-id').value;
       const homeId = backdrop.querySelector('#fse-m-home').value;
       const awayId = backdrop.querySelector('#fse-m-away').value;
@@ -807,6 +812,7 @@ export async function renderFullScheduleEditor(content, ctx) {
         await refreshGames();
         renderEditor();
       } catch (err) {
+        if (submitBtn) submitBtn.disabled = false;
         const text = err.message || 'Save failed.';
         msgEl.textContent = text;
         msgEl.className = 'admin-edit-msg error';
@@ -1638,6 +1644,8 @@ export async function attachScheduleAdminOverlays(ctx) {
 
     backdrop.querySelector('#schedule-game-form').onsubmit = async (e) => {
       e.preventDefault();
+      const submitBtn = e.target.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
       const id = backdrop.querySelector('#sg-id').value;
       const body = {
         week: parseInt(backdrop.querySelector('#sg-week').value),
@@ -1655,6 +1663,7 @@ export async function attachScheduleAdminOverlays(ctx) {
         close();
         onScheduleSaved();
       } catch (err) {
+        if (submitBtn) submitBtn.disabled = false;
         msgEl.textContent = err.message || 'Save failed.';
         msgEl.className = 'admin-edit-msg error';
         msgEl.style.display = 'block';
