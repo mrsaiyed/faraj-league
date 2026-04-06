@@ -257,6 +257,16 @@ const TEAM_LOGOS = {
   raad: 'raad.jpg',
 };
 
+const LOGO_SCALE = {
+  jaysh: 1.75,
+  noor: 1.30,
+  dukhaan: 1.35,
+  ansar: 1.28,
+  mujahideen: 1.65,
+  raad: 1.45,
+};
+const DEFAULT_LOGO_SCALE = 1.35;
+
 function teamLogoUrl(name) {
   const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const key = Object.keys(TEAM_LOGOS).find(k => slug.includes(k) || k.includes(slug));
@@ -266,7 +276,12 @@ function teamLogoUrl(name) {
 function teamLogoHtml(name, side) {
   const url = teamLogoUrl(name);
   const cls = `mc-logo mc-logo-${side}`;
-  if (url) return `<img src="${url}" class="${cls} mc-logo-img" alt="${escapeHtmlAttr(name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+  if (url) {
+    const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const scaleKey = Object.keys(LOGO_SCALE).find(k => slug.includes(k) || k.includes(slug));
+    const scale = LOGO_SCALE[scaleKey] ?? DEFAULT_LOGO_SCALE;
+    return `<div class="${cls}" style="overflow:hidden"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scale})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+  }
   return `<div class="${cls}">${initials(name || '?')}</div>`;
 }
 
