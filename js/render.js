@@ -257,30 +257,37 @@ const TEAM_LOGOS = {
   raad: 'raad.jpg',
 };
 
+// Per-team scale factors. Keys must match TEAM_LOGOS keys exactly.
+// transform: translate(-50%,-50%) scale(S) on an absolutely-centred img
+// inside an overflow:hidden crop div — adjust ±0.05 if edges clip.
 const LOGO_SCALE = {
-  jaysh: 1.75,
-  noor: 1.30,
-  dukhaan: 1.35,
-  ansar: 1.28,
-  mujahideen: 1.65,
-  raad: 1.45,
+  jaysh: 1.50,
+  noor: 1.20,
+  dukhaan: 1.20,
+  ansar: 1.15,
+  mujahideen: 1.45,
+  raad: 1.30,
 };
-const DEFAULT_LOGO_SCALE = 1.35;
+const DEFAULT_LOGO_SCALE = 1.15;
+
+function teamLogoKey(name) {
+  const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return Object.keys(TEAM_LOGOS).find(k => slug.includes(k) || k.includes(slug)) ?? null;
+}
 
 function teamLogoUrl(name) {
-  const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const key = Object.keys(TEAM_LOGOS).find(k => slug.includes(k) || k.includes(slug));
+  const key = teamLogoKey(name);
   return key ? `${getBasePath()}/images/teams/${TEAM_LOGOS[key]}` : null;
 }
 
 function teamLogoHtml(name, side) {
-  const url = teamLogoUrl(name);
+  const teamKey = teamLogoKey(name);
+  const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
   const cls = `mc-logo mc-logo-${side}`;
   if (url) {
-    const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const scaleKey = Object.keys(LOGO_SCALE).find(k => slug.includes(k) || k.includes(slug));
-    const scale = LOGO_SCALE[scaleKey] ?? DEFAULT_LOGO_SCALE;
-    return `<div class="${cls}" style="overflow:hidden"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scale})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+    const scale = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
+    const imgStyle = `position:absolute;left:50%;top:50%;width:100%;height:100%;object-fit:contain;transform:translate(-50%,-50%) scale(${scale});transform-origin:center`;
+    return `<div class="${cls}"><div class="mc-logo-crop"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="${imgStyle}" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
   }
   return `<div class="${cls}">${initials(name || '?')}</div>`;
 }
