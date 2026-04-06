@@ -232,6 +232,22 @@ function formatScheduledAt(scheduledAt) {
   return d.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
+const DEFAULT_GAME_TIMES = { 1: '10:00 AM', 2: '11:00 AM', 3: '12:00 PM' };
+
+function formatGameTime(scheduledAt, gameIndex) {
+  if (!scheduledAt) return DEFAULT_GAME_TIMES[gameIndex] || '10:00 AM';
+  const d = new Date(scheduledAt);
+  if (isNaN(d.getTime())) return DEFAULT_GAME_TIMES[gameIndex] || '10:00 AM';
+  return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function formatGameDate(scheduledAt) {
+  if (!scheduledAt) return '';
+  const d = new Date(scheduledAt);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
   const gameId = game.gameId;
   const t1 = teams?.find(t => t.id === game.t1Id);
@@ -343,8 +359,9 @@ export function renderSchedule(focusWeek, teamFilter) {
       if (played) {
         cardInner = `<div class="matchup-game-label">Game ${g.game || 1}</div><div class="matchup-row"><span class="matchup-team ${w1 ? 'winner' : ''}">${g.t1}</span><span class="matchup-score ${w1 ? 'winner' : ''}">${g.s1}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team ${w2 ? 'winner' : ''}">${g.t2}</span><span class="matchup-score ${w2 ? 'winner' : ''}">${g.s2}</span></div><div class="winner-tag">${s1 > s2 ? g.t1 + ' Win' : g.t2 + ' Win'}</div>`;
       } else {
-        const timeStr = formatScheduledAt(g.scheduled_at);
-        cardInner = `<div class="matchup-game-label">Game ${g.game || 1}</div><div class="matchup-row"><span class="matchup-team">${g.t1}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team">${g.t2}</span></div><div class="winner-tag" style="color:#c8c0b0;font-style:italic">${timeStr}</div>`;
+        const timeStr = formatGameTime(g.scheduled_at, g.game || 1);
+        const dateStr = formatGameDate(g.scheduled_at);
+        cardInner = `<div class="matchup-game-label" style="display:flex;justify-content:space-between;align-items:center;"><span>Game ${g.game || 1}</span><span style="font-weight:normal;letter-spacing:0;">${timeStr}</span><span style="font-weight:normal;letter-spacing:0;">${dateStr}</span></div><div class="matchup-row"><span class="matchup-team">${g.t1}</span></div><div class="matchup-mid"></div><div class="matchup-row"><span class="matchup-team">${g.t2}</span></div>`;
       }
       return `<div class="matchup-card"><div class="matchup-card-main">${cardInner}</div><button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="margin-top:0.5rem;background:transparent;border:none;color:#c8a84b;font-size:0.8rem;cursor:pointer;padding:0;">View box score</button></div>`;
     });
