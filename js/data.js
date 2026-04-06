@@ -159,12 +159,13 @@ export async function fetchSeasonData(slug) {
   return { data: transformSeasonData(raw), error: null };
 }
 
-export function deriveWeeks(scores) {
-  if (!scores?.length) return { TOTAL_WEEKS: 8, CURRENT_WEEK: 1 };
-  const maxWeek = Math.max(...scores.map(g => g.week));
-  const played = scores.filter(g => g.s1 !== '' && g.s2 !== '');
+export function deriveWeeks(scores, season) {
+  const played = (scores || []).filter(g => g.s1 !== '' && g.s2 !== '');
   const latestPlayed = played.length ? Math.max(...played.map(g => g.week)) : 1;
-  return { TOTAL_WEEKS: Math.max(8, maxWeek), CURRENT_WEEK: latestPlayed || 1 };
+  const maxGameWeek = (scores || []).length ? Math.max(...scores.map(g => g.week)) : 0;
+  const derived = Math.max(8, maxGameWeek);
+  const totalWeeks = (season?.total_weeks != null && season.total_weeks > 0) ? season.total_weeks : derived;
+  return { TOTAL_WEEKS: totalWeeks, CURRENT_WEEK: latestPlayed || 1 };
 }
 
 export function applySponsorOverrides(overrides) {

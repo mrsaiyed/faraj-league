@@ -32,7 +32,7 @@ export async function loadAdminSeasonData(slug) {
 
   applySponsorOverrides(sponsorOverrides);
 
-  const derived = deriveWeeks(scores);
+  const derived = deriveWeeks(scores, season);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
   config.CURRENT_WEEK = season?.current_week != null ? season.current_week : derived.CURRENT_WEEK;
   config.currentSeasonLabel = season?.label || 'Spring 2026';

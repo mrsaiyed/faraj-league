@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { id, is_current, current_week } = body;
+    const { id, is_current, current_week, total_weeks } = body;
 
     if (!id) return jsonResponse({ error: 'id required' }, 400);
 
@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     const { error } = await supabase.from('seasons').update({
       is_current: is_current ?? undefined,
       current_week: current_week ?? undefined,
+      total_weeks: total_weeks ?? undefined,
     }).eq('id', id);
 
     if (error) return jsonResponse({ error: error.message }, 400);

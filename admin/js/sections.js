@@ -32,6 +32,8 @@ export async function renderSeasons(content, ctx) {
   }
   const weekVal = season.current_week != null && Number.isFinite(Number(season.current_week))
     ? Number(season.current_week) : '';
+  const totalWeeksVal = season.total_weeks != null && Number.isFinite(Number(season.total_weeks))
+    ? Number(season.total_weeks) : '';
   content.innerHTML = `
     <div id="seasons-msg"></div>
     <form id="seasons-form" class="admin-drawer-form">
@@ -43,6 +45,10 @@ export async function renderSeasons(content, ctx) {
         <span class="admin-drawer-form-label">Current week</span>
         <input type="number" id="seasons-current-week" value="${weekVal}" min="0" class="admin-drawer-form-input">
       </div>
+      <div class="admin-drawer-form-row">
+        <span class="admin-drawer-form-label">Total weeks</span>
+        <input type="number" id="seasons-total-weeks" value="${totalWeeksVal}" min="1" class="admin-drawer-form-input" placeholder="8">
+      </div>
       <div class="admin-drawer-form-actions">
         <button type="submit">Save</button>
       </div>
@@ -52,12 +58,14 @@ export async function renderSeasons(content, ctx) {
     e.preventDefault();
     const msg = document.getElementById('seasons-msg');
     try {
+      const totalWeeksInput = document.getElementById('seasons-total-weeks').value;
       await adminFetch('admin-seasons', {
         method: 'POST',
         body: JSON.stringify({
           id: seasonId,
           is_current: document.getElementById('seasons-is-current').checked,
           current_week: document.getElementById('seasons-current-week').value !== '' ? parseInt(document.getElementById('seasons-current-week').value) : null,
+          total_weeks: totalWeeksInput !== '' ? parseInt(totalWeeksInput) : null,
         }),
       });
       msg.innerHTML = '<p class="msg success">Saved.</p>';
@@ -538,8 +546,14 @@ export async function renderFullScheduleEditor(content, ctx) {
   if (!seasonId) { content.innerHTML = '<p>Select a season first.</p>'; return; }
 
   const { config } = await importRootJs('config.js');
-  const teams = (config.DB.teams || []).filter(t => t && t.id);
-  const totalWeeks = config.TOTAL_WEEKS || 8;
+
+  // Fetch teams fresh from DB so the editor always has up-to-date team list
+  const { data: teamsRaw } = await supabase.from('teams').select('id, name').eq('season_id', seasonId).order('sort_order');
+  const teams = (teamsRaw && teamsRaw.length) ? teamsRaw : (config.DB.teams || []).filter(t => t && t.id);
+
+  // Fetch season for total_weeks
+  const { data: seasonRow } = await supabase.from('seasons').select('total_weeks, current_week').eq('id', seasonId).single();
+  let totalWeeks = (seasonRow?.total_weeks != null && seasonRow.total_weeks > 0) ? seasonRow.total_weeks : (config.TOTAL_WEEKS || 8);
 
   const { data: games } = await supabase
     .from('games').select('*').eq('season_id', seasonId).order('week').order('game_index');
@@ -700,6 +714,12 @@ export async function renderFullScheduleEditor(content, ctx) {
           <span style="font-family:'Cinzel',serif;font-size:0.9rem;color:#c8a84b;letter-spacing:0.1em;">EDIT FULL SCHEDULE</span>
           <span id="fse-save-msg" style="font-size:0.8rem;"></span>
         </div>
+        <div class="fse-weeks-row" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.2rem;padding:0.5rem 0.75rem;background:#1a1a2a;border-radius:4px;border:1px solid #2a4a6a;">
+          <span style="font-size:0.82rem;color:#c8c0b0;">Total weeks in season:</span>
+          <input type="number" id="fse-total-weeks" value="${totalWeeks}" min="1" max="52" style="background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;padding:0.2rem 0.5rem;border-radius:3px;font-size:0.85rem;width:60px;">
+          <button type="button" id="fse-save-weeks-btn" style="padding:0.25rem 0.75rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:3px;cursor:pointer;font-size:0.82rem;">Save</button>
+          <span id="fse-weeks-msg" style="font-size:0.8rem;"></span>
+        </div>
         <div class="fse-grid">${weekRows.join('')}</div>
       </div>`;
 
@@ -732,8 +752,26 @@ export async function renderFullScheduleEditor(content, ctx) {
 
     const el = document.getElementById('full-schedule-editor');
     el.querySelector('#fse-back-btn').onclick = async () => {
-      if (ctx.onScheduleSaved) await ctx.onScheduleSaved();
-      else renderSchedule(content, ctx);
+      if (typeof ctx.onScheduleSaved === 'function') await ctx.onScheduleSaved();
+      else await renderSchedule(content, ctx);
+    };
+
+    el.querySelector('#fse-save-weeks-btn').onclick = async () => {
+      const input = el.querySelector('#fse-total-weeks');
+      const val = parseInt(input.value);
+      const weeksMsg = el.querySelector('#fse-weeks-msg');
+      if (!val || val < 1) { weeksMsg.textContent = 'Must be at least 1.'; weeksMsg.style.color = '#e88'; return; }
+      try {
+        await adminFetch('admin-seasons', { method: 'POST', body: JSON.stringify({ id: seasonId, total_weeks: val }) });
+        totalWeeks = val;
+        weeksMsg.textContent = 'Saved.';
+        weeksMsg.style.color = '#8bc4a0';
+        setTimeout(() => { weeksMsg.textContent = ''; }, 3000);
+        renderEditor();
+      } catch (err) {
+        weeksMsg.textContent = err.message || 'Save failed.';
+        weeksMsg.style.color = '#e88';
+      }
     };
 
     el.querySelectorAll('.fse-date-input').forEach(input => {
@@ -1414,6 +1452,21 @@ export async function attachScheduleAdminOverlays(ctx) {
     statBtn.style.cssText = 'position:relative;margin-right:0.5rem;';
     statBtn.onclick = () => openStatSheet(game, pageSchedule, ctx, onScheduleSaved);
     btn.parentNode.insertBefore(statBtn, btn);
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'admin-edit-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = 'position:relative;margin-right:0.5rem;background:rgba(200,80,80,0.85);';
+    removeBtn.onclick = async () => {
+      if (!game?.gameId || !confirm('Remove this game? This will also delete its stat sheet.')) return;
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ delete: true, id: game.gameId }) });
+        onScheduleSaved();
+      } catch (err) {
+        alert('Failed to remove game: ' + (err.message || 'Unknown error'));
+      }
+    };
+    btn.parentNode.insertBefore(removeBtn, btn);
   });
 
   const addGameBtn = section.querySelector('#admin-schedule-add-game-btn');
