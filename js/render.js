@@ -274,15 +274,10 @@ function buildMatchupCard(g, gameId) {
   const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
   const w1 = played && s1 > s2, w2 = played && s2 > s1;
 
-  // Meta line: "Game N · Apr 6 · 10:00 AM" (scheduled) or "Game N" (played)
-  let metaLine;
-  if (played) {
-    metaLine = `Game ${g.game || 1}`;
-  } else {
-    const dateStr = formatGameDate(g.scheduled_at);
-    const timeStr = formatGameTime(g.scheduled_at, g.game || 1);
-    metaLine = dateStr ? `Game ${g.game || 1} · ${dateStr} · ${timeStr}` : `Game ${g.game || 1} · ${timeStr}`;
-  }
+  // Meta row: Game N (left) | Time (center) | Date (right)
+  const dateStr = formatGameDate(g.scheduled_at);
+  const timeStr = played ? '' : formatGameTime(g.scheduled_at, g.game || 1);
+  const metaLine = `<span class="mc-meta-game">Game ${g.game || 1}</span><span class="mc-meta-time">${played ? '' : timeStr}</span><span class="mc-meta-date">${played ? '' : dateStr}</span>`;
 
   // Center: score (played) or VS (scheduled)
   const midContent = played
