@@ -5,6 +5,37 @@
 
 const importRootJs = (name) => import(new URL('../../js/' + name, import.meta.url).href);
 
+/** `YYYY-MM-DDTHH:mm` in the browser's local zone, for `<input type="datetime-local">` and text fields. */
+function scheduledAtToDatetimeLocalValue(scheduledAt) {
+  if (!scheduledAt) return '';
+  const d = new Date(scheduledAt);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${mo}-${day}T${h}:${m}`;
+}
+
+/**
+ * Naive `YYYY-MM-DDTHH:mm` from datetime-local (no Z) is LOCAL wall time. Sent as-is, Postgres often stores it as UTC → wrong display (e.g. 10 AM → 5 AM Eastern).
+ * Strings that already include Z or a numeric offset are left unchanged.
+ */
+function scheduledAtInputToIso(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  if (s === '') return null;
+  if (/Z$/i.test(s)) return s;
+  if (/[+-]\d{2}:\d{2}$/.test(s) || /[+-]\d{4}$/.test(s)) return s;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return s;
+  const [, y, mo, d, hh, mm, ss] = m;
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mm), Number(ss) || 0, 0);
+  if (isNaN(dt.getTime())) return null;
+  return dt.toISOString();
+}
+
 export async function renderSeasons(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -436,7 +467,7 @@ export async function renderSchedule(content, ctx) {
       away_team_id: game?.t2Id || teams[1]?.id || '',
       home_score: (game?.s1 ?? '') !== '' ? parseInt(game?.s1, 10) : null,
       away_score: (game?.s2 ?? '') !== '' ? parseInt(game?.s2, 10) : null,
-      scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
+      scheduled_at: scheduledAtToDatetimeLocalValue(game?.scheduled_at),
     };
     backdrop.innerHTML = `
       <div class="admin-modal" style="max-width:420px;">
@@ -449,7 +480,7 @@ export async function renderSchedule(content, ctx) {
           <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
           <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-          <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+          <label style="display:block;margin:0.5rem 0;">Scheduled at (your local time): <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
           <div class="admin-modal-actions" style="margin-top:1rem;">
             <button type="submit" class="btn-primary">Save</button>
             <button type="button" class="btn-secondary" id="sg-cancel">Cancel</button>
@@ -473,7 +504,7 @@ export async function renderSchedule(content, ctx) {
         away_team_id: backdrop.querySelector('#sg-away').value,
         home_score: backdrop.querySelector('#sg-home-score').value ? parseInt(backdrop.querySelector('#sg-home-score').value) : null,
         away_score: backdrop.querySelector('#sg-away-score').value ? parseInt(backdrop.querySelector('#sg-away-score').value) : null,
-        scheduled_at: backdrop.querySelector('#sg-scheduled').value || null,
+        scheduled_at: scheduledAtInputToIso(backdrop.querySelector('#sg-scheduled').value),
       };
       if (id) body.id = id; else body.season_id = seasonId;
       const msgEl = backdrop.querySelector('#sg-msg');
@@ -760,8 +791,11 @@ export async function renderFullScheduleEditor(content, ctx) {
       const awayId = backdrop.querySelector('#fse-m-away').value;
       let scheduledAt = game?.scheduled_at || null;
       if (!id) {
-        const weekDate = document.querySelector(`.fse-date-input[data-week="${week}"]`)?.value || getWeekDate(week);
-        scheduledAt = buildScheduledAt(weekDate, defaultTimeForSlot(gi));
+        const weekDate =
+          document.querySelector(`.fse-date-input[data-week="${week}"]`)?.value?.trim()
+          || getWeekDate(week)
+          || (game?.scheduled_at ? getISODate(game.scheduled_at) : '');
+        scheduledAt = weekDate ? buildScheduledAt(weekDate, defaultTimeForSlot(gi)) : null;
       }
       const body = id
         ? { id, home_team_id: homeId, away_team_id: awayId }
@@ -922,19 +956,39 @@ export async function renderFullScheduleEditor(content, ctx) {
     });
 
     el.querySelectorAll('.fse-time-input').forEach(input => {
-      input.addEventListener('change', async () => {
+      let timeSaveTimer;
+      const persistGameTime = async () => {
         const gameId = input.dataset.gameId;
-        const w = parseInt(input.dataset.week);
-        const gi = parseInt(input.dataset.gi);
+        const w = parseInt(input.dataset.week, 10);
+        const gi = parseInt(input.dataset.gi, 10);
         const g = byWeek[w]?.[gi];
-        if (!g) return;
-        const weekDate = document.querySelector(`.fse-date-input[data-week="${w}"]`)?.value || getWeekDate(w);
+        if (!g || !gameId || !input.value) return;
+        const weekDate =
+          document.querySelector(`.fse-date-input[data-week="${w}"]`)?.value?.trim()
+          || getWeekDate(w)
+          || getISODate(g.scheduled_at);
+        if (!weekDate) {
+          showMsg('Set the week date (calendar field) first, then time.', true);
+          return;
+        }
         const newAt = buildScheduledAt(weekDate, input.value);
+        if (!newAt) {
+          showMsg('Could not save time.', true);
+          return;
+        }
         try {
           await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ id: gameId, scheduled_at: newAt }) });
           g.scheduled_at = newAt;
           showMsg('Time saved.');
         } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      };
+      input.addEventListener('change', () => {
+        clearTimeout(timeSaveTimer);
+        persistGameTime();
+      });
+      input.addEventListener('input', () => {
+        clearTimeout(timeSaveTimer);
+        timeSaveTimer = setTimeout(persistGameTime, 420);
       });
     });
 
@@ -1555,7 +1609,7 @@ export async function attachScheduleAdminOverlays(ctx) {
       away_team_id: game?.t2Id || teams[1]?.id || '',
       home_score: (game?.s1 ?? '') !== '' ? parseInt(game?.s1, 10) : null,
       away_score: (game?.s2 ?? '') !== '' ? parseInt(game?.s2, 10) : null,
-      scheduled_at: game?.scheduled_at ? String(game.scheduled_at).slice(0, 19) : '',
+      scheduled_at: scheduledAtToDatetimeLocalValue(game?.scheduled_at),
     };
     backdrop.innerHTML = `
       <div class="admin-modal" style="max-width:420px;">
@@ -1568,7 +1622,7 @@ export async function attachScheduleAdminOverlays(ctx) {
           <label style="display:block;margin:0.5rem 0;">Away: <select id="sg-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teams.map(t => t ? `<option value="${t.id}" ${t.id === body.away_team_id ? 'selected' : ''}>${escapeHtml(t.name || '')}</option>` : '').join('')}</select></label>
           <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="sg-home-score" min="0" value="${body.home_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
           <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="sg-away-score" min="0" value="${body.away_score ?? ''}" style="padding:0.4rem;width:60px;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-          <label style="display:block;margin:0.5rem 0;">Scheduled at: <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+          <label style="display:block;margin:0.5rem 0;">Scheduled at (your local time): <input type="datetime-local" id="sg-scheduled" value="${body.scheduled_at}" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
           <div class="admin-modal-actions" style="margin-top:1rem;">
             <button type="submit" class="btn-primary">Save</button>
             <button type="button" class="btn-secondary" id="sg-cancel">Cancel</button>
@@ -1592,7 +1646,7 @@ export async function attachScheduleAdminOverlays(ctx) {
         away_team_id: backdrop.querySelector('#sg-away').value,
         home_score: backdrop.querySelector('#sg-home-score').value ? parseInt(backdrop.querySelector('#sg-home-score').value) : null,
         away_score: backdrop.querySelector('#sg-away-score').value ? parseInt(backdrop.querySelector('#sg-away-score').value) : null,
-        scheduled_at: backdrop.querySelector('#sg-scheduled').value || null,
+        scheduled_at: scheduledAtInputToIso(backdrop.querySelector('#sg-scheduled').value),
       };
       if (id) body.id = id; else body.season_id = seasonId;
       const msgEl = backdrop.querySelector('#sg-msg');
@@ -1798,7 +1852,7 @@ export async function renderGames(content, ctx) {
         <label style="display:block;margin:0.5rem 0;">Away: <select id="games-away" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;">${(teams || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}</select></label>
         <label style="display:block;margin:0.5rem 0;">Home score: <input type="number" id="games-home-score" min="0" style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Away score: <input type="number" id="games-away-score" min="0" style="padding:0.4rem;width:60px;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
-        <label style="display:block;margin:0.5rem 0;">Scheduled at (ISO): <input type="text" id="games-scheduled" placeholder="2026-01-15T18:00:00Z" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
+        <label style="display:block;margin:0.5rem 0;">Scheduled at (local time, or full ISO with Z): <input type="text" id="games-scheduled" placeholder="2026-01-15T18:00" style="padding:0.4rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;width:100%;"></label>
         <button type="submit">Save</button>
         <button type="button" id="games-cancel">Cancel</button>
       </form>
@@ -1826,7 +1880,7 @@ export async function renderGames(content, ctx) {
     document.getElementById('games-away').value = g?.away_team_id || '';
     document.getElementById('games-home-score').value = g?.home_score ?? '';
     document.getElementById('games-away-score').value = g?.away_score ?? '';
-    document.getElementById('games-scheduled').value = g?.scheduled_at ? g.scheduled_at.slice(0, 19) : '';
+    document.getElementById('games-scheduled').value = scheduledAtToDatetimeLocalValue(g?.scheduled_at);
   };
   document.getElementById('games-add-btn').onclick = () => showForm();
   document.getElementById('games-cancel').onclick = () => { wrap.style.display = 'none'; };
@@ -1951,7 +2005,7 @@ export async function renderGames(content, ctx) {
       away_team_id: document.getElementById('games-away').value,
       home_score: document.getElementById('games-home-score').value ? parseInt(document.getElementById('games-home-score').value) : null,
       away_score: document.getElementById('games-away-score').value ? parseInt(document.getElementById('games-away-score').value) : null,
-      scheduled_at: document.getElementById('games-scheduled').value || null,
+      scheduled_at: scheduledAtInputToIso(document.getElementById('games-scheduled').value),
     };
     if (id) body.id = id; else body.season_id = seasonId;
     try {
