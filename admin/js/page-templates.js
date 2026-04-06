@@ -71,11 +71,12 @@ export const SCHEDULE_TEMPLATE = `
     <h2 class="section-title">Schedule</h2>
     <div class="section-line"></div>
     <div id="schedule-mirror-wrap">
-    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(parseInt(this.value), document.getElementById('schedule-team-filter')?.value || null)"></select></div>
-    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(parseInt(document.getElementById('schedule-week-select')?.value), this.value || null)"><option value="">All teams</option></select>
-    <div id="schedule-prev" style="margin-top:1.5rem;"></div>
-    <div id="schedule-focus" style="margin-top:1.5rem;"></div>
-    <div id="schedule-next" style="margin-top:1.5rem;"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(this.value==='all'?'all':parseInt(this.value), document.getElementById('schedule-team-filter')?.value || null)"></select></div>
+    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(document.getElementById('schedule-week-select')?.value==='all'?'all':parseInt(document.getElementById('schedule-week-select')?.value), this.value || null)"><option value="">All teams</option></select>
+    <div id="schedule-all-content" style="margin-top:1.5rem;"></div>
+    <div id="schedule-prev" style="margin-top:1.5rem;display:none;"></div>
+    <div id="schedule-focus" style="margin-top:1.5rem;display:none;"></div>
+    <div id="schedule-next" style="margin-top:1.5rem;display:none;"></div>
     <button type="button" id="admin-schedule-add-game-btn" style="margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;">Add game</button>
     </div>
     <div id="schedule-full-editor-mount" style="display:none;" aria-hidden="true"></div>

@@ -101,11 +101,12 @@
     <p class="section-sub" id="schedule-section-sub">Spring 2026</p>
     <h2 class="section-title">Schedule</h2>
     <div class="section-line"></div>
-    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(parseInt(this.value), document.getElementById('schedule-team-filter').value || null)"></select></div>
-    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(parseInt(document.getElementById('schedule-week-select').value), this.value || null)"><option value="">All teams</option></select>
-    <div id="schedule-prev" style="margin-top:1.5rem;"></div>
-    <div id="schedule-focus" style="margin-top:1.5rem;"></div>
-    <div id="schedule-next" style="margin-top:1.5rem;"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="schedule-week-select" onchange="renderSchedule(this.value==='all'?'all':parseInt(this.value), document.getElementById('schedule-team-filter').value || null)"></select></div>
+    <select id="schedule-team-filter" style="margin-left:1rem;" onchange="renderSchedule(document.getElementById('schedule-week-select').value==='all'?'all':parseInt(document.getElementById('schedule-week-select').value), this.value || null)"><option value="">All teams</option></select>
+    <div id="schedule-all-content" style="margin-top:1.5rem;"></div>
+    <div id="schedule-prev" style="margin-top:1.5rem;display:none;"></div>
+    <div id="schedule-focus" style="margin-top:1.5rem;display:none;"></div>
+    <div id="schedule-next" style="margin-top:1.5rem;display:none;"></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>

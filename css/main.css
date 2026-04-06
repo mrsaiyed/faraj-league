@@ -105,6 +105,9 @@ nav{position:sticky;top:0;z-index:200;background:#060f1a;border-bottom:2px solid
 .team-link{color:#f5f0e8;cursor:pointer;transition:color 0.15s;}
 .team-link:hover{color:#c8a84b;}
 .standings-table tr:first-of-type td{border-top:none;}
+.schedule-section-header{font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8c0b0;padding:0.4rem 0;margin:2rem 0 0.9rem;border-top:1px solid rgba(200,168,75,0.15);}
+.schedule-section-header:first-child{margin-top:0;border-top:none;}
+.schedule-section-header-current{color:#c8a84b;border-top-color:rgba(200,168,75,0.35);}
 .matchups-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;}
 .matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;padding:1.25rem 1.3rem;display:flex;flex-direction:column;align-items:center;}
 /* mc-* = matchup card internals */

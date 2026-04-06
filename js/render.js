@@ -136,13 +136,16 @@ export function renderAll(adminMode = false) {
   const mws = document.getElementById('media-week-select');
   if (mws) mws.value = String(config.CURRENT_WEEK);
   const sselBefore = document.getElementById('schedule-week-select');
-  const prevScheduleWeek = sselBefore && sselBefore.value && parseInt(sselBefore.value, 10) >= 1 && parseInt(sselBefore.value, 10) <= config.TOTAL_WEEKS
-    ? parseInt(sselBefore.value, 10) : config.CURRENT_WEEK;
+  const prevScheduleWeekVal = sselBefore?.value;
+  const prevScheduleWeek = (!prevScheduleWeekVal || prevScheduleWeekVal === 'all')
+    ? 'all'
+    : (parseInt(prevScheduleWeekVal, 10) >= 1 && parseInt(prevScheduleWeekVal, 10) <= config.TOTAL_WEEKS
+      ? parseInt(prevScheduleWeekVal, 10) : 'all');
   const teamFilterBefore = document.getElementById('schedule-team-filter');
   const teamFilterVal = teamFilterBefore?.value || null;
-  buildWeekDropdown('schedule-week-select', false);
+  buildWeekDropdown('schedule-week-select', true);
   const ssel = document.getElementById('schedule-week-select');
-  if (ssel) ssel.value = String(Math.min(config.TOTAL_WEEKS, Math.max(1, prevScheduleWeek)));
+  if (ssel) ssel.value = prevScheduleWeek === 'all' ? 'all' : String(Math.min(config.TOTAL_WEEKS, Math.max(1, prevScheduleWeek)));
   buildScheduleTeamFilter();
   const scheduleTeamFilter = document.getElementById('schedule-team-filter');
   if (scheduleTeamFilter && teamFilterVal) scheduleTeamFilter.value = teamFilterVal;
@@ -152,7 +155,9 @@ export function renderAll(adminMode = false) {
   renderStats();
   renderAwards(config.CURRENT_WEEK);
   renderScores('all');
-  renderSchedule(parseInt(ssel?.value || config.CURRENT_WEEK, 10), teamFilterVal || null);
+  const schedWeekVal = ssel?.value;
+  const schedFocusWeek = (!schedWeekVal || schedWeekVal === 'all') ? 'all' : parseInt(schedWeekVal, 10);
+  renderSchedule(schedFocusWeek, teamFilterVal || null);
   renderMedia(config.CURRENT_WEEK);
   renderAbout();
   renderDraft(adminMode);
@@ -407,21 +412,11 @@ function scheduleWeekTitle(w) {
 }
 
 export function renderSchedule(focusWeek, teamFilter) {
+  const allEl = document.getElementById('schedule-all-content');
   const prevEl = document.getElementById('schedule-prev');
   const focusEl = document.getElementById('schedule-focus');
   const nextEl = document.getElementById('schedule-next');
-  if (!prevEl || !focusEl || !nextEl) return;
-
-  prevEl.style.display = focusWeek === 1 ? 'none' : '';
-  nextEl.style.display = focusWeek === config.TOTAL_WEEKS ? 'none' : '';
-
-  const renderWeek = (w, label) => {
-    let games = (config.DB.scores || []).filter(g => g.week === w);
-    if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
-    if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
-    const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
-    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
-  };
+  if (!focusEl && !allEl) return;
 
   if (!window.scheduleBoxScoreHandlersAttached) {
     window.scheduleBoxScoreHandlersAttached = true;
@@ -434,9 +429,50 @@ export function renderSchedule(focusWeek, teamFilter) {
     });
   }
 
-  if (focusWeek > 1) prevEl.innerHTML = renderWeek(focusWeek - 1, `${scheduleWeekTitle(focusWeek - 1)} — Previous`);
-  focusEl.innerHTML = renderWeek(focusWeek, `${scheduleWeekTitle(focusWeek)}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
-  if (focusWeek < config.TOTAL_WEEKS) nextEl.innerHTML = renderWeek(focusWeek + 1, `${scheduleWeekTitle(focusWeek + 1)} — Next`);
+  const renderWeekBlock = (w, label) => {
+    let games = (config.DB.scores || []).filter(g => g.week === w);
+    if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
+    if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
+    const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
+    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
+  };
+
+  const sectionHeader = (label, isCurrent) =>
+    `<div class="schedule-section-header${isCurrent ? ' schedule-section-header-current' : ''}"><span>${label}</span></div>`;
+
+  if (focusWeek === 'all') {
+    // All-weeks view: Past / Current / Upcoming sections
+    if (prevEl) prevEl.style.display = 'none';
+    if (focusEl) focusEl.style.display = 'none';
+    if (nextEl) nextEl.style.display = 'none';
+    if (!allEl) return;
+    allEl.style.display = '';
+    const cur = config.CURRENT_WEEK;
+    const total = config.TOTAL_WEEKS;
+    let html = '';
+    // Past
+    if (cur > 1) {
+      html += sectionHeader('Past', false);
+      for (let w = 1; w < cur; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
+    }
+    // Current
+    html += sectionHeader('Current Week', true);
+    html += renderWeekBlock(cur, scheduleWeekTitle(cur));
+    // Upcoming
+    if (cur < total) {
+      html += sectionHeader('Upcoming', false);
+      for (let w = cur + 1; w <= total; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
+    }
+    allEl.innerHTML = html;
+  } else {
+    // Single-week view
+    if (allEl) allEl.style.display = 'none';
+    if (prevEl) prevEl.style.display = 'none';
+    if (nextEl) nextEl.style.display = 'none';
+    if (!focusEl) return;
+    focusEl.style.display = '';
+    focusEl.innerHTML = renderWeekBlock(focusWeek, `${scheduleWeekTitle(focusWeek)}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
+  }
 }
 
 export function renderScores(week) {
