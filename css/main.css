@@ -12,17 +12,18 @@ nav{position:sticky;top:0;z-index:200;background:#060f1a;border-bottom:2px solid
 .nav-tab.active{color:#c8a84b!important;border-bottom-color:#c8a84b;}
 .page{display:none;}
 .page.active{display:block;}
-.hero{padding:2.5rem 2rem 2rem;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;}
+#page-home{overflow:visible;}
+.hero{padding:2.5rem 2rem 2rem;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:visible;}
 .hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(26,122,110,0.14) 0%,transparent 65%);}
 .hero-geo{position:absolute;inset:0;opacity:0.03;background-image:repeating-linear-gradient(60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%),repeating-linear-gradient(-60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%);background-size:60px 60px;}
-.hero-content{position:relative;z-index:1;max-width:700px;}
+.hero-content{position:relative;z-index:1;max-width:700px;width:100%;padding:0 0.25rem;box-sizing:border-box;}
 .hero-badge{display:inline-block;border:1px solid rgba(200,168,75,0.2);color:#c8a84b;font-size:0.82rem;letter-spacing:0.2em;text-transform:uppercase;padding:0.32rem 0.95rem;border-radius:2px;}
 .hero-logo{width:66px;height:66px;border:2px solid #c8a84b;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.85rem;background:rgba(200,168,75,0.07);font-family:'Cinzel',serif;font-size:1.1rem;color:#c8a84b;font-weight:700;}
 .hero h1{font-family:'Cinzel',serif;font-size:clamp(1.7rem,4.2vw,2.8rem);font-weight:700;color:#f5f0e8;letter-spacing:0.08em;line-height:1.15;margin-bottom:0.3rem;}
 .hero-sub{font-family:'Cinzel',serif;font-size:1rem;color:#2fa89a;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.85rem;}
 .hero-divider{width:48px;height:1px;background:linear-gradient(90deg,transparent,#c8a84b,transparent);margin:0.5rem auto;}
-.hero-hadith-ar{font-size:clamp(1.5rem,3.5vw,2.2rem);color:#e2c97e;direction:rtl;margin-bottom:0.4rem;line-height:1.8;}
-.hero-hadith-en{font-size:1rem;color:#c8c0b0;font-style:italic;letter-spacing:0.04em;margin-bottom:0.85rem;}
+.hero-hadith-ar{font-size:clamp(1.5rem,3.5vw,2.2rem);color:#e2c97e;direction:rtl;margin-bottom:0.55rem;line-height:1.85;}
+.hero-hadith-en{font-size:1rem;color:#c8c0b0;font-style:italic;letter-spacing:0.03em;margin-bottom:0.85rem;line-height:1.72;padding:0 0.5rem 0.35em;overflow:visible;text-rendering:optimizeLegibility;}
 .season-tag{font-size:0.85rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;}
 .historic-banner{background:linear-gradient(135deg,#082e2a,#0a1f2e);border-top:1px solid rgba(47,168,154,0.3);border-bottom:1px solid rgba(47,168,154,0.3);padding:0.8rem 2rem;text-align:center;}
 .historic-banner-label{font-family:'Cinzel',serif;font-size:0.85rem;color:#2fa89a;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.5rem;}
@@ -255,11 +256,11 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .pending{color:#c8c0b0;font-style:italic;}
 .loading{text-align:center;padding:2rem;font-size:0.88rem;color:#c8c0b0;font-style:italic;}
 .hero-league-logo{width:340px;height:340px;mix-blend-mode:screen;margin:0 auto;display:block;}
-.title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:nowrap;}
-.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;white-space:nowrap;}
+.title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap;max-width:100%;}
+.title-sponsor-eyebrow{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;white-space:nowrap;padding:0 0.15rem;}
 .title-sponsor-name{font-family:'Cinzel',serif;font-size:1.1rem;color:#f5f0e8;letter-spacing:0.06em;}
-.title-sponsor-logo-wrap{line-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;}
-.title-sponsor-logo{height:120px;width:auto;max-width:300px;object-fit:contain;object-position:center;display:block;border-radius:3px;}
+.title-sponsor-logo-wrap{line-height:0;overflow:visible;display:flex;align-items:center;justify-content:center;min-width:0;flex-shrink:1;}
+.title-sponsor-logo{height:120px;width:auto;max-width:min(300px,100%);object-fit:contain;object-position:center;display:block;border-radius:3px;}
 .home-standings-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:0;}
 .home-conf-block{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;}
 .home-conf-title{font-family:'Cinzel',serif;font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(200,168,75,0.15);}
@@ -269,10 +270,20 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .home-stand-name{flex:1;color:#f5f0e8;}
 .home-stand-rec{font-size:0.82rem;color:#2fa89a;white-space:nowrap;}
 @media(max-width:1100px){.draft-board{grid-template-columns:repeat(4,1fr);}}
+/* Home hero: stack sponsor row + extra inset so text is not clipped (body has overflow-x:hidden; wide phones/tablets ≤900px) */
+@media(max-width:900px){
+  .title-sponsor-bar{flex-direction:column;flex-wrap:nowrap;gap:0.45rem;width:100%;max-width:100%;align-items:center;box-sizing:border-box;}
+  .title-sponsor-eyebrow{letter-spacing:0.12em;max-width:100%;text-align:center;padding:0 max(0.5rem, env(safe-area-inset-right, 0px)) 0 max(0.5rem, env(safe-area-inset-left, 0px));}
+  .title-sponsor-logo{height:min(96px,26vw);max-width:min(240px, calc(100vw - 2rem));}
+  .hero-content{padding-left:max(0.75rem, env(safe-area-inset-left, 0px));padding-right:max(0.75rem, env(safe-area-inset-right, 0px));}
+  .hero-hadith-en{padding-left:max(0.65rem, env(safe-area-inset-left, 0px));padding-right:max(0.65rem, env(safe-area-inset-right, 0px));padding-bottom:0.4em;}
+}
 @media(max-width:700px){
   .draft-board{grid-template-columns:repeat(2,1fr);}
   .conf-grid,.teams-grid,.awards-grid,.about-grid,.season-awards-grid,.media-grid,.matchups-grid,.home-awards-grid{grid-template-columns:1fr;}
   .quick-stats{grid-template-columns:repeat(2,1fr);}
   .akhlaq-card{grid-column:1;}
   .section{padding:1.5rem 1.2rem;}
+  .hero{padding:2rem max(1rem, env(safe-area-inset-right, 0px)) 2rem max(1rem, env(safe-area-inset-left, 0px));}
+  .hero-content{padding-left:max(1rem, env(safe-area-inset-left, 0px));padding-right:max(1rem, env(safe-area-inset-right, 0px));}
 }

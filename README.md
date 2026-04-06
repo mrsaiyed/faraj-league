@@ -86,6 +86,8 @@ When migrating from Google Sheets, a one-time import script will populate the da
 - `scripts/seed.js` — Seed script for Spring 2026 placeholder data
 - `supabase/migrations/` — SQL migrations
 - `docs/API.md` — Public API documentation
+- `docs/PROJECT.md` — Overview, phases, and current priorities
+- `docs/schedule_tab_fix.md` — Schedule tab & Edit Full Schedule initiative (complete)
 
 ---
 

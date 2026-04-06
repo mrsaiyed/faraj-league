@@ -1,5 +1,9 @@
 # Schedule Page Fixes — Plan
 
+> **Status:** ✅ **Superseded — work complete.** The issues below were rolled into [**schedule_tab_fix.md**](./schedule_tab_fix.md) (steps 1–7) and shipped; production verified April 2026. Keep this file for **historical context** only, not as an active backlog.
+
+---
+
 ## Issues
 
 ### 1. Remove button missing from normal Schedule tab
