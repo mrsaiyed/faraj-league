@@ -347,3 +347,65 @@ Use this **only** when §7.5 says the code is present but behavior is still wron
 ---
 
 *Document style aligned with `docs/phase5.md` (principles, alignment, numbered steps, Agent vs You, deploy commands). **Business requirements (BR-1–BR-6)**, **Principles compliance**, and **requirements traceability** together define acceptance criteria. Companion: `docs/schedule-fixes-plan.md` (original issue list; **superseded** — work tracked here is **complete**).*
+
+---
+
+## Post-initiative follow-up (April 2026)
+
+Changes made after the original Steps 1–7 shipped, in the same session.
+
+### Duplicate game creation fix
+
+**Problem:** All three game modal forms had no double-submit protection. Clicking Save more than once before the network response completed sent multiple `POST` requests to `admin-games`, each creating a separate DB row (no `UNIQUE(season_id, week, game_index)` constraint exists).
+
+**Fix (`admin/js/sections.js`):** In the `onsubmit` handler of each modal, the `[type="submit"]` button is disabled immediately on first click and re-enabled only if the request fails.
+
+Affected forms:
+- `openMatchupModal` (FSE `+ Add` / `Edit`)
+- `openGameModal` inside `renderSchedule` (legacy sections path)
+- `openGameModal` inside `attachScheduleAdminOverlays` (visual mirror path)
+
+---
+
+### Matchup card redesign
+
+**Files:** `js/render.js`, `css/main.css`
+
+New `buildMatchupCard(g, gameId)` helper replaces inline HTML in `renderSchedule`, `renderScores`, and `renderHome`. All three share the same card structure.
+
+**Card anatomy:**
+
+| Zone | Content |
+|------|---------|
+| **Header band** | Darker bg (`#091c2b`) + gold hairline bottom border. `Game N` left · time center · date right (single line, no duplicate). Gold text via `.mc-header`. |
+| **Body row** | Flex row: `[away logo \| away name]` · `[VS or score + box btn]` · `[home name \| home logo]` |
+| **Away (t2)** | Logo outer-left, name right of logo in white/bold (`.mc-away-name`) |
+| **Home (t1)** | Name left of logo in teal/bold (`.mc-home-name`), logo outer-right. DOM order: name then logo. |
+| **Center (scheduled)** | `VS` in gold; large faint VS behind it (`.mc-vs-deco`, opacity 0.07) as decoration. |
+| **Center (played)** | `away_score — home_score`; winner score in gold (`.mc-score.winner`). |
+| **Box score button** | Below VS/score in the center column. Gold, transparent bg. `.schedule-expand-btn` + `data-game-id` unchanged. |
+| **Winner tag** | Full-width teal strip with hairline top border. Only rendered when played. |
+
+**Team logos:** `images/teams/` directory contains `ansar.png`, `dukhaan.jpg`, `jaysh.png`, `mujahideen.png`, `noor.png`, `raad.jpg`. `TEAM_LOGOS` map + `teamLogoUrl()` in `js/render.js` resolve name → file via slug matching. `teamLogoHtml()` renders `<img>` with `onerror` fallback to initials div.
+
+---
+
+### Schedule tab — All Weeks view
+
+**Files:** `js/render.js`, `index.html`, `admin/js/page-templates.js`, `css/main.css`
+
+**New default behavior:** `renderSchedule('all', teamFilter)` renders all weeks grouped into three sections derived from `config.CURRENT_WEEK` (admin setting, never the dropdown value):
+
+| Section | Condition | Behavior |
+|---------|-----------|----------|
+| **Past** | `CURRENT_WEEK > 1` | Collapsible; collapsed by default. Click header to expand (▸ / ▾ arrow). |
+| **Current Week** | Always | Always visible. Gold section header. |
+| **Upcoming** | `CURRENT_WEEK < TOTAL_WEEKS` | Always visible. |
+
+**Section headers** (`1.05rem Cinzel`) are larger than individual week labels (`0.84rem`). Current Week header is gold; Past/Upcoming are dim.
+
+**Week dropdown:** `buildWeekDropdown('schedule-week-select', true)` — "All Weeks" is now the first (default) option. Selecting a specific week hides sections and shows only that week via `#schedule-focus`. Selecting "All Weeks" returns to the sectioned view via `#schedule-all-content`.
+
+**DOM:** `#schedule-all-content` added alongside the preserved `#schedule-prev`, `#schedule-focus`, `#schedule-next`. The three legacy containers are hidden in all-weeks mode and shown only in single-week mode. `#schedule-mirror-wrap` / `#schedule-full-editor-mount` for the FSE are unaffected.
+
+**`renderAll()` changes:** saves/restores `'all'` across re-renders; passes `'all'` or an integer to `renderSchedule` depending on dropdown value; `onchange` handlers updated in `index.html` and `SCHEDULE_TEMPLATE`.

@@ -18,6 +18,9 @@ This repository contains the code for the **Faraj League** public site (farajlea
 | Phase 4 | ✅ Complete | Draft UI: player bank, drag/drop, captain assign, team reorder, Players tab, Add Players bulk, draft timer |
 | Phase 5 | ✅ Complete | Hardening: rate limiting, CSV export, tests |
 | Schedule / Edit Full Schedule | ✅ Complete | FSE layout + mount/Back; `content_blocks` keys (`schedule_slots_by_week`, `schedule_week_labels`, `schedule_dates_by_week`); public week headings; admin game datetime handling for correct `scheduled_at` display — see **`docs/schedule_tab_fix.md`** |
+| Duplicate game fix | ✅ Complete | Double-submit guard on all three game modal forms (`openMatchupModal` FSE, `openGameModal` in `renderSchedule` and `attachScheduleAdminOverlays`): submit button disabled on first click, re-enabled only on error. No DB unique constraint exists, so this is the sole guard. |
+| Matchup card redesign | ✅ Complete | New `buildMatchupCard()` helper in `js/render.js`; used by `renderSchedule`, `renderScores`, `renderHome`. Card has: darker header band (`#091c2b`) with gold bottom border showing Game N / time / date (left/center/right, no duplicate); horizontal body row with away logo+name (left, white) and home name+logo (right, teal); VS with faint gold decoration behind it; "View box score" below VS; winner tag as full-width teal strip. Team logos served from `images/teams/` via `TEAM_LOGOS` map + `teamLogoUrl()` with initials fallback. |
+| Schedule tab — All Weeks view | ✅ Complete | Default view shows all weeks grouped into **Past** (collapsible, collapsed by default), **Current Week**, and **Upcoming** sections. Section headers are larger than week sub-labels. Sectioning is always derived from `config.CURRENT_WEEK` (admin setting), never the dropdown. Week dropdown gains "All Weeks" as default first option; selecting a specific week shows only that week. `#schedule-all-content` added to DOM alongside the preserved `#schedule-prev/focus/next` for admin FSE compatibility. |
 
 ---
 
@@ -113,7 +116,7 @@ This repository contains the code for the **Faraj League** public site (farajlea
 
 **Schedule tab initiative:** ✅ Complete — **`docs/schedule_tab_fix.md`** (companion: **`docs/schedule_tab_fix_steps_plan.md`**; original issue list: **`docs/schedule-fixes-plan.md`** — superseded).
 
-**Next (UI):** **Schedule game cards — team logos** — Show home and away **logos** on each matchup card on the public schedule (and admin mirror) for quicker scanning and stronger team identity. Likely needs a **logo URL (or media ref) per team** in the data model if not already present, then updates to **`renderSchedule`** in `js/render.js` (markup + CSS), optional admin preview parity.
+**Schedule card redesign (complete):** Team logos (`images/teams/`) shown in circular frames on each matchup card. New horizontal layout: away logo+name left, home name+logo right, VS center with faded decoration, "View box score" below. Header band separated from matchup body. All-weeks view with Past/Current/Upcoming sections. See Implementation summary in `docs/schedule_tab_fix.md`.
 
 **North star — Complete customization:** The long-term goal is that the admin never has to touch the code or database. All content, structure, and layout should be editable through the admin UI. Every phase we ship is a stepping stone toward that, but none of them reach it fully. We keep adding editable pieces (media layout, sponsor tiers, conferences, etc.); the next step is awards customization (editable titles, add sections, add blocks), then more tiles and config until the admin can control everything.
 
