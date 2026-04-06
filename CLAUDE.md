@@ -5,13 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test          # Run unit tests (vitest)
+npm test                              # Run all unit tests (vitest)
+npx vitest run tests/standings.test.js  # Run a single test file
+
 npm run seed      # Seed database with placeholder data
 
 # Deploy an Edge Function
 npx supabase functions deploy <function-name>
 
-# Push DB migrations
+# Push DB migrations (run in order: 001–006)
 npx supabase db push
 ```
 
@@ -37,6 +39,12 @@ Data flow:
 `admin/index.html` is the **public site + edit overlays** — same layout, same width, same nav. Admin logic adds edit controls to every editable region.
 
 `admin/js/admin.js` handles login and `adminFetch(fnName, options)` — all writes go through Supabase Edge Functions with `X-Admin-Token` header (JWT stored in localStorage).
+
+`admin/js/admin-data.js` is the admin counterpart to `js/data.js` — loads season data and hydrates `config.DB` for admin pages.
+
+`admin/js/page-templates.js` contains HTML templates extracted from `index.html` so the admin mirror renders the same DOM structure. **Must stay in sync with `index.html`** — public render functions find elements by ID in these templates.
+
+`admin/js/edit-overlays.js` attaches inline Edit buttons to content-block regions and handles the inline/modal editor UI.
 
 `admin/js/sections.js` wires up all CRUD UI (inline edit overlays, modals, floating drawer for season/logout controls).
 
@@ -79,4 +87,4 @@ Copy `.env.example` to `.env` for local development. The seed script and Edge Fu
 
 ### Deploy Flow
 
-Dev repo → pull into fork (production) → GitHub Pages serves the static site. Edge Functions deploy separately per function. Migrations run via Supabase dashboard or `npx supabase db push`.
+**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–006).

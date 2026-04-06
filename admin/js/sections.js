@@ -516,7 +516,295 @@ export async function renderSchedule(content, ctx) {
   addGameBtn.style.cssText = 'margin-top:0.5rem;padding:0.4rem 0.8rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;';
   addGameBtn.onclick = () => openGameModal(null);
   const section = content.querySelector('.section');
-  if (section) section.appendChild(addGameBtn);
+  if (section) {
+    section.appendChild(addGameBtn);
+    const editFullBtn = document.createElement('button');
+    editFullBtn.type = 'button';
+    editFullBtn.textContent = 'Edit Full Schedule';
+    editFullBtn.style.cssText = 'margin-top:0.5rem;margin-left:0.5rem;padding:0.4rem 0.8rem;background:#2a4a6a;color:#e8e4e0;border:1px solid #4a7a9a;border-radius:4px;cursor:pointer;';
+    editFullBtn.onclick = () => renderFullScheduleEditor(content, ctx);
+    section.appendChild(editFullBtn);
+  }
+}
+
+/**
+ * Full-season schedule editor: shows all weeks with 3 game slots each.
+ * Inline-editable time per game (defaults: 10am/11am/12pm) and date per week.
+ * Matchup (teams) editable via modal. No stat sheet editing.
+ */
+export async function renderFullScheduleEditor(content, ctx) {
+  const { adminFetch, supabase } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId) { content.innerHTML = '<p>Select a season first.</p>'; return; }
+
+  const { config } = await importRootJs('config.js');
+  const teams = (config.DB.teams || []).filter(t => t && t.id);
+  const totalWeeks = config.TOTAL_WEEKS || 8;
+
+  const { data: games } = await supabase
+    .from('games').select('*').eq('season_id', seasonId).order('week').order('game_index');
+
+  // byWeek[weekNum][gameIndex] = game row
+  const byWeek = {};
+  (games || []).forEach(g => {
+    if (!byWeek[g.week]) byWeek[g.week] = {};
+    byWeek[g.week][g.game_index] = g;
+  });
+
+  const teamMap = {};
+  teams.forEach(t => { teamMap[t.id] = t.name; });
+
+  const DEFAULT_TIMES = { 1: '10:00', 2: '11:00', 3: '12:00' };
+
+  function getISODate(scheduledAt) {
+    if (!scheduledAt) return '';
+    const d = new Date(scheduledAt);
+    return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+  }
+
+  function getISOTime(scheduledAt, gameIndex) {
+    if (!scheduledAt) return DEFAULT_TIMES[gameIndex] || '10:00';
+    const d = new Date(scheduledAt);
+    if (isNaN(d)) return DEFAULT_TIMES[gameIndex] || '10:00';
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
+
+  function fmtTime(t) {
+    const [h, m] = t.split(':').map(Number);
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  function buildScheduledAt(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+    return `${dateStr}T${timeStr}:00`;
+  }
+
+  function getWeekDate(w) {
+    for (const g of Object.values(byWeek[w] || {})) {
+      const d = getISODate(g.scheduled_at);
+      if (d) return d;
+    }
+    return '';
+  }
+
+  function showMsg(text, isError) {
+    const el = document.getElementById('fse-save-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = isError ? '#e88' : '#8bc4a0';
+    setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+  }
+
+  async function refreshGames() {
+    const { data: fresh } = await supabase.from('games').select('*').eq('season_id', seasonId).order('week').order('game_index');
+    Object.keys(byWeek).forEach(k => delete byWeek[k]);
+    (fresh || []).forEach(g => {
+      if (!byWeek[g.week]) byWeek[g.week] = {};
+      byWeek[g.week][g.game_index] = g;
+    });
+  }
+
+  function openMatchupModal(game, week, gi) {
+    const isEdit = !!game;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    const teamOpts = teams.map(t => `<option value="${t.id}" ${t.id === game?.home_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+    const awayOpts = teams.map(t => `<option value="${t.id}" ${t.id === game?.away_team_id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+    backdrop.innerHTML = `
+      <div class="admin-modal" style="max-width:360px;">
+        <h4>${isEdit ? 'Edit matchup' : 'Add game'} — Week ${week}, Game ${gi}</h4>
+        <form id="fse-matchup-form">
+          <input type="hidden" id="fse-m-id" value="${game?.id || ''}">
+          <label style="display:block;margin:0.5rem 0;">Home: <select id="fse-m-home" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${teamOpts}</select></label>
+          <label style="display:block;margin:0.5rem 0;">Away: <select id="fse-m-away" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;width:100%;">${awayOpts}</select></label>
+          <div class="admin-modal-actions" style="margin-top:1rem;">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-secondary" id="fse-m-cancel">Cancel</button>
+          </div>
+        </form>
+        <div id="fse-m-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    const close = () => backdrop.remove();
+    backdrop.querySelector('#fse-m-cancel').onclick = close;
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+
+    backdrop.querySelector('#fse-matchup-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const id = backdrop.querySelector('#fse-m-id').value;
+      const homeId = backdrop.querySelector('#fse-m-home').value;
+      const awayId = backdrop.querySelector('#fse-m-away').value;
+      let scheduledAt = game?.scheduled_at || null;
+      if (!id) {
+        const weekDate = document.querySelector(`.fse-date-input[data-week="${week}"]`)?.value || getWeekDate(week);
+        scheduledAt = buildScheduledAt(weekDate, DEFAULT_TIMES[gi] || '10:00');
+      }
+      const body = id
+        ? { id, home_team_id: homeId, away_team_id: awayId }
+        : { season_id: seasonId, week, game_index: gi, home_team_id: homeId, away_team_id: awayId, scheduled_at: scheduledAt };
+      const msgEl = backdrop.querySelector('#fse-m-msg');
+      try {
+        await adminFetch('admin-games', { method: 'POST', body: JSON.stringify(body) });
+        close();
+        await refreshGames();
+        renderEditor();
+      } catch (err) {
+        msgEl.textContent = err.message || 'Save failed.';
+        msgEl.className = 'admin-edit-msg error';
+        msgEl.style.display = 'block';
+      }
+    };
+  }
+
+  function renderEditor() {
+    const weekRows = Array.from({ length: totalWeeks }, (_, i) => {
+      const w = i + 1;
+      const weekDate = getWeekDate(w);
+      const slots = [1, 2, 3].map(gi => {
+        const g = byWeek[w]?.[gi];
+        if (g) {
+          const home = escapeHtml(teamMap[g.home_team_id] || '?');
+          const away = escapeHtml(teamMap[g.away_team_id] || '?');
+          const timeVal = getISOTime(g.scheduled_at, gi);
+          return `<div class="fse-slot" data-week="${w}" data-gi="${gi}">
+            <span class="fse-game-label">Game ${gi}</span>
+            <input type="time" class="fse-time-input" value="${timeVal}" data-week="${w}" data-gi="${gi}" data-game-id="${g.id}" title="Game time">
+            <span class="fse-matchup">${home} vs ${away}</span>
+            <div class="fse-actions">
+              <button type="button" class="admin-edit-btn fse-edit-btn" data-week="${w}" data-gi="${gi}">Edit</button>
+              <button type="button" class="admin-edit-btn fse-remove-btn" data-game-id="${g.id}" style="background:rgba(200,80,80,0.85);">Remove</button>
+            </div>
+          </div>`;
+        }
+        return `<div class="fse-slot fse-slot-empty" data-week="${w}" data-gi="${gi}">
+          <span class="fse-game-label">Game ${gi}</span>
+          <span class="fse-time-default">${fmtTime(DEFAULT_TIMES[gi])}</span>
+          <span class="fse-matchup" style="color:#666;">—</span>
+          <button type="button" class="admin-edit-btn fse-add-btn" data-week="${w}" data-gi="${gi}" style="background:#2a5a3a;color:#8bc4a0;margin-left:auto;">+ Add</button>
+        </div>`;
+      });
+      return `<div class="fse-week" data-week="${w}">
+        <div class="fse-week-header">
+          <span class="fse-week-label">Week ${w}</span>
+          <input type="date" class="fse-date-input" data-week="${w}" value="${weekDate}" title="Week date (applies to all games this week)">
+        </div>
+        ${slots.join('')}
+      </div>`;
+    });
+
+    content.innerHTML = `
+      <div id="full-schedule-editor">
+        <div class="fse-topbar">
+          <button type="button" id="fse-back-btn" style="padding:0.4rem 0.8rem;background:#444;color:#e8e4e0;border:none;border-radius:4px;cursor:pointer;">← Back</button>
+          <span style="font-family:'Cinzel',serif;font-size:0.9rem;color:#c8a84b;letter-spacing:0.1em;">EDIT FULL SCHEDULE</span>
+          <span id="fse-save-msg" style="font-size:0.8rem;"></span>
+        </div>
+        <div class="fse-grid">${weekRows.join('')}</div>
+      </div>`;
+
+    if (!document.getElementById('fse-styles')) {
+      const s = document.createElement('style');
+      s.id = 'fse-styles';
+      s.textContent = `
+        #full-schedule-editor { padding:1rem; }
+        .fse-topbar { display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem; }
+        .fse-week { margin-bottom:1.4rem; }
+        .fse-week-header { display:flex;justify-content:space-between;align-items:center;
+          padding:0.4rem 0.75rem;background:#1e3a4a;border-radius:4px 4px 0 0;
+          border-bottom:2px solid #c8a84b;margin-bottom:1px; }
+        .fse-week-label { font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.15em;
+          text-transform:uppercase;color:#c8a84b; }
+        .fse-date-input { background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;
+          padding:0.2rem 0.5rem;border-radius:3px;font-size:0.82rem; }
+        .fse-slot { display:flex;align-items:center;gap:0.75rem;padding:0.45rem 0.75rem;
+          background:#111d27;border-bottom:1px solid #1e3a4a;min-height:40px; }
+        .fse-slot:last-child { border-radius:0 0 4px 4px;border-bottom:none; }
+        .fse-game-label { font-size:0.78rem;font-weight:600;color:#9ab8c8;min-width:50px; }
+        .fse-time-input { background:#0e2535;border:1px solid #444;color:#e8e4e0;
+          padding:0.2rem 0.4rem;border-radius:3px;font-size:0.82rem;width:96px; }
+        .fse-time-default { font-size:0.78rem;color:#556;width:96px; }
+        .fse-matchup { flex:1;font-size:0.84rem;color:#c8c0b0;text-align:center; }
+        .fse-actions { display:flex;gap:0.4rem; }
+      `;
+      document.head.appendChild(s);
+    }
+
+    const el = document.getElementById('full-schedule-editor');
+    el.querySelector('#fse-back-btn').onclick = async () => {
+      if (ctx.onScheduleSaved) await ctx.onScheduleSaved();
+      else renderSchedule(content, ctx);
+    };
+
+    el.querySelectorAll('.fse-date-input').forEach(input => {
+      input.addEventListener('change', async () => {
+        const w = parseInt(input.dataset.week);
+        const newDate = input.value;
+        const weekGames = Object.values(byWeek[w] || {});
+        if (!weekGames.length) return;
+        try {
+          for (const g of weekGames) {
+            const time = getISOTime(g.scheduled_at, g.game_index);
+            const newAt = buildScheduledAt(newDate, time);
+            await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ id: g.id, scheduled_at: newAt }) });
+            g.scheduled_at = newAt;
+          }
+          showMsg('Date saved.');
+        } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      });
+    });
+
+    el.querySelectorAll('.fse-time-input').forEach(input => {
+      input.addEventListener('change', async () => {
+        const gameId = input.dataset.gameId;
+        const w = parseInt(input.dataset.week);
+        const gi = parseInt(input.dataset.gi);
+        const g = byWeek[w]?.[gi];
+        if (!g) return;
+        const weekDate = document.querySelector(`.fse-date-input[data-week="${w}"]`)?.value || getWeekDate(w);
+        const newAt = buildScheduledAt(weekDate, input.value);
+        try {
+          await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ id: gameId, scheduled_at: newAt }) });
+          g.scheduled_at = newAt;
+          showMsg('Time saved.');
+        } catch (err) { showMsg(err.message || 'Save failed.', true); }
+      });
+    });
+
+    el.querySelectorAll('.fse-edit-btn').forEach(btn => {
+      btn.onclick = () => {
+        const w = parseInt(btn.dataset.week);
+        const gi = parseInt(btn.dataset.gi);
+        openMatchupModal(byWeek[w]?.[gi], w, gi);
+      };
+    });
+
+    el.querySelectorAll('.fse-remove-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const gameId = btn.dataset.gameId;
+        if (!gameId || !confirm('Remove this game? This will also delete its stat sheet.')) return;
+        try {
+          await adminFetch('admin-games', { method: 'POST', body: JSON.stringify({ delete: true, id: gameId }) });
+          for (const w of Object.keys(byWeek)) {
+            for (const gi of Object.keys(byWeek[w])) {
+              if (byWeek[w][gi]?.id === gameId) delete byWeek[w][gi];
+            }
+          }
+          renderEditor();
+        } catch (err) { showMsg(err.message || 'Remove failed.', true); }
+      };
+    });
+
+    el.querySelectorAll('.fse-add-btn').forEach(btn => {
+      btn.onclick = () => {
+        const w = parseInt(btn.dataset.week);
+        const gi = parseInt(btn.dataset.gi);
+        openMatchupModal(null, w, gi);
+      };
+    });
+  }
+
+  renderEditor();
 }
 
 /**
@@ -1136,6 +1424,16 @@ export async function attachScheduleAdminOverlays(ctx) {
       e.stopPropagation();
       openGameModal(null);
     });
+  }
+
+  if (section && !section.querySelector('#admin-full-schedule-btn')) {
+    const fullSchedBtn = document.createElement('button');
+    fullSchedBtn.type = 'button';
+    fullSchedBtn.id = 'admin-full-schedule-btn';
+    fullSchedBtn.textContent = 'Edit Full Schedule';
+    fullSchedBtn.style.cssText = 'margin-top:0.75rem;padding:0.4rem 0.8rem;background:#2a4a6a;color:#e8e4e0;border:1px solid #4a7a9a;border-radius:4px;cursor:pointer;display:block;';
+    fullSchedBtn.onclick = () => renderFullScheduleEditor(pageSchedule, ctx);
+    section.appendChild(fullSchedBtn);
   }
 }
 
