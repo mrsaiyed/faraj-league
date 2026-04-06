@@ -262,7 +262,7 @@ const TEAM_LOGOS = {
 // inside an overflow:hidden crop div — adjust ±0.05 if edges clip.
 const LOGO_SCALE = {
   jaysh: 1.50,
-  noor: 1.20,
+  noor: 2.40,
   dukhaan: 1.20,
   ansar: 1.15,
   mujahideen: 1.45,
