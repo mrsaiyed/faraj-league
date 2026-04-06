@@ -291,7 +291,7 @@ function buildMatchupCard(g, gameId) {
 
   // Center column: VS decoration or scores, then box score button below
   const boxBtn = gameId
-    ? `<button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="background:transparent;border:none;color:#c8a84b;font-size:0.76rem;cursor:pointer;padding:0.25rem 0 0;letter-spacing:0.05em;">View box score</button>`
+    ? `<button type="button" class="schedule-expand-btn" data-game-id="${gameId}" style="background:transparent;border:none;color:#c8a84b;font-size:0.76rem;cursor:pointer;padding:0.25rem 0 0;letter-spacing:0.05em;max-width:52px;white-space:normal;text-align:center;line-height:1.2;">View box score</button>`
     : '';
 
   const mid = played
