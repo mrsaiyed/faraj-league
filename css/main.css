@@ -236,16 +236,11 @@ a.nav-logo{text-decoration:none;}
 #page-standings .brand-wellness,
 .conf-acc-title .brand-wellness{text-shadow:0 0 1px rgba(255,255,255,0.25);}
 
-/* Stats + Teams pages: XTREME — true black flat, light navy backdrop for contrast */
+/* Stats + Teams pages: XTREME — soft charcoal, faint light edge, no box */
 #page-stats .brand-xtreme,
 #page-teams .brand-xtreme{
-  color:#000000;
-  text-shadow:none;
-  -webkit-text-stroke:0px;
-  background:rgba(180,205,240,0.13);
-  border-radius:3px;
-  padding:0 3px;
-  box-shadow:0 0 6px 1px rgba(160,190,230,0.1);
+  color:#2c2c2c;
+  text-shadow:0 0 3px rgba(255,255,255,0.15);
 }
 /* Stats + Teams pages: Wellness — keep green, subtle white glow for contrast */
 #page-stats .brand-wellness,
