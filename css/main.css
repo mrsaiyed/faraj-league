@@ -212,7 +212,7 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .akhlaq-inner{display:flex;align-items:center;gap:1.1rem;}
 .akhlaq-medal{width:46px;height:46px;flex-shrink:0;border-radius:50%;background:#0d4f47;border:2px solid #2fa89a;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
 .awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;}
-.teams-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.85rem;}
+.teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
 .team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:0.9rem 1rem;cursor:pointer;transition:border-color 0.2s,transform 0.15s;display:flex;align-items:center;gap:0.85rem;}
 .team-card:hover{border-color:#2fa89a;transform:translateY(-2px);}
 .team-card.selected{border-color:#c8a84b;}
