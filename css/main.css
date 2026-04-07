@@ -224,6 +224,9 @@ a.nav-logo{text-decoration:none;}
 .tier-community{background:rgba(245,240,228,0.05);color:#c8c0b0;}
 .sponsor-logo-placeholder{font-size:0.82rem;color:rgba(200,168,75,0.5);font-style:italic;}
 .sponsor-details{font-size:0.9rem;color:#c8c0b0;line-height:1.6;white-space:pre-line;}
+.brand-toyomotors{color:#A41D09;font-weight:inherit;}
+.brand-xtreme{color:#000000;font-weight:inherit;}
+.brand-wellness{color:#89B526;font-weight:inherit;}
 
 /* Sponsors page — premium hierarchy */
 .sponsors-page .section-sub{margin-bottom:0.25rem;}

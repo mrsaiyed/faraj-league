@@ -1156,7 +1156,7 @@ export async function attachTeamsAdminOverlays(ctx) {
 
   await (async () => {
     const { config } = await importRootJs('config.js');
-    const { confLabel, confShortLabel, getConferences } = await importRootJs('config.js');
+    const { confLabel, confLabelRaw, confShortLabel, getConferences } = await importRootJs('config.js');
     const renderMod = await importRootJs('render.js');
     const { attachEditOverlay } = await import('./edit-overlays.js');
 
@@ -1257,7 +1257,7 @@ export async function attachTeamsAdminOverlays(ctx) {
       attachEditOverlay({
         element: header,
         key: 'conf_' + confId,
-        getValue: () => confLabel(confId),
+        getValue: () => confLabelRaw(confId),
         saveFn: async (val) => {
           const layout = getConferencesLayout();
           const conf = layout.conferences.find(x => (x.id || x.name) === confId);

@@ -74,8 +74,8 @@ export function confShortLabel(conf) {
   return c ? (c.name || c.id || conf) : (conf ? 'Unassigned' : conf);
 }
 
-/** Full label for conference - uses display_label when set, else builds from sponsor + name */
-export function confLabel(conf) {
+/** Raw (plain-text) full label for conference — no HTML highlighting. */
+export function confLabelRaw(conf) {
   if (conf === '__unassigned__') return 'Unassigned Teams';
   const list = getConferences();
   const c = list.find(x => (x.id || x.name || '').toString() === (conf || '').toString());
@@ -89,6 +89,33 @@ export function confLabel(conf) {
   return sponsor ? `${sponsor} ${name} Conference` : `${name} Conference`;
 }
 
+/** Full label for conference — returns HTML with brand names colour-highlighted. */
+export function confLabel(conf) {
+  if (conf === '__unassigned__') return 'Unassigned Teams';
+  const list = getConferences();
+  const c = list.find(x => (x.id || x.name || '').toString() === (conf || '').toString());
+  if (!c) return conf ? 'Unassigned — assign to a conference' : (conf || '');
+  return highlightSponsor(confLabelRaw(conf));
+}
+
+/**
+ * Escapes a plain string for safe HTML insertion, then wraps the three
+ * SP2-tier brand names in their colour-highlight spans.
+ * Only touches: TOYOMOTORS, XTREME, Wellness (case-insensitive, whole-word).
+ * Safe to use in innerHTML contexts; never use in textContent/attributes.
+ */
+export function highlightSponsor(text) {
+  const escaped = String(text == null ? '' : text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return escaped
+    .replace(/\bTOYOMOTORS\b/gi, '<span class="brand-toyomotors">$&</span>')
+    .replace(/\bXTREME\b/gi, '<span class="brand-xtreme">$&</span>')
+    .replace(/\bWellness\b/gi, '<span class="brand-wellness">$&</span>');
+}
+
 export function motmLabel(game) {
   return `Man of the Match · Game ${game}`;
 }
@@ -96,11 +123,12 @@ export function motmLabel(game) {
 export function akhlaqLabel(week) {
   const { SP2A } = config;
   const name = SP2A && SP2A !== '[Sponsor 2A]' ? SP2A : null;
-  return name ? `${name} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`;
+  const raw = name ? `${name} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`;
+  return highlightSponsor(raw);
 }
 
 export function statsTitle() {
   const { SP2B } = config;
   const name = SP2B && SP2B !== '[Sponsor 2B]' ? SP2B : 'Xtreme Wellness';
-  return `${name} Player Stats`;
+  return highlightSponsor(`${name} Player Stats`);
 }

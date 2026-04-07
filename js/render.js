@@ -3,7 +3,7 @@
  */
 
 import { config } from './config.js';
-import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle } from './config.js';
+import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
 import { calcStandings as calcStandingsPure } from '../lib/standings.js';
 
 let activeTeam = null;
@@ -38,13 +38,13 @@ export function renderAll(adminMode = false) {
   conferences.forEach((c, i) => {
     const slug = String(c.id || c.name || '').toLowerCase().replace(/\W+/g, '_') || 'conf_' + i;
     const hdr = document.getElementById('conf-header-' + slug);
-    if (hdr) hdr.textContent = confLabel(c.id || c.name);
+    if (hdr) hdr.innerHTML = confLabel(c.id || c.name);
   });
-  if (conferences[0]) set('about-mecca-label', confLabel(conferences[0].id || conferences[0].name));
-  if (conferences[1]) set('about-medina-label', confLabel(conferences[1].id || conferences[1].name));
+  if (conferences[0]) { const el = document.getElementById('about-mecca-label'); if (el) el.innerHTML = confLabel(conferences[0].id || conferences[0].name); }
+  if (conferences[1]) { const el = document.getElementById('about-medina-label'); if (el) el.innerHTML = confLabel(conferences[1].id || conferences[1].name); }
   if (conferences[0]) set('sponsors-conf-label-mecca', confShortLabel(conferences[0].id || conferences[0].name));
   if (conferences[1]) set('sponsors-conf-label-medina', confShortLabel(conferences[1].id || conferences[1].name));
-  set('stats-page-title', statsTitle());
+  { const el = document.getElementById('stats-page-title'); if (el) el.innerHTML = statsTitle(); }
   set('home-standings-title', 'Standings');
   set('home-standings-sub', config.currentSeasonLabel);
   set('standings-section-sub', config.currentSeasonLabel);
@@ -783,7 +783,7 @@ export function renderAbout() {
       return sp ? `${confName} Conference — Brought to you by ${sp}` : '';
     })();
     const taglineText = (customTagline != null && String(customTagline).trim() !== '') ? String(customTagline) : defaultTagline;
-    const taglineHtml = taglineText ? `<div class="about-conf-tagline" id="about-conf-tagline-${slug}" data-conf-slug="${slug}" style="font-size:0.75rem;color:#c8a84b;font-style:italic;margin-bottom:0.5rem;white-space:pre-wrap;">${String(taglineText).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>` : `<div class="about-conf-tagline" id="about-conf-tagline-${slug}" data-conf-slug="${slug}" style="font-size:0.75rem;color:#c8a84b;font-style:italic;margin-bottom:0.5rem;min-height:1.2em;"></div>`;
+    const taglineHtml = taglineText ? `<div class="about-conf-tagline" id="about-conf-tagline-${slug}" data-conf-slug="${slug}" style="font-size:0.75rem;color:#c8a84b;font-style:italic;margin-bottom:0.5rem;white-space:pre-wrap;">${highlightSponsor(taglineText).replace(/\n/g, '<br>')}</div>` : `<div class="about-conf-tagline" id="about-conf-tagline-${slug}" data-conf-slug="${slug}" style="font-size:0.75rem;color:#c8a84b;font-style:italic;margin-bottom:0.5rem;min-height:1.2em;"></div>`;
     const teams = (config.DB.teams || []).filter(t => t.conf === confId).map(t => `<div class="conf-team-bullet">${t.name}</div>`).join('');
     const color = accordionColors[i % accordionColors.length];
     return `<div class="conf-accordion"><div class="conf-acc-header" onclick="toggleAcc('${slug}')"><div class="conf-acc-title"><div class="conf-dot" style="background:${color}"></div><span id="about-${slug}-label">${confLabel(confId)}</span></div><span class="conf-acc-arrow" id="arrow-${slug}">▾</span></div><div class="conf-acc-body" id="body-${slug}">${taglineHtml}${teams}</div></div>`;
