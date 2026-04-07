@@ -594,6 +594,9 @@ export function toggleRoster(id) {
   const rosterList = captain ? [captain, ...others] : others;
   const capDisplay = captain || '—';
   if (rosterContent) rosterContent.innerHTML = `<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${confLabel(t.conf)}</div></div>${rosterList.map((p, i) => '<div class="roster-player"><span class="roster-num">' + (i + 1) + '</span>' + p + '</div>').join('')}`;
+  if (window.innerWidth <= 768 && tc) {
+    tc.insertAdjacentElement('afterend', panel);
+  }
   panel.classList.add('open');
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -602,7 +605,13 @@ export function closeRoster() {
   activeTeam = null;
   document.querySelectorAll('.team-card').forEach(c => c.classList.remove('selected'));
   const rosterPanel = document.getElementById('roster-panel');
-  if (rosterPanel) rosterPanel.classList.remove('open');
+  if (!rosterPanel) return;
+  rosterPanel.classList.remove('open');
+  // Restore panel to its default position (after teams-grid) if it was moved for mobile
+  const teamsGrid = document.getElementById('teams-grid');
+  if (teamsGrid && rosterPanel.previousElementSibling !== teamsGrid) {
+    teamsGrid.insertAdjacentElement('afterend', rosterPanel);
+  }
 }
 
 export function renderStats() {
