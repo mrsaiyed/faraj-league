@@ -15,6 +15,9 @@
     <select class="nav-season-select" onchange="changeSeason(this.value)">
       <option value="spring2026">Spring 2026 · Current</option>
     </select>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
   </div>
   <div class="nav-tabs">
     <a class="nav-tab" href="#home" onclick="showPage('home');return false;">Home</a>
@@ -27,6 +30,22 @@
     <a class="nav-tab" href="#about" onclick="showPage('about');return false;">About</a>
     <a class="nav-tab" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
   </div>
+</nav>
+<div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
+<nav class="nav-drawer" id="nav-drawer" aria-hidden="true">
+  <div class="nav-drawer-header">
+    <span class="nav-drawer-logo">Faraj League</span>
+    <button class="nav-drawer-close" id="nav-drawer-close" aria-label="Close menu">✕</button>
+  </div>
+  <a class="nav-drawer-item" href="#home" onclick="showPage('home');return false;">Home</a>
+  <a class="nav-drawer-item" href="#standings" onclick="showPage('standings');return false;">Standings</a>
+  <a class="nav-drawer-item" href="#schedule" onclick="showPage('schedule');return false;">Schedule</a>
+  <a class="nav-drawer-item" href="#teams" onclick="showPage('teams');return false;">Teams</a>
+  <a class="nav-drawer-item" href="#stats" onclick="showPage('stats');return false;">Stats</a>
+  <a class="nav-drawer-item" href="#awards" onclick="showPage('awards');return false;">Awards</a>
+  <a class="nav-drawer-item" href="#media" onclick="showPage('media');return false;">Media</a>
+  <a class="nav-drawer-item" href="#about" onclick="showPage('about');return false;">About</a>
+  <a class="nav-drawer-item" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
 </nav>
 
 <div id="api-error-banner" class="historic-banner" style="display:none;">

@@ -196,5 +196,46 @@ function initBoxScoreFullscreen() {
   }, { passive: false });
 }
 
+// Mobile nav drawer
+function initNavDrawer() {
+  const hamburger = document.getElementById('nav-hamburger');
+  const drawer = document.getElementById('nav-drawer');
+  const overlay = document.getElementById('nav-drawer-overlay');
+  const closeBtn = document.getElementById('nav-drawer-close');
+  if (!hamburger || !drawer || !overlay) return;
+
+  function openDrawer() {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    hamburger.setAttribute('aria-expanded', 'true');
+    drawer.setAttribute('aria-hidden', 'false');
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
+    drawer.setAttribute('aria-hidden', 'true');
+  }
+
+  hamburger.addEventListener('click', openDrawer);
+  overlay.addEventListener('click', closeDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+  // Close drawer and sync active state when a drawer item is tapped
+  drawer.querySelectorAll('.nav-drawer-item').forEach(item => {
+    item.addEventListener('click', () => setTimeout(closeDrawer, 80));
+  });
+}
+
+// Keep drawer active item in sync with current page
+const _origShowPage = window.showPage;
+window.showPage = function(id, skipPush) {
+  _origShowPage(id, skipPush);
+  document.querySelectorAll('.nav-drawer-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('href') === '#' + id);
+  });
+};
+
+initNavDrawer();
 initBoxScoreFullscreen();
 loadAll();
