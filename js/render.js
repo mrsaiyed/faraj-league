@@ -265,7 +265,7 @@ const LOGO_SCALE = {
   noor: 2.40,
   dukhaan: 2.40,
   ansar: 1.725,
-  mujahideen: 1.8125,
+  mujahideen: [1.85, 2.45],
   raad: 2.60,
 };
 const DEFAULT_LOGO_SCALE = 1.15;
@@ -285,8 +285,9 @@ function teamLogoHtml(name, side) {
   const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
   const cls = `mc-logo mc-logo-${side}`;
   if (url) {
-    const scale = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
-    return `<div class="${cls}"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scale})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+    const s = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
+    const scaleVal = Array.isArray(s) ? `${s[0]}, ${s[1]}` : s;
+    return `<div class="${cls}"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
   }
   return `<div class="${cls}">${initials(name || '?')}</div>`;
 }
