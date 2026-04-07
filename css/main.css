@@ -231,10 +231,21 @@ a.nav-logo{text-decoration:none;}
 /* Dark-page overrides — single rule per brand, no stacking */
 #page-stats .brand-xtreme,
 #page-standings .brand-xtreme,
+#page-teams .brand-xtreme,
 .conf-acc-title .brand-xtreme{color:#1a1f26;text-shadow:none;}
 #page-stats .brand-wellness,
 #page-standings .brand-wellness,
 .conf-acc-title .brand-wellness{text-shadow:0 0 1px rgba(255,255,255,0.25);}
+
+/* Stats + Teams pages: XTREME Wellness white with strong black outline */
+#page-stats .brand-xtreme,
+#page-stats .brand-wellness,
+#page-teams .brand-xtreme,
+#page-teams .brand-wellness{
+  color:#ffffff;
+  -webkit-text-stroke:1.5px #000;
+  text-shadow:0 0 6px rgba(0,0,0,0.9),0 0 2px #000;
+}
 
 /* Sponsors page — premium hierarchy */
 .sponsors-page .section-sub{margin-bottom:0.25rem;}
