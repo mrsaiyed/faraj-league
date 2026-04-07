@@ -225,12 +225,11 @@ a.nav-logo{text-decoration:none;}
 .sponsor-logo-placeholder{font-size:0.82rem;color:rgba(200,168,75,0.5);font-style:italic;}
 .sponsor-details{font-size:0.9rem;color:#c8c0b0;line-height:1.6;white-space:pre-line;}
 .brand-toyomotors{color:#A41D09;font-weight:600;text-shadow:0 0 6px rgba(164,29,9,0.35);}
-.brand-xtreme{color:#101318;font-weight:600;}
+.brand-xtreme{color:#101318;font-weight:600;text-shadow:0 0 4px rgba(255,255,255,0.18);}
 .brand-wellness{color:#89B526;font-weight:600;}
 
 /* Dark-page overrides — single rule per brand, no stacking */
 #page-stats .brand-xtreme,
-#page-standings .brand-xtreme,
 #page-teams .brand-xtreme,
 .conf-acc-title .brand-xtreme{color:#1a1f26;text-shadow:none;}
 #page-stats .brand-wellness,
