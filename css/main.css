@@ -216,7 +216,7 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.3rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.15s;}
 .team-card:hover{border-color:#2fa89a;transform:translateY(-2px);}
 .team-card.selected{border-color:#c8a84b;}
-.team-emblem{width:50px;height:50px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-family:'Cinzel',serif;font-size:0.95rem;color:#2fa89a;font-weight:600;}
+.team-emblem{width:50px;height:50px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-family:'Cinzel',serif;font-size:0.95rem;color:#2fa89a;font-weight:600;position:relative;overflow:hidden;}
 .team-name{font-family:'Cinzel',serif;font-size:0.95rem;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.18rem;}
 .team-conf{font-size:0.76rem;text-transform:uppercase;letter-spacing:0.12em;color:#c8a84b;}
 .team-captain{font-size:0.82rem;color:#c8c0b0;margin-top:0.35rem;}

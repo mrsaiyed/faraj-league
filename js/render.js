@@ -281,6 +281,17 @@ function teamLogoUrl(name) {
   return key ? `${getBasePath()}/images/teams/${TEAM_LOGOS[key]}` : null;
 }
 
+function teamEmblemHtml(name) {
+  const teamKey = teamLogoKey(name);
+  const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
+  if (url) {
+    const s = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
+    const scaleVal = Array.isArray(s) ? `${s[0]}, ${s[1]}` : s;
+    return `<div class="team-emblem"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span></div>`;
+  }
+  return `<div class="team-emblem">${initials(name)}</div>`;
+}
+
 function teamLogoHtml(name, side) {
   const teamKey = teamLogoKey(name);
   const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
@@ -537,7 +548,7 @@ export function renderTeams() {
   };
   const teamCard = t => {
     const cap = effectiveCaptain(t);
-    return `<div class="team-card" id="tc-${t.id}" data-team-id="${t.id}" data-conf="${escapeHtmlAttr(t.conf || '')}" onclick="toggleRoster(${idAttr(t.id)})"><div class="team-emblem">${initials(t.name)}</div><div class="team-name">${t.name}</div><div class="team-captain">Capt: ${cap || '—'}</div><div class="team-record">${rec[t.name] ? rec[t.name].w + '-' + rec[t.name].l : '0-0'}</div></div>`;
+    return `<div class="team-card" id="tc-${t.id}" data-team-id="${t.id}" data-conf="${escapeHtmlAttr(t.conf || '')}" onclick="toggleRoster(${idAttr(t.id)})">${teamEmblemHtml(t.name)}<div class="team-name">${t.name}</div><div class="team-captain">Capt: ${cap || '—'}</div><div class="team-record">${rec[t.name] ? rec[t.name].w + '-' + rec[t.name].l : '0-0'}</div></div>`;
   };
   const confIds = new Set(getConferences().map(c => c.id || c.name));
   const confs = [...getConferences().map(c => c.id || c.name)];
