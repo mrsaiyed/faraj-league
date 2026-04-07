@@ -34,6 +34,8 @@ a.nav-logo{text-decoration:none;}
   .nav-tabs{display:none;}
   .nav-hamburger{display:flex;}
   .nav-season-select:not(.nav-drawer-season){display:none;}
+  .nav-top{position:relative;}
+  .nav-logo{position:absolute;left:50%;transform:translateX(-50%);}
 }
 .page{display:none;}
 .page.active{display:block;}
