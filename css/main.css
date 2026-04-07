@@ -225,15 +225,15 @@ a.nav-logo{text-decoration:none;}
 .sponsor-logo-placeholder{font-size:0.82rem;color:rgba(200,168,75,0.5);font-style:italic;}
 .sponsor-details{font-size:0.9rem;color:#c8c0b0;line-height:1.6;white-space:pre-line;}
 .brand-toyomotors{color:#A41D09;font-weight:600;text-shadow:0 0 6px rgba(164,29,9,0.35);}
-.brand-xtreme{color:#000000;font-weight:600;text-shadow:0 0 4px rgba(255,255,255,0.18);}
+.brand-xtreme{color:#000000;font-weight:600;}
 .brand-wellness{color:#89B526;font-weight:600;text-shadow:0 0 4px rgba(255,255,255,0.18);}
 
 /* Stronger contrast for brand spans on dark pages only */
 #page-stats .brand-xtreme,
 #page-standings .brand-xtreme,
 .conf-acc-title .brand-xtreme{
-  -webkit-text-stroke:0.6px rgba(255,255,255,0.75);
-  text-shadow:0 0 8px rgba(255,255,255,0.55),0 0 2px rgba(255,255,255,0.9);
+  -webkit-text-stroke:0.25px rgba(255,255,255,0.5);
+  text-shadow:0 0 1px rgba(255,255,255,0.8),0 0 4px rgba(255,255,255,0.2);
 }
 #page-stats .brand-wellness,
 #page-standings .brand-wellness,
