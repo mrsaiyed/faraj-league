@@ -10,22 +10,22 @@
 <body>
 <nav>
   <div class="nav-top">
-    <div class="nav-logo" onclick="showPage('home')">Faraj League</div>
+    <a class="nav-logo" href="#home" onclick="showPage('home');return false;">Faraj League</a>
     <div class="nav-spacer"></div>
     <select class="nav-season-select" onchange="changeSeason(this.value)">
       <option value="spring2026">Spring 2026 · Current</option>
     </select>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('home')">Home</button>
-    <button class="nav-tab" onclick="showPage('standings')">Standings</button>
-    <button class="nav-tab" onclick="showPage('schedule')">Schedule</button>
-    <button class="nav-tab" onclick="showPage('teams')">Teams</button>
-    <button class="nav-tab" onclick="showPage('stats')">Stats</button>
-    <button class="nav-tab" onclick="showPage('awards')">Awards</button>
-    <button class="nav-tab" onclick="showPage('media')">Media</button>
-    <button class="nav-tab" onclick="showPage('about')">About</button>
-    <button class="nav-tab" onclick="showPage('sponsors')">Sponsors</button>
+    <a class="nav-tab" href="#home" onclick="showPage('home');return false;">Home</a>
+    <a class="nav-tab" href="#standings" onclick="showPage('standings');return false;">Standings</a>
+    <a class="nav-tab" href="#schedule" onclick="showPage('schedule');return false;">Schedule</a>
+    <a class="nav-tab" href="#teams" onclick="showPage('teams');return false;">Teams</a>
+    <a class="nav-tab" href="#stats" onclick="showPage('stats');return false;">Stats</a>
+    <a class="nav-tab" href="#awards" onclick="showPage('awards');return false;">Awards</a>
+    <a class="nav-tab" href="#media" onclick="showPage('media');return false;">Media</a>
+    <a class="nav-tab" href="#about" onclick="showPage('about');return false;">About</a>
+    <a class="nav-tab" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
   </div>
 </nav>
 
