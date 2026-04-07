@@ -240,8 +240,8 @@ a.nav-logo{text-decoration:none;}
 #page-stats .brand-xtreme,
 #page-teams .brand-xtreme{
   color:#101318;
-  -webkit-text-stroke:0.8px rgba(255,255,255,0.9);
-  text-shadow:0 0 8px rgba(255,255,255,0.7),0 0 2px rgba(255,255,255,0.9);
+  -webkit-text-stroke:0.5px rgba(255,255,255,0.45);
+  text-shadow:0 0 6px rgba(255,255,255,0.35),0 0 2px rgba(255,255,255,0.45);
 }
 /* Stats + Teams pages: Wellness — keep green, subtle white glow for contrast */
 #page-stats .brand-wellness,
