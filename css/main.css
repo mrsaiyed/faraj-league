@@ -12,8 +12,9 @@ a.nav-logo{text-decoration:none;}
 .nav-tab:hover{color:#c8a84b!important;border-bottom-color:rgba(200,168,75,0.4);}
 .nav-tab.active{color:#c8a84b!important;border-bottom-color:#c8a84b;}
 /* Hamburger button — hidden on desktop */
-.nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:16px;background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;}
-.nav-hamburger span{display:block;height:2px;background:#c8a84b;border-radius:1px;transition:transform 0.2s,opacity 0.2s;}
+.nav-hamburger{display:none;flex-direction:column;align-items:flex-start;gap:3px;background:none;border:none;cursor:pointer;padding:0.3rem 0;flex-shrink:0;}
+.nav-hamburger span:not(.nav-hamburger-label){display:block;width:22px;height:2px;background:#c8a84b;border-radius:1px;transition:transform 0.2s,opacity 0.2s;}
+.nav-hamburger-label{font-family:'Lato',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-top:1px;}
 /* Drawer overlay */
 .nav-drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;opacity:0;transition:opacity 0.25s;}
 .nav-drawer-overlay.open{display:block;opacity:1;}
@@ -26,9 +27,13 @@ a.nav-logo{text-decoration:none;}
 .nav-drawer-close:hover{color:#f5f0e8;}
 .nav-drawer-item{display:block;padding:0.85rem 1.4rem;font-family:'Lato',sans-serif;font-size:0.88rem;font-weight:400;letter-spacing:0.12em;text-transform:uppercase;color:#c8c0b0;text-decoration:none;border-bottom:1px solid rgba(200,168,75,0.06);transition:color 0.15s,background 0.15s;}
 .nav-drawer-item:hover,.nav-drawer-item.active{color:#c8a84b;background:rgba(200,168,75,0.05);}
+.nav-drawer-footer{margin-top:auto;padding:1.2rem 1.4rem;border-top:1px solid rgba(200,168,75,0.12);}
+.nav-drawer-season-label{font-size:0.68rem;letter-spacing:0.16em;text-transform:uppercase;color:#c8c0b0;margin-bottom:0.5rem;}
+.nav-drawer-season{width:100%;padding:0.45rem 0.6rem;font-size:0.85rem;}
 @media(max-width:768px){
   .nav-tabs{display:none;}
   .nav-hamburger{display:flex;}
+  .nav-season-select:not(.nav-drawer-season){display:none;}
 }
 .page{display:none;}
 .page.active{display:block;}

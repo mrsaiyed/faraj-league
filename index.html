@@ -10,14 +10,15 @@
 <body>
 <nav>
   <div class="nav-top">
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+      <span class="nav-hamburger-label">Menu</span>
+    </button>
     <a class="nav-logo" href="#home" onclick="showPage('home');return false;">Faraj League</a>
     <div class="nav-spacer"></div>
     <select class="nav-season-select" onchange="changeSeason(this.value)">
       <option value="spring2026">Spring 2026 · Current</option>
     </select>
-    <button class="nav-hamburger" id="nav-hamburger" aria-label="Open menu" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
   </div>
   <div class="nav-tabs">
     <a class="nav-tab" href="#home" onclick="showPage('home');return false;">Home</a>
@@ -46,6 +47,12 @@
   <a class="nav-drawer-item" href="#media" onclick="showPage('media');return false;">Media</a>
   <a class="nav-drawer-item" href="#about" onclick="showPage('about');return false;">About</a>
   <a class="nav-drawer-item" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
+  <div class="nav-drawer-footer">
+    <div class="nav-drawer-season-label">Season</div>
+    <select class="nav-season-select nav-drawer-season" onchange="changeSeason(this.value)">
+      <option value="spring2026">Spring 2026 · Current</option>
+    </select>
+  </div>
 </nav>
 
 <div id="api-error-banner" class="historic-banner" style="display:none;">

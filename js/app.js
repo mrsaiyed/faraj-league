@@ -27,16 +27,16 @@ function clearError() {
 }
 
 function populateSeasonDropdown(seasons, defaultSlug) {
-  const sel = document.querySelector('.nav-season-select');
-  if (!sel) return;
-  sel.innerHTML = '';
-  (seasons || []).forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.slug;
-    opt.textContent = s.label + (s.is_current ? ' · Current' : '');
-    sel.appendChild(opt);
+  document.querySelectorAll('.nav-season-select').forEach(sel => {
+    sel.innerHTML = '';
+    (seasons || []).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.slug;
+      opt.textContent = s.label + (s.is_current ? ' · Current' : '');
+      sel.appendChild(opt);
+    });
+    sel.value = defaultSlug || (seasons?.[0]?.slug);
   });
-  sel.value = defaultSlug || (seasons?.[0]?.slug);
 }
 
 function showPage(id, skipPush = false) {
