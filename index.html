@@ -56,24 +56,21 @@
     </div>
   </div>
   <div class="quick-stats">
-    <div class="qs-item"><div class="qs-num">6</div><div class="qs-label">Teams</div></div>
-    <div class="qs-item"><div class="qs-num">42</div><div class="qs-label">Players</div></div>
-    <div class="qs-item"><div class="qs-num">2</div><div class="qs-label">Conferences</div></div>
-    <div class="qs-item"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></div>
+    <a class="qs-item" href="#teams" onclick="showPage('teams');return false;"><div class="qs-num">6</div><div class="qs-label">Teams</div></a>
+    <a class="qs-item" href="#teams" onclick="showPage('teams');return false;"><div class="qs-num">42</div><div class="qs-label">Players</div></a>
+    <a class="qs-item" href="#teams" onclick="showPage('teams');return false;"><div class="qs-num">2</div><div class="qs-label">Conferences</div></a>
+    <a class="qs-item" href="#schedule" onclick="showPage('schedule');return false;"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></a>
   </div>
   <div class="section">
-    <p class="section-sub" id="home-standings-sub">Spring 2026</p>
-    <h2 class="section-title" id="home-standings-title">Standings</h2>
+    <a class="home-section-link" href="#standings" onclick="showPage('standings');return false;"><p class="section-sub" id="home-standings-sub">Spring 2026</p><h2 class="section-title" id="home-standings-title">Standings</h2></a>
     <div class="section-line"></div>
     <div class="home-standings-wrap" id="home-standings"></div>
     <hr class="section-divider">
-    <p class="section-sub" id="home-matchup-sub">Week 1 · Upcoming</p>
-    <h2 class="section-title">Recent Matchups</h2>
+    <a class="home-section-link" href="#schedule" onclick="showPage('schedule');return false;"><p class="section-sub" id="home-matchup-sub">Week 1 · Upcoming</p><h2 class="section-title">Recent Matchups</h2></a>
     <div class="section-line"></div>
     <div class="matchups-grid" id="home-matchups"><div class="loading">Loading...</div></div>
     <div style="margin-top:2rem;">
-      <p class="section-sub" id="home-awards-sub">Week 1 · Latest</p>
-      <h2 class="section-title">Recent Awards</h2>
+      <a class="home-section-link" href="#awards" onclick="showPage('awards');return false;"><p class="section-sub" id="home-awards-sub">Week 1 · Latest</p><h2 class="section-title">Recent Awards</h2></a>
       <div class="section-line"></div>
       <div class="home-awards-grid" id="home-awards"><div class="loading">Loading...</div></div>
     </div>

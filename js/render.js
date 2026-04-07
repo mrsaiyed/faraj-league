@@ -183,8 +183,9 @@ export function renderHome() {
   const homeStandings = document.getElementById('home-standings');
   if (!homeStandings) return;
   homeStandings.innerHTML = (getConferences().map(c => c.id || c.name)).map(conf => {
-    const rows = config.DB.teams.filter(t => t.conf === conf).map(t => ({ ...rec[t.name] || { w: 0, l: 0 }, name: t.name })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
-    return `<div class="home-conf-block"><div class="home-conf-title">${confLabel(conf)}</div>${rows.map((r, i) => `<div class="home-stand-row"><span class="home-stand-rank">${i + 1}</span><span class="home-stand-name">${r.name}</span><span class="home-stand-rec">${r.w}-${r.l}</span></div>`).join('')}</div>`;
+    const idA = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
+    const rows = config.DB.teams.filter(t => t.conf === conf).map(t => ({ ...rec[t.name] || { w: 0, l: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
+    return `<div class="home-conf-block"><div class="home-conf-title">${confLabel(conf)}</div>${rows.map((r, i) => `<div class="home-stand-row" onclick="goToTeam(${idA(r.id)})"><span class="home-stand-rank">${i + 1}</span><span class="home-stand-name">${r.name}</span><span class="home-stand-rec">${r.w}-${r.l}</span></div>`).join('')}</div>`;
   }).join('');
 
   const games = weekGames.length ? weekGames : [
@@ -196,8 +197,8 @@ export function renderHome() {
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
   if (homeAwards) homeAwards.innerHTML = `
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
-    ${games.map((g, i) => `<div class="award-card"><div class="award-label">${motmLabel(g.game || i + 1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm' + (g.game || i + 1)] || pending()}</div></div>`).join('')}`;
+    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
+    ${games.map((g, i) => `<div class="award-card home-award-link"><div class="award-label">${motmLabel(g.game || i + 1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm' + (g.game || i + 1)] || pending()}</div></div>`).join('')}`;
 }
 
 export function renderStandings() {
@@ -326,7 +327,7 @@ function buildMatchupCard(g, gameId) {
 
   // Away (t2): logo outer-left, name right of logo toward center
   // Home (t1): name toward center, logo outer-right (DOM order: name then logo)
-  return `<div class="matchup-card">
+  return `<div class="matchup-card"${g.week != null ? ` data-week="${g.week}"` : ''}>
     ${header}
     <div class="mc-body">
       <div class="mc-away">${teamLogoHtml(g.t2, 'away')}<span class="mc-team-name mc-away-name">${escapeHtmlAttr(g.t2)}</span></div>
@@ -456,7 +457,7 @@ export function renderSchedule(focusWeek, teamFilter) {
     if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
     if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
     const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
-    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
+    return `<div data-week="${w}" style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
 
   const sectionHeader = (label, isCurrent) =>

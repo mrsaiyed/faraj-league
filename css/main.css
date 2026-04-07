@@ -32,7 +32,10 @@ a.nav-logo{text-decoration:none;}
 .champ-label{font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8c0b0;}
 .champ-value{font-family:'Cinzel',serif;font-size:1.05rem;color:#c8a84b;margin-top:0.1rem;}
 .quick-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(200,168,75,0.2);}
-.qs-item{background:#0a1f2e;padding:1rem 0.8rem;text-align:center;}
+.qs-item{background:#0a1f2e;padding:1rem 0.8rem;text-align:center;text-decoration:none;display:block;}
+a.qs-item{cursor:pointer;}
+a.qs-item:hover{background:#0d2840;}
+a.qs-item:hover .qs-num{color:#ddb94e;}
 .qs-num{font-family:'Cinzel',serif;font-size:1.6rem;color:#c8a84b;font-weight:700;line-height:1;}
 .qs-label{font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:#c8c0b0;margin-top:0.2rem;}
 .section{padding:2rem 2.5rem;}
@@ -296,8 +299,14 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .home-standings-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:0;}
 .home-conf-block{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1rem;}
 .home-conf-title{font-family:'Cinzel',serif;font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.6rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(200,168,75,0.15);}
-.home-stand-row{display:flex;align-items:center;gap:0.5rem;padding:0.28rem 0;border-bottom:1px solid rgba(200,168,75,0.05);font-size:0.88rem;}
+.home-stand-row{display:flex;align-items:center;gap:0.5rem;padding:0.28rem 0;border-bottom:1px solid rgba(200,168,75,0.05);font-size:0.88rem;cursor:pointer;}
 .home-stand-row:last-child{border-bottom:none;}
+.home-stand-row:hover{background:rgba(200,168,75,0.06);border-radius:3px;}
+.home-section-link{display:block;text-decoration:none;cursor:pointer;}
+.home-section-link:hover .section-title{color:#ddb94e;}
+#home-matchups .matchup-card{cursor:pointer;}
+.home-award-link{cursor:pointer;}
+.home-award-link:hover{opacity:0.85;}
 .home-stand-rank{font-size:0.72rem;color:#c8c0b0;width:16px;flex-shrink:0;}
 .home-stand-name{flex:1;color:#f5f0e8;}
 .home-stand-rec{font-size:0.82rem;color:#2fa89a;white-space:nowrap;}

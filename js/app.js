@@ -62,6 +62,27 @@ function goToTeam(id) {
   setTimeout(() => toggleRoster(id), 80);
 }
 
+function navToMatchup(week) {
+  showPage('schedule');
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`#page-schedule [data-week="${week}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+// Delegated click: home matchup cards → schedule tab at that week
+document.addEventListener('click', e => {
+  if (!e.target.closest('#home-matchups')) return;
+  if (e.target.closest('.schedule-expand-btn')) return;
+  const card = e.target.closest('.matchup-card');
+  if (card && card.dataset.week) navToMatchup(parseInt(card.dataset.week));
+});
+
+// Delegated click: home award cards → awards tab
+document.addEventListener('click', e => {
+  if (e.target.closest('#home-awards')) showPage('awards');
+});
+
 async function changeSeason(val) {
   if (!val || val === config.currentSeasonSlug) return;
   clearError();
@@ -144,6 +165,7 @@ window.toggleRoster = toggleRoster;
 window.closeRoster = closeRoster;
 window.closeBoxScoreFullscreen = closeBoxScoreFullscreen;
 window.goToTeam = goToTeam;
+window.navToMatchup = navToMatchup;
 window.toggleAcc = toggleAcc;
 window.renderSchedule = renderSchedule;
 window.renderScores = renderScores;
