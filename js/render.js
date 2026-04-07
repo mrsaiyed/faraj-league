@@ -261,12 +261,12 @@ const TEAM_LOGOS = {
 // transform: translate(-50%,-50%) scale(S) on an absolutely-centred img
 // inside an overflow:hidden crop div — adjust ±0.05 if edges clip.
 const LOGO_SCALE = {
-  jaysh: 3.00,
+  jaysh: 2.75,
   noor: 2.40,
-  dukhaan: 2.40,
+  dukhaan: 2.50,
   ansar: 1.725,
   mujahideen: [1.85, 2.45],
-  raad: 2.60,
+  raad: 2.30,
 };
 const DEFAULT_LOGO_SCALE = 1.15;
 
