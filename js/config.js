@@ -101,6 +101,6 @@ export function akhlaqLabel(week) {
 
 export function statsTitle() {
   const { SP2B } = config;
-  const name = SP2B && SP2B !== '[Sponsor 2B]' ? SP2B : null;
-  return name ? `${name} Player Stats` : 'Player Stats';
+  const name = SP2B && SP2B !== '[Sponsor 2B]' ? SP2B : 'Xtreme Wellness';
+  return `${name} Player Stats`;
 }
