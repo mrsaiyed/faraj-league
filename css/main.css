@@ -212,15 +212,21 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .akhlaq-inner{display:flex;align-items:center;gap:1.1rem;}
 .akhlaq-medal{width:46px;height:46px;flex-shrink:0;border-radius:50%;background:#0d4f47;border:2px solid #2fa89a;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
 .awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;}
-.teams-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
-.team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.3rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.15s;}
+.teams-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.85rem;}
+.team-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:0.9rem 1rem;cursor:pointer;transition:border-color 0.2s,transform 0.15s;display:flex;align-items:center;gap:0.85rem;}
 .team-card:hover{border-color:#2fa89a;transform:translateY(-2px);}
 .team-card.selected{border-color:#c8a84b;}
-.team-emblem{width:50px;height:50px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-family:'Cinzel',serif;font-size:0.95rem;color:#2fa89a;font-weight:600;position:relative;overflow:hidden;}
-.team-name{font-family:'Cinzel',serif;font-size:0.95rem;color:#f5f0e8;letter-spacing:0.06em;margin-bottom:0.18rem;}
+.team-emblem{width:56px;height:56px;border-radius:50%;background:#0d4f47;border:2px solid rgba(47,168,154,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Cinzel',serif;font-size:0.95rem;color:#2fa89a;font-weight:600;position:relative;overflow:hidden;}
+.team-card-info{flex:1;min-width:0;}
+.team-name{font-family:'Cinzel',serif;font-size:0.95rem;color:#f5f0e8;letter-spacing:0.06em;margin:0 0 0.2rem;}
 .team-conf{font-size:0.76rem;text-transform:uppercase;letter-spacing:0.12em;color:#c8a84b;}
-.team-captain{font-size:0.82rem;color:#c8c0b0;margin-top:0.35rem;}
-.team-record{font-size:0.86rem;color:#2fa89a;margin-top:0.25rem;}
+.team-captain{font-size:0.78rem;color:#c8c0b0;}
+.team-card-stats{flex-shrink:0;display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end;}
+.team-stat-row{display:flex;flex-direction:column;align-items:flex-end;}
+.team-stat-label{font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8c0b0;line-height:1;}
+.team-stat-value{font-family:'Cinzel',serif;font-size:0.9rem;font-weight:600;line-height:1.2;}
+.team-record-val{color:#2fa89a;}
+.team-seed-val{color:#c8a84b;}
 .roster-panel{display:none;background:#0a1f2e;border:1px solid rgba(47,168,154,0.3);border-radius:4px;padding:1.3rem;margin-top:1rem;position:relative;}
 .roster-panel.open{display:block;}
 .roster-close{position:absolute;top:0.7rem;right:0.9rem;background:none;border:none;color:#ffffff;font-size:1rem;cursor:pointer;}

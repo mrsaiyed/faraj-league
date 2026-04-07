@@ -4,7 +4,7 @@
 
 import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
-import { calcStandings as calcStandingsPure } from '../lib/standings.js';
+import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure } from '../lib/standings.js';
 
 let activeTeam = null;
 
@@ -538,6 +538,7 @@ export function renderTeams() {
   const teamsGrid = document.getElementById('teams-grid');
   if (!teamsGrid) return;
   const rec = calcStandings();
+  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
   const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   const effectiveCaptain = (t) => {
     const cap = (t.captain || '').trim();
@@ -548,7 +549,10 @@ export function renderTeams() {
   };
   const teamCard = t => {
     const cap = effectiveCaptain(t);
-    return `<div class="team-card" id="tc-${t.id}" data-team-id="${t.id}" data-conf="${escapeHtmlAttr(t.conf || '')}" onclick="toggleRoster(${idAttr(t.id)})">${teamEmblemHtml(t.name)}<div class="team-name">${t.name}</div><div class="team-captain">Capt: ${cap || '—'}</div><div class="team-record">${rec[t.name] ? rec[t.name].w + '-' + rec[t.name].l : '0-0'}</div></div>`;
+    const r = rec[t.name];
+    const record = r ? `${r.w}-${r.l}` : '0-0';
+    const seed = seeds[t.name] ?? 'TBD';
+    return `<div class="team-card" id="tc-${t.id}" data-team-id="${t.id}" data-conf="${escapeHtmlAttr(t.conf || '')}" onclick="toggleRoster(${idAttr(t.id)})">${teamEmblemHtml(t.name)}<div class="team-card-info"><div class="team-name">${t.name}</div><div class="team-captain">Capt: ${cap || '—'}</div></div><div class="team-card-stats"><div class="team-stat-row"><span class="team-stat-label">Record</span><span class="team-stat-value team-record-val">${record}</span></div><div class="team-stat-row"><span class="team-stat-label">Seed</span><span class="team-stat-value team-seed-val">${seed}</span></div></div></div>`;
   };
   const confIds = new Set(getConferences().map(c => c.id || c.name));
   const confs = [...getConferences().map(c => c.id || c.name)];
