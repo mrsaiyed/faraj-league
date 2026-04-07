@@ -1402,7 +1402,7 @@ export async function attachTeamsAdminOverlays(ctx) {
           <h4>Add team</h4>
           <form id="admin-add-team-form">
             <label style="display:block;margin:0.5rem 0;">Name: <input type="text" id="at-name" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-            <label style="display:block;margin:0.5rem 0;">Conference: <select id="at-conf" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">${getConferences().map(c => { const id = c.id || c.name; return `<option value="${String(id).replace(/"/g, '&quot;')}">${confLabel(id)}</option>`; }).join('')}</select></label>
+            <label style="display:block;margin:0.5rem 0;">Conference: <select id="at-conf" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">${getConferences().map(c => { const id = c.id || c.name; return `<option value="${String(id).replace(/"/g, '&quot;')}">${confLabelRaw(id)}</option>`; }).join('')}</select></label>
             <label style="display:block;margin:0.5rem 0;">Captain: <input type="text" id="at-captain" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
             <div style="margin-top:1rem;"><button type="submit" class="btn-primary">Save</button><button type="button" class="btn-secondary" id="at-cancel">Cancel</button></div>
           </form>

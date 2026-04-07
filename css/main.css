@@ -226,19 +226,15 @@ a.nav-logo{text-decoration:none;}
 .sponsor-details{font-size:0.9rem;color:#c8c0b0;line-height:1.6;white-space:pre-line;}
 .brand-toyomotors{color:#A41D09;font-weight:600;text-shadow:0 0 6px rgba(164,29,9,0.35);}
 .brand-xtreme{color:#101318;font-weight:600;}
-.brand-wellness{color:#89B526;font-weight:600;text-shadow:0 0 4px rgba(255,255,255,0.18);}
+.brand-wellness{color:#89B526;font-weight:600;}
 
-/* Stronger contrast for brand spans on dark pages only */
+/* Dark-page overrides — single rule per brand, no stacking */
 #page-stats .brand-xtreme,
 #page-standings .brand-xtreme,
-.conf-acc-title .brand-xtreme{
-  text-shadow:0 0 1px rgba(255,255,255,0.55);
-}
+.conf-acc-title .brand-xtreme{color:#1a1f26;text-shadow:none;}
 #page-stats .brand-wellness,
 #page-standings .brand-wellness,
-.conf-acc-title .brand-wellness{
-  text-shadow:0 0 8px rgba(137,181,38,0.6),0 0 3px rgba(255,255,255,0.3);
-}
+.conf-acc-title .brand-wellness{text-shadow:0 0 1px rgba(255,255,255,0.25);}
 
 /* Sponsors page — premium hierarchy */
 .sponsors-page .section-sub{margin-bottom:0.25rem;}
