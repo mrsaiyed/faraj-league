@@ -236,14 +236,18 @@ a.nav-logo{text-decoration:none;}
 #page-standings .brand-wellness,
 .conf-acc-title .brand-wellness{text-shadow:0 0 1px rgba(255,255,255,0.25);}
 
-/* Stats + Teams pages: XTREME Wellness white with strong black outline */
+/* Stats + Teams pages: XTREME — strong black with white glow border */
 #page-stats .brand-xtreme,
+#page-teams .brand-xtreme{
+  color:#101318;
+  -webkit-text-stroke:0.8px rgba(255,255,255,0.9);
+  text-shadow:0 0 8px rgba(255,255,255,0.7),0 0 2px rgba(255,255,255,0.9);
+}
+/* Stats + Teams pages: Wellness — keep green, subtle white glow for contrast */
 #page-stats .brand-wellness,
-#page-teams .brand-xtreme,
 #page-teams .brand-wellness{
-  color:#ffffff;
-  -webkit-text-stroke:1.5px #000;
-  text-shadow:0 0 6px rgba(0,0,0,0.9),0 0 2px #000;
+  color:#89B526;
+  text-shadow:0 0 6px rgba(137,181,38,0.5),0 0 2px rgba(255,255,255,0.3);
 }
 
 /* Sponsors page — premium hierarchy */
