@@ -90,17 +90,17 @@ export function confLabel(conf) {
 }
 
 export function motmLabel(game) {
-  const { SP3A, SP3B, SP3C } = config;
-  const sp = [SP3A, SP3B, SP3C][game - 1];
-  return sp ? `${sp} Man of the Match · Game ${game}` : `Man of the Match · Game ${game}`;
+  return `Man of the Match · Game ${game}`;
 }
 
 export function akhlaqLabel(week) {
-  const { SP2B } = config;
-  return SP2B ? `${SP2B} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`;
+  const { SP2A } = config;
+  const name = SP2A && SP2A !== '[Sponsor 2A]' ? SP2A : null;
+  return name ? `${name} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`;
 }
 
 export function statsTitle() {
-  const { SP2A } = config;
-  return SP2A ? `${SP2A} Player Stats` : 'Player Stats';
+  const { SP2B } = config;
+  const name = SP2B && SP2B !== '[Sponsor 2B]' ? SP2B : null;
+  return name ? `${name} Player Stats` : 'Player Stats';
 }
