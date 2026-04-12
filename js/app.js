@@ -47,7 +47,7 @@ function showPage(id, skipPush = false) {
   if (!pageEl) { showPage('home', skipPush); return; }
   pageEl.classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(b => {
-    if (b.textContent.toLowerCase().trim() === id.toLowerCase()) b.classList.add('active');
+    if (b.getAttribute('href') === '#' + id) b.classList.add('active');
   });
   window.scrollTo(0, 0);
   if (!skipPush) history.pushState({ page: id }, '', '#' + id);
@@ -117,6 +117,8 @@ async function changeSeason(val) {
 
 async function loadAll() {
   clearError();
+  const initialPage = location.hash.slice(1).replace(/[^a-z-]/g, '') || 'home';
+  showPage(initialPage, true);
   const seasonsRes = await fetchSeasons();
   if (seasonsRes.error) {
     console.warn('fetchSeasons failed', seasonsRes.error);
@@ -156,8 +158,6 @@ async function loadAll() {
 
   populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
-  const initialPage = location.hash.slice(1).replace(/[^a-z]/g, '') || 'home';
-  showPage(initialPage, true);
 }
 
 window.showPage = showPage;
