@@ -323,17 +323,20 @@ function buildMatchupCard(g, gameId) {
     <span class="mc-meta-date">${dateStr}</span>
   </div>`;
 
-  // Center column: VS decoration or scores only; box score link gets its own row below
-  const boxRow = gameId
-    ? `<div class="mc-box-row"><button type="button" class="schedule-expand-btn mc-box-btn" data-game-id="${gameId}">View box score</button></div>`
-    : '';
-
   const mid = played
     ? `<div class="mc-mid"><div class="mc-score-row"><span class="mc-score${w2 ? ' winner' : ''}">${g.s2}</span><span class="mc-dash">—</span><span class="mc-score${w1 ? ' winner' : ''}">${g.s1}</span></div></div>`
     : `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs-deco">VS</span><span class="mc-vs">VS</span></div></div>`;
 
-  const winnerTag = played
+  const winnerLine = played
     ? `<div class="mc-winner-tag">${s1 > s2 ? escapeHtmlAttr(g.t1) : escapeHtmlAttr(g.t2)} Win</div>`
+    : '';
+
+  const viewBoxBtn = gameId
+    ? `<button type="button" class="schedule-expand-btn mc-box-btn" data-game-id="${gameId}">View box score</button>`
+    : '';
+
+  const boxRow = (winnerLine || viewBoxBtn)
+    ? `<div class="mc-box-row">${winnerLine}${viewBoxBtn}</div>`
     : '';
 
   // Away (t2): logo outer-left, name right of logo toward center
@@ -346,7 +349,6 @@ function buildMatchupCard(g, gameId) {
       <div class="mc-home"><span class="mc-team-name mc-home-name">${escapeHtmlAttr(g.t1)}</span>${teamLogoHtml(g.t1, 'home')}</div>
     </div>
     ${boxRow}
-    ${winnerTag}
   </div>`;
 }
 
