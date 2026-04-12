@@ -210,9 +210,12 @@
     <p class="section-sub" id="pr-section-sub">Spring 2026</p>
     <h2 class="section-title">Power Rankings</h2>
     <div class="section-line"></div>
-    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="pr-week-select" onchange="renderPowerRankings(parseInt(this.value))"></select></div>
-    <div id="pr-content" style="margin-top:1.5rem;"></div>
-    <div id="pr-admin-content" style="margin-top:2rem;border-top:1px solid rgba(200,168,75,0.15);padding-top:1.5rem;"></div>
+    <div id="pr-admin-content" style="margin-top:1.5rem;"></div>
+    <div style="margin-top:2rem;border-top:1px solid rgba(200,168,75,0.15);padding-top:1.5rem;">
+      <p style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#4a7a9b;margin-bottom:0.75rem;">Preview</p>
+      <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="pr-week-select" onchange="renderPowerRankings(parseInt(this.value))"></select></div>
+      <div id="pr-content" style="margin-top:1.5rem;"></div>
+    </div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
