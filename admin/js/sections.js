@@ -2956,3 +2956,90 @@ export async function renderAbout(content, ctx) {
 
 /** No-op. Draft is rendered by js/render.js renderDraft(adminMode) via renderAll(true). */
 export async function renderDraft() {}
+
+export async function renderAdminPowerRankings(content, ctx) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId || !content) return;
+
+  const { config } = await importRootJs('config.js');
+  const teams = config.DB.teams || [];
+
+  let allData = {};
+  try {
+    const raw = config.DB.contentBlocks?.power_rankings_data;
+    if (raw) allData = JSON.parse(raw);
+  } catch (_) {}
+
+  const currentWeek = config.CURRENT_WEEK || 1;
+
+  const weekOpts = Array.from({ length: currentWeek }, (_, i) => i + 1)
+    .map(w => `<option value="${w}"${w === currentWeek ? ' selected' : ''}>Week ${w}${w === currentWeek ? ' (Current)' : ''}</option>`)
+    .join('');
+
+  content.innerHTML = `
+    <div id="pr-admin-msg"></div>
+    <div style="margin-bottom:1.2rem;">
+      <label style="color:#c8c0b0;font-size:0.85rem;margin-right:0.5rem;">Editing Week</label>
+      <select id="pr-admin-week-select" style="background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;padding:0.4rem 0.6rem;border-radius:4px;">${weekOpts}</select>
+    </div>
+    <p style="font-size:0.8rem;color:#8a8580;margin-bottom:0.75rem;">Set rank 1–${teams.length} for each team. Leave rank blank or 0 to exclude a team from this week's rankings.</p>
+    <div id="pr-admin-rows"></div>
+    <button id="pr-admin-save" style="margin-top:1rem;padding:0.5rem 1.2rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:600;cursor:pointer;">Save Rankings</button>`;
+
+  function loadWeek(w) {
+    const weekData = allData[String(w)] || [];
+    const ranked = {};
+    weekData.forEach((entry, i) => { ranked[entry.teamId] = { rank: i + 1, note: entry.note || '' }; });
+
+    const rows = teams.map(t => {
+      const r = ranked[t.id] || { rank: 0, note: '' };
+      const rankVal = r.rank > 0 ? r.rank : '';
+      return `<div class="pr-admin-row" data-team-id="${t.id}" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">
+        <input type="number" class="pr-rank-input" value="${rankVal}" min="1" max="${teams.length}" style="width:52px;padding:0.35rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px;text-align:center;" placeholder="—">
+        <span style="min-width:9rem;color:#f5f0e8;font-size:0.9rem;font-weight:600;">${t.name}</span>
+        <input type="text" class="pr-note-input" value="${r.note}" placeholder="Note (optional)" style="flex:1;padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px;">
+      </div>`;
+    }).join('');
+    document.getElementById('pr-admin-rows').innerHTML = rows || '<p style="color:#8a8580;">No teams found.</p>';
+  }
+
+  loadWeek(currentWeek);
+
+  document.getElementById('pr-admin-week-select').onchange = function () {
+    loadWeek(parseInt(this.value));
+  };
+
+  document.getElementById('pr-admin-save').onclick = async () => {
+    const week = parseInt(document.getElementById('pr-admin-week-select').value);
+    const rows = document.querySelectorAll('#pr-admin-rows .pr-admin-row');
+    const entries = [];
+    rows.forEach(row => {
+      const rank = parseInt(row.querySelector('.pr-rank-input').value) || 0;
+      if (rank < 1) return;
+      const note = row.querySelector('.pr-note-input').value.trim();
+      entries.push({ rank, teamId: row.dataset.teamId, note });
+    });
+    entries.sort((a, b) => a.rank - b.rank);
+    allData[String(week)] = entries.map(e => ({ teamId: e.teamId, note: e.note }));
+
+    const msg = document.getElementById('pr-admin-msg');
+    try {
+      await adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'power_rankings_data', value: JSON.stringify(allData), season_id: seasonId }]),
+      });
+      if (!config.DB.contentBlocks) config.DB.contentBlocks = {};
+      config.DB.contentBlocks.power_rankings_data = JSON.stringify(allData);
+      // Refresh the public read-only view above the editor
+      const prSel = document.getElementById('pr-week-select');
+      if (typeof window.renderPowerRankings === 'function') {
+        window.renderPowerRankings(prSel ? parseInt(prSel.value) || week : week);
+      }
+      msg.innerHTML = '<p class="msg success">Saved.</p>';
+      setTimeout(() => { msg.innerHTML = ''; }, 3000);
+    } catch (err) {
+      msg.innerHTML = `<p class="msg error">${err.message || 'Save failed.'}</p>`;
+    }
+  };
+}

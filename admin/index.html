@@ -75,6 +75,7 @@
     <button class="nav-tab" data-page="media" onclick="adminShowPage('media')">Media</button>
     <button class="nav-tab" data-page="about" onclick="adminShowPage('about')">About</button>
     <button class="nav-tab" data-page="sponsors" onclick="adminShowPage('sponsors')">Sponsors</button>
+    <button class="nav-tab" data-page="power-rankings" onclick="adminShowPage('power-rankings')">Rankings</button>
   </div>
 </nav>
 
@@ -200,6 +201,18 @@
       <div class="season-award-card"><div class="season-award-icon">⭐</div><div class="season-award-title">Most Valuable Player</div><div class="season-award-holder" id="sa-mvp">Season in progress</div></div>
       <div class="season-award-card"><div class="season-award-icon">📊</div><div class="season-award-title">Scoring Title</div><div class="season-award-holder" id="sa-scoring">Season in progress</div></div>
     </div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-power-rankings" class="page">
+  <div class="section">
+    <p class="section-sub" id="pr-section-sub">Spring 2026</p>
+    <h2 class="section-title">Power Rankings</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="pr-week-select" onchange="renderPowerRankings(parseInt(this.value))"></select></div>
+    <div id="pr-content" style="margin-top:1.5rem;"></div>
+    <div id="pr-admin-content" style="margin-top:2rem;border-top:1px solid rgba(200,168,75,0.15);padding-top:1.5rem;"></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>

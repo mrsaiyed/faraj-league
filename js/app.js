@@ -10,6 +10,7 @@ import {
   renderScores,
   renderAwards,
   renderMedia,
+  renderPowerRankings,
   toggleRoster,
   closeRoster,
   toggleAcc,
@@ -171,6 +172,7 @@ window.renderSchedule = renderSchedule;
 window.renderScores = renderScores;
 window.renderAwards = renderAwards;
 window.renderMedia = renderMedia;
+window.renderPowerRankings = renderPowerRankings;
 
 // Box score fullscreen: close on drag-hint click, Escape, swipe-down
 function initBoxScoreFullscreen() {

@@ -36,6 +36,7 @@
     <a class="nav-tab" href="#teams" onclick="showPage('teams');return false;">Teams</a>
     <a class="nav-tab" href="#stats" onclick="showPage('stats');return false;">Stats</a>
     <a class="nav-tab" href="#awards" onclick="showPage('awards');return false;">Awards</a>
+    <a class="nav-tab" href="#power-rankings" onclick="showPage('power-rankings');return false;">Rankings</a>
     <a class="nav-tab" href="#media" onclick="showPage('media');return false;">Media</a>
     <a class="nav-tab" href="#about" onclick="showPage('about');return false;">About</a>
     <a class="nav-tab" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
@@ -53,6 +54,7 @@
   <a class="nav-drawer-item" href="#teams" onclick="showPage('teams');return false;">Teams</a>
   <a class="nav-drawer-item" href="#stats" onclick="showPage('stats');return false;">Stats</a>
   <a class="nav-drawer-item" href="#awards" onclick="showPage('awards');return false;">Awards</a>
+  <a class="nav-drawer-item" href="#power-rankings" onclick="showPage('power-rankings');return false;">Rankings</a>
   <a class="nav-drawer-item" href="#media" onclick="showPage('media');return false;">Media</a>
   <a class="nav-drawer-item" href="#about" onclick="showPage('about');return false;">About</a>
   <a class="nav-drawer-item" href="#sponsors" onclick="showPage('sponsors');return false;">Sponsors</a>
@@ -176,6 +178,17 @@
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
 
+
+<div id="page-power-rankings" class="page">
+  <div class="section">
+    <p class="section-sub" id="pr-section-sub">Spring 2026</p>
+    <h2 class="section-title">Power Rankings</h2>
+    <div class="section-line"></div>
+    <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="pr-week-select" onchange="renderPowerRankings(parseInt(this.value))"></select></div>
+    <div id="pr-content" style="margin-top:1.5rem;"><div class="loading">Loading...</div></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
 
 <div id="page-media" class="page">
   <div class="section">

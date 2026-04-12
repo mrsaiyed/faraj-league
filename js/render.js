@@ -20,10 +20,11 @@ function getWeeksPlayed() { return new Set(config.DB.scores.filter(g => g.s1 !==
 export function calcStandings() {
   return calcStandingsPure(config.DB.teams, config.DB.scores);
 }
-function buildWeekDropdown(elId, includeAll) {
+function buildWeekDropdown(elId, includeAll, maxWeek) {
+  const max = maxWeek != null ? maxWeek : config.TOTAL_WEEKS;
   const el = document.getElementById(elId); if (!el) return; el.innerHTML = '';
   if (includeAll) el.innerHTML += `<option value="all">All Weeks</option>`;
-  for (let w = 1; w <= config.TOTAL_WEEKS; w++) el.innerHTML += `<option value="${w}">Week ${w}${w === config.CURRENT_WEEK ? ' (Current)' : ''}</option>`;
+  for (let w = 1; w <= max; w++) el.innerHTML += `<option value="${w}">Week ${w}${w === config.CURRENT_WEEK ? ' (Current)' : ''}</option>`;
 }
 
 function buildScheduleTeamFilter() {
@@ -159,6 +160,17 @@ export function renderAll(adminMode = false) {
   const schedFocusWeek = (!schedWeekVal || schedWeekVal === 'all') ? 'all' : parseInt(schedWeekVal, 10);
   renderSchedule(schedFocusWeek, teamFilterVal || null);
   renderMedia(config.CURRENT_WEEK);
+  // Power rankings: only current + past weeks in dropdown
+  const prevPrWeekVal = document.getElementById('pr-week-select')?.value;
+  buildWeekDropdown('pr-week-select', false, config.CURRENT_WEEK);
+  const prSel = document.getElementById('pr-week-select');
+  if (prSel) {
+    const restoredPr = prevPrWeekVal && parseInt(prevPrWeekVal) >= 1 && parseInt(prevPrWeekVal) <= config.CURRENT_WEEK
+      ? prevPrWeekVal : String(config.CURRENT_WEEK);
+    prSel.value = restoredPr;
+  }
+  renderPowerRankings(parseInt(prSel?.value || config.CURRENT_WEEK));
+  set('pr-section-sub', config.currentSeasonLabel);
   renderAbout();
   renderDraft(adminMode);
 }
@@ -662,6 +674,32 @@ export function renderAwards(week) {
   if (saChamp) saChamp.textContent = sa.champ || `${config.currentSeasonLabel} — In Progress`;
   if (saMvp) saMvp.textContent = sa.mvp || 'Season in progress';
   if (saScoring) saScoring.textContent = sa.scoring || 'Season in progress';
+}
+
+export function renderPowerRankings(week) {
+  const el = document.getElementById('pr-content');
+  if (!el) return;
+  const w = parseInt(week, 10);
+  let weekData = [];
+  try {
+    const raw = config.DB.contentBlocks?.power_rankings_data;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      weekData = parsed[String(w)] || parsed[w] || [];
+    }
+  } catch (_) {}
+  const teamMap = {};
+  (config.DB.teams || []).forEach(t => { teamMap[t.id] = t.name; });
+  if (!weekData.length) {
+    el.innerHTML = `<div style="color:#8a8580;font-style:italic;padding:1.5rem 0;">No rankings for this week yet.</div>`;
+    return;
+  }
+  el.innerHTML = weekData.map((entry, i) => `
+    <div class="pr-row">
+      <div class="pr-rank">#${i + 1}</div>
+      <div class="pr-team-name">${escapeHtmlAttr(teamMap[entry.teamId] || entry.teamId || '—')}</div>
+      <div class="pr-note">${escapeHtmlAttr(entry.note || '')}</div>
+    </div>`).join('');
 }
 
 const BASELINE_SLOTS = [

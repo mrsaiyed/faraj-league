@@ -12,6 +12,7 @@ import {
   renderScores,
   renderAwards,
   renderMedia,
+  renderPowerRankings,
   renderDraft,
   toggleAcc,
   closeRoster,
@@ -133,6 +134,17 @@ async function adminShowPage(id) {
     const sel = document.getElementById('awards-week-select');
     const week = sel ? (parseInt(sel.value, 10) || config.CURRENT_WEEK) : config.CURRENT_WEEK;
     if (typeof window.renderAwards === 'function') window.renderAwards(week);
+  }
+  if (id === 'power-rankings') {
+    const prSel = document.getElementById('pr-week-select');
+    const week = prSel ? (parseInt(prSel.value, 10) || config.CURRENT_WEEK) : config.CURRENT_WEEK;
+    if (typeof window.renderPowerRankings === 'function') window.renderPowerRankings(week);
+    const content = document.getElementById('pr-admin-content');
+    if (content) {
+      import('./sections.js').then(async ({ renderAdminPowerRankings }) => {
+        await renderAdminPowerRankings(content, { adminFetch });
+      });
+    }
   }
   if (id === 'players') {
     const content = document.getElementById('players-content');
@@ -779,6 +791,8 @@ async function setupDashboard() {
       })
     );
   };
+  const baseRenderPowerRankings = renderPowerRankings;
+  window.renderPowerRankings = (week) => { baseRenderPowerRankings(week); };
   window.goToTeam = (id) => { adminShowPage('teams'); setTimeout(() => toggleRoster(id), 80); };
 
   const ok = await loadAdminSeason(defaultSlug || 'spring2026');
