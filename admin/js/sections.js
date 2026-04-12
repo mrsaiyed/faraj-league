@@ -2989,19 +2989,61 @@ export async function renderAdminPowerRankings(content, ctx) {
 
   const inits = (name) => (name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+  const fmtBtnStyle = 'padding:0.1rem 0.38rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.25);color:#c8c0b0;border-radius:3px;cursor:pointer;font-size:0.78rem;line-height:1.5;';
+
   function buildRow(teamId, note, rank) {
     const team = teams.find(t => t.id === teamId);
     if (!team) return null;
     const li = document.createElement('li');
     li.dataset.teamId = teamId;
     li.draggable = true;
-    li.style.cssText = 'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.6rem;margin-bottom:0.45rem;background:rgba(255,255,255,0.03);border:1px solid rgba(200,168,75,0.12);border-radius:6px;user-select:none;';
-    li.innerHTML = `
-      <span class="pr-drag-handle" style="color:#4a5a6a;font-size:1.15rem;cursor:grab;padding:0 0.15rem;flex-shrink:0;" title="Drag to reorder">⠿</span>
-      <div style="color:#c8a84b;font-family:'Cinzel',serif;font-size:0.82rem;font-weight:700;min-width:1.6rem;text-align:right;flex-shrink:0;">#${rank}</div>
+    li.style.cssText = 'display:flex;align-items:flex-start;gap:0.7rem;padding:0.55rem 0.6rem;margin-bottom:0.45rem;background:rgba(255,255,255,0.03);border:1px solid rgba(200,168,75,0.12);border-radius:6px;user-select:none;';
+
+    const staticHtml = `
+      <span class="pr-drag-handle" style="color:#4a5a6a;font-size:1.15rem;cursor:grab;padding:0 0.15rem;flex-shrink:0;margin-top:0.3rem;" title="Drag to reorder">⠿</span>
+      <div style="color:#c8a84b;font-family:'Cinzel',serif;font-size:0.82rem;font-weight:700;min-width:1.6rem;text-align:right;flex-shrink:0;margin-top:0.3rem;">#${rank}</div>
       <div style="width:34px;height:34px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;color:#c8a84b;flex-shrink:0;">${inits(team.name)}</div>
-      <span style="min-width:7rem;color:#f5f0e8;font-size:0.88rem;font-weight:600;flex-shrink:0;">${team.name}</span>
-      <input type="text" class="pr-note-input" value="${note.replace(/"/g, '&quot;')}" placeholder="Note..." style="flex:1;min-width:0;padding:0.32rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#f5f0e8;border-radius:4px;font-size:0.83rem;">`;
+      <span style="min-width:7rem;color:#f5f0e8;font-size:0.88rem;font-weight:600;flex-shrink:0;margin-top:0.3rem;">${team.name}</span>`;
+    li.innerHTML = staticHtml;
+
+    // Note editor: toolbar + contenteditable
+    const noteWrap = document.createElement('div');
+    noteWrap.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:0.25rem;';
+
+    const toolbar = document.createElement('div');
+    toolbar.style.cssText = 'display:flex;gap:0.25rem;';
+    [['<b>B</b>', 'bold', 'font-weight:700;font-family:serif;'],
+     ['<i>I</i>', 'italic', 'font-style:italic;font-family:serif;'],
+     ['<u>U</u>', 'underline', 'text-decoration:underline;']].forEach(([label, cmd, extra]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = label;
+      b.title = cmd.charAt(0).toUpperCase() + cmd.slice(1);
+      b.style.cssText = fmtBtnStyle + extra;
+      b.addEventListener('mousedown', e => {
+        e.preventDefault();
+        editor.focus();
+        document.execCommand(cmd, false, null);
+      });
+      toolbar.appendChild(b);
+    });
+
+    const editor = document.createElement('div');
+    editor.className = 'pr-note-input';
+    editor.contentEditable = 'true';
+    editor.innerHTML = note;
+    editor.style.cssText = 'padding:0.32rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#f5f0e8;border-radius:4px;font-size:0.83rem;min-height:2rem;outline:none;white-space:pre-wrap;';
+    editor.dataset.placeholder = 'Note...';
+
+    // Stop drag when user interacts with the editor area
+    [editor, toolbar].forEach(el => {
+      el.addEventListener('mousedown', e => e.stopPropagation());
+    });
+    editor.addEventListener('dragstart', e => e.stopPropagation());
+
+    noteWrap.appendChild(toolbar);
+    noteWrap.appendChild(editor);
+    li.appendChild(noteWrap);
     return li;
   }
 
@@ -3035,7 +3077,7 @@ export async function renderAdminPowerRankings(content, ctx) {
   let dragging = null;
 
   list.addEventListener('dragstart', e => {
-    if (e.target.tagName === 'INPUT') { e.preventDefault(); return; }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('[contenteditable]')) { e.preventDefault(); return; }
     dragging = e.target.closest('li');
     if (!dragging) return;
     setTimeout(() => { if (dragging) dragging.style.opacity = '0.35'; }, 0);
@@ -3069,7 +3111,7 @@ export async function renderAdminPowerRankings(content, ctx) {
     const week = parseInt(document.getElementById('pr-admin-week-select').value);
     const weekArr = [...list.querySelectorAll('li')].map(li => ({
       teamId: li.dataset.teamId,
-      note: li.querySelector('.pr-note-input').value.trim(),
+      note: (li.querySelector('.pr-note-input')?.innerHTML || '').trim(),
     }));
     allData[String(week)] = weekArr;
 

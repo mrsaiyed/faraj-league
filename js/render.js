@@ -707,7 +707,7 @@ export function renderPowerRankings(week) {
     const logoInner = logoUrl
       ? `<img src="${logoUrl}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
       : initials(name);
-    const noteHtml = entry.note ? `<div class="pr-note">${escapeHtmlAttr(entry.note)}</div>` : '';
+    const noteHtml = entry.note ? `<div class="pr-note">${entry.note}</div>` : '';
     return `<div class="pr-row">
       <div class="pr-rank">#${i + 1}</div>
       <div class="pr-logo">${logoInner}</div>
