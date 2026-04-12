@@ -156,7 +156,7 @@ async function loadAll() {
 
   populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
-  const initialPage = location.hash.slice(1).replace(/[^a-z]/g, '') || 'home';
+  const initialPage = location.hash.slice(1).replace(/[^a-z-]/g, '') || 'home';
   showPage(initialPage, true);
 }
 
