@@ -2983,28 +2983,83 @@ export async function renderAdminPowerRankings(content, ctx) {
       <label style="color:#c8c0b0;font-size:0.85rem;margin-right:0.5rem;">Editing Week</label>
       <select id="pr-admin-week-select" style="background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;padding:0.4rem 0.6rem;border-radius:4px;">${weekOpts}</select>
     </div>
-    <p style="font-size:0.8rem;color:#8a8580;margin-bottom:0.75rem;">Set rank 1–${teams.length} for each team. Leave rank blank or 0 to exclude a team from this week's rankings.</p>
-    <div id="pr-admin-rows"></div>
-    <button id="pr-admin-save" style="margin-top:1rem;padding:0.5rem 1.2rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:600;cursor:pointer;">Save Rankings</button>`;
+    <p style="font-size:0.78rem;color:#8a8580;margin-bottom:0.9rem;">Drag rows to reorder. Note boxes are optional.</p>
+    <ul id="pr-drag-list" style="list-style:none;padding:0;margin:0 0 1rem;"></ul>
+    <button id="pr-admin-save" style="padding:0.5rem 1.4rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:0.9rem;">Save Rankings</button>`;
+
+  const inits = (name) => (name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  function buildRow(teamId, note, rank) {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return null;
+    const li = document.createElement('li');
+    li.dataset.teamId = teamId;
+    li.draggable = true;
+    li.style.cssText = 'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.6rem;margin-bottom:0.45rem;background:rgba(255,255,255,0.03);border:1px solid rgba(200,168,75,0.12);border-radius:6px;user-select:none;';
+    li.innerHTML = `
+      <span class="pr-drag-handle" style="color:#4a5a6a;font-size:1.15rem;cursor:grab;padding:0 0.15rem;flex-shrink:0;" title="Drag to reorder">⠿</span>
+      <div style="color:#c8a84b;font-family:'Cinzel',serif;font-size:0.82rem;font-weight:700;min-width:1.6rem;text-align:right;flex-shrink:0;">#${rank}</div>
+      <div style="width:34px;height:34px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;color:#c8a84b;flex-shrink:0;">${inits(team.name)}</div>
+      <span style="min-width:7rem;color:#f5f0e8;font-size:0.88rem;font-weight:600;flex-shrink:0;">${team.name}</span>
+      <input type="text" class="pr-note-input" value="${note.replace(/"/g, '&quot;')}" placeholder="Note..." style="flex:1;min-width:0;padding:0.32rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#f5f0e8;border-radius:4px;font-size:0.83rem;">`;
+    return li;
+  }
+
+  function refreshRankNumbers() {
+    const list = document.getElementById('pr-drag-list');
+    if (!list) return;
+    [...list.children].forEach((li, i) => {
+      const rankEl = li.querySelector('div[style*="Cinzel"]');
+      if (rankEl) rankEl.textContent = '#' + (i + 1);
+    });
+  }
 
   function loadWeek(w) {
+    const list = document.getElementById('pr-drag-list');
+    list.innerHTML = '';
     const weekData = allData[String(w)] || [];
-    const ranked = {};
-    weekData.forEach((entry, i) => { ranked[entry.teamId] = { rank: i + 1, note: entry.note || '' }; });
-
-    const rows = teams.map(t => {
-      const r = ranked[t.id] || { rank: 0, note: '' };
-      const rankVal = r.rank > 0 ? r.rank : '';
-      return `<div class="pr-admin-row" data-team-id="${t.id}" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">
-        <input type="number" class="pr-rank-input" value="${rankVal}" min="1" max="${teams.length}" style="width:52px;padding:0.35rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px;text-align:center;" placeholder="—">
-        <span style="min-width:9rem;color:#f5f0e8;font-size:0.9rem;font-weight:600;">${t.name}</span>
-        <input type="text" class="pr-note-input" value="${r.note}" placeholder="Note (optional)" style="flex:1;padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;border-radius:4px;">
-      </div>`;
-    }).join('');
-    document.getElementById('pr-admin-rows').innerHTML = rows || '<p style="color:#8a8580;">No teams found.</p>';
+    const noteMap = {};
+    const orderedIds = weekData.map(e => { noteMap[e.teamId] = e.note || ''; return e.teamId; });
+    // Append any teams not yet ranked to the bottom
+    const unranked = teams.map(t => t.id).filter(id => !orderedIds.includes(id));
+    [...orderedIds, ...unranked].forEach((teamId, i) => {
+      const li = buildRow(teamId, noteMap[teamId] || '', i + 1);
+      if (li) list.appendChild(li);
+    });
   }
 
   loadWeek(currentWeek);
+
+  // Drag-and-drop — attach once to the container
+  const list = document.getElementById('pr-drag-list');
+  let dragging = null;
+
+  list.addEventListener('dragstart', e => {
+    if (e.target.tagName === 'INPUT') { e.preventDefault(); return; }
+    dragging = e.target.closest('li');
+    if (!dragging) return;
+    setTimeout(() => { if (dragging) dragging.style.opacity = '0.35'; }, 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragend', () => {
+    if (dragging) dragging.style.opacity = '';
+    dragging = null;
+    refreshRankNumbers();
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const over = e.target.closest('li');
+    if (!over || over === dragging) return;
+    const rect = over.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      list.insertBefore(dragging, over);
+    } else {
+      list.insertBefore(dragging, over.nextSibling);
+    }
+  });
 
   document.getElementById('pr-admin-week-select').onchange = function () {
     loadWeek(parseInt(this.value));
@@ -3012,16 +3067,11 @@ export async function renderAdminPowerRankings(content, ctx) {
 
   document.getElementById('pr-admin-save').onclick = async () => {
     const week = parseInt(document.getElementById('pr-admin-week-select').value);
-    const rows = document.querySelectorAll('#pr-admin-rows .pr-admin-row');
-    const entries = [];
-    rows.forEach(row => {
-      const rank = parseInt(row.querySelector('.pr-rank-input').value) || 0;
-      if (rank < 1) return;
-      const note = row.querySelector('.pr-note-input').value.trim();
-      entries.push({ rank, teamId: row.dataset.teamId, note });
-    });
-    entries.sort((a, b) => a.rank - b.rank);
-    allData[String(week)] = entries.map(e => ({ teamId: e.teamId, note: e.note }));
+    const weekArr = [...list.querySelectorAll('li')].map(li => ({
+      teamId: li.dataset.teamId,
+      note: li.querySelector('.pr-note-input').value.trim(),
+    }));
+    allData[String(week)] = weekArr;
 
     const msg = document.getElementById('pr-admin-msg');
     try {
@@ -3031,7 +3081,6 @@ export async function renderAdminPowerRankings(content, ctx) {
       });
       if (!config.DB.contentBlocks) config.DB.contentBlocks = {};
       config.DB.contentBlocks.power_rankings_data = JSON.stringify(allData);
-      // Refresh the public read-only view above the editor
       const prSel = document.getElementById('pr-week-select');
       if (typeof window.renderPowerRankings === 'function') {
         window.renderPowerRankings(prSel ? parseInt(prSel.value) || week : week);
