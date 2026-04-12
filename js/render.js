@@ -210,8 +210,7 @@ export function renderHome() {
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
   if (homeAwards) homeAwards.innerHTML = `
-    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
-    ${games.map((g, i) => `<div class="award-card home-award-link"><div class="award-label">${motmLabel(g.game || i + 1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm' + (g.game || i + 1)] || pending()}</div></div>`).join('')}`;
+    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>`;
 }
 
 export function renderStandings() {
@@ -664,10 +663,7 @@ export function renderAwards(week) {
   const games = config.DB.scores.filter(g => Number(g.week) === w);
   const g1 = games[0] || { t1: 'TBD', t2: 'TBD' }, g2 = games[1] || { t1: 'TBD', t2: 'TBD' }, g3 = games[2] || { t1: 'TBD', t2: 'TBD' };
   awardsGrid.innerHTML = `
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>
-    <div class="award-card"><div class="award-label">${motmLabel(1)}</div><div class="award-game">${g1.t1} vs ${g1.t2}</div><div class="award-winner" id="award-winner-motm1" data-field="motm1">${wa.motm1 || pending()}</div></div>
-    <div class="award-card"><div class="award-label">${motmLabel(2)}</div><div class="award-game">${g2.t1} vs ${g2.t2}</div><div class="award-winner" id="award-winner-motm2" data-field="motm2">${wa.motm2 || pending()}</div></div>
-    <div class="award-card"><div class="award-label">${motmLabel(3)}</div><div class="award-game">${g3.t1} vs ${g3.t2}</div><div class="award-winner" id="award-winner-motm3" data-field="motm3">${wa.motm3 || pending()}</div></div>`;
+    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>`;
   const sa = config.DB.awards.find(a => a.champ) || {};
   const saChamp = document.getElementById('sa-champ');
   const saMvp = document.getElementById('sa-mvp');
