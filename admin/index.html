@@ -40,6 +40,13 @@
 .msg { padding:0.5rem;border-radius:4px;margin:0.5rem 0;font-size:0.85rem; }
 .msg.success { background:rgba(40,160,80,0.3);color:#4ade80; }
 .msg.error { background:rgba(200,60,60,0.3);color:#f87171; }
+/* Admin mobile nav: scrollable tab strip instead of hidden */
+@media(max-width:768px){
+  .nav-tabs{display:flex!important;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-wrap:nowrap;padding:0;}
+  .nav-tabs::-webkit-scrollbar{display:none;}
+  .nav-hamburger{display:none!important;}
+  .nav-season-select{display:block!important;}
+}
 </style>
 </head>
 <body>
