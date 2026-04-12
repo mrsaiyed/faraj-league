@@ -117,6 +117,8 @@ async function changeSeason(val) {
 
 async function loadAll() {
   clearError();
+  const initialPage = location.hash.slice(1).replace(/[^a-z-]/g, '') || 'home';
+  showPage(initialPage, true);
   const seasonsRes = await fetchSeasons();
   if (seasonsRes.error) {
     console.warn('fetchSeasons failed', seasonsRes.error);
@@ -156,8 +158,6 @@ async function loadAll() {
 
   populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
-  const initialPage = location.hash.slice(1).replace(/[^a-z-]/g, '') || 'home';
-  showPage(initialPage, true);
 }
 
 window.showPage = showPage;
