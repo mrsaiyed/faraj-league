@@ -700,11 +700,17 @@ export function renderPowerRankings(week) {
   const rows = weekData.map((entry, i) => {
     const team = teamMap[entry.teamId];
     const name = team?.name || '—';
-    const inits = name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+    const teamKey = teamLogoKey(name);
+    const logoUrl = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
+    const s = logoUrl ? (LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE) : null;
+    const scaleVal = s != null ? (Array.isArray(s) ? `${s[0]}, ${s[1]}` : s) : null;
+    const logoInner = logoUrl
+      ? `<img src="${logoUrl}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
+      : initials(name);
     const noteHtml = entry.note ? `<div class="pr-note">${escapeHtmlAttr(entry.note)}</div>` : '';
     return `<div class="pr-row">
       <div class="pr-rank">#${i + 1}</div>
-      <div class="pr-logo">${inits}</div>
+      <div class="pr-logo">${logoInner}</div>
       <div class="pr-info"><div class="pr-team-name">${escapeHtmlAttr(name)}</div>${noteHtml}</div>
     </div>`;
   }).join('');

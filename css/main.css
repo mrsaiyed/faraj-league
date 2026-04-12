@@ -218,7 +218,7 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .pr-list{display:flex;flex-direction:column;gap:0.5rem;}
 .pr-row{display:flex;align-items:center;gap:1rem;background:#0e2535;border:1px solid rgba(200,168,75,0.15);border-radius:6px;padding:0.85rem 1rem;}
 .pr-rank{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:#c8a84b;min-width:2.8rem;text-align:center;flex-shrink:0;}
-.pr-logo{width:52px;height:52px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#c8a84b;flex-shrink:0;}
+.pr-logo{width:52px;height:52px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#c8a84b;flex-shrink:0;position:relative;overflow:hidden;}
 .pr-info{flex:1;min-width:0;}
 .pr-team-name{font-size:1rem;font-weight:700;color:#f5f0e8;line-height:1.2;}
 .pr-note{font-size:0.82rem;color:#8a9ab0;margin-top:0.25rem;line-height:1.4;}
