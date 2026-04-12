@@ -213,6 +213,15 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
   .mc-vs{font-size:0.72rem;}
   .mc-score{font-size:1rem;}
 }
+/* Power rankings */
+.pr-week-label{font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.85rem;}
+.pr-list{display:flex;flex-direction:column;gap:0.5rem;}
+.pr-row{display:flex;align-items:center;gap:1rem;background:#0e2535;border:1px solid rgba(200,168,75,0.15);border-radius:6px;padding:0.85rem 1rem;}
+.pr-rank{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:#c8a84b;min-width:2.8rem;text-align:center;flex-shrink:0;}
+.pr-logo{width:52px;height:52px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#c8a84b;flex-shrink:0;}
+.pr-info{flex:1;min-width:0;}
+.pr-team-name{font-size:1rem;font-weight:700;color:#f5f0e8;line-height:1.2;}
+.pr-note{font-size:0.82rem;color:#8a9ab0;margin-top:0.25rem;line-height:1.4;}
 .home-awards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.1rem;margin-top:1.4rem;}
 .award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.1rem;}
 .award-label{font-size:0.78rem;letter-spacing:0.15em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.25rem;}

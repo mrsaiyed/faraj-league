@@ -689,17 +689,25 @@ export function renderPowerRankings(week) {
     }
   } catch (_) {}
   const teamMap = {};
-  (config.DB.teams || []).forEach(t => { teamMap[t.id] = t.name; });
+  (config.DB.teams || []).forEach(t => { teamMap[t.id] = t; });
+  const isCurrent = w === config.CURRENT_WEEK;
+  const weekLabel = `Week ${w}${isCurrent ? ' · Current' : ''}`;
   if (!weekData.length) {
-    el.innerHTML = `<div style="color:#8a8580;font-style:italic;padding:1.5rem 0;">No rankings for this week yet.</div>`;
+    el.innerHTML = `<div class="pr-week-label">${weekLabel}</div><div style="color:#8a8580;font-style:italic;padding:1rem 0;">No rankings for this week yet.</div>`;
     return;
   }
-  el.innerHTML = weekData.map((entry, i) => `
-    <div class="pr-row">
+  const rows = weekData.map((entry, i) => {
+    const team = teamMap[entry.teamId];
+    const name = team?.name || '—';
+    const inits = name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+    const noteHtml = entry.note ? `<div class="pr-note">${escapeHtmlAttr(entry.note)}</div>` : '';
+    return `<div class="pr-row">
       <div class="pr-rank">#${i + 1}</div>
-      <div class="pr-team-name">${escapeHtmlAttr(teamMap[entry.teamId] || entry.teamId || '—')}</div>
-      <div class="pr-note">${escapeHtmlAttr(entry.note || '')}</div>
-    </div>`).join('');
+      <div class="pr-logo">${inits}</div>
+      <div class="pr-info"><div class="pr-team-name">${escapeHtmlAttr(name)}</div>${noteHtml}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="pr-week-label">${weekLabel}</div><div class="pr-list">${rows}</div>`;
 }
 
 const BASELINE_SLOTS = [
