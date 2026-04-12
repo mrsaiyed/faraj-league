@@ -165,11 +165,12 @@ export function renderAll(adminMode = false) {
   buildWeekDropdown('pr-week-select', false, config.CURRENT_WEEK);
   const prSel = document.getElementById('pr-week-select');
   if (prSel) {
+    const defaultPrWeek = Math.max(1, config.CURRENT_WEEK - 1);
     const restoredPr = prevPrWeekVal && parseInt(prevPrWeekVal) >= 1 && parseInt(prevPrWeekVal) <= config.CURRENT_WEEK
-      ? prevPrWeekVal : String(config.CURRENT_WEEK);
+      ? prevPrWeekVal : String(defaultPrWeek);
     prSel.value = restoredPr;
   }
-  renderPowerRankings(parseInt(prSel?.value || config.CURRENT_WEEK));
+  renderPowerRankings(parseInt(prSel?.value || Math.max(1, config.CURRENT_WEEK - 1)));
   set('pr-section-sub', config.currentSeasonLabel);
   renderAbout();
   renderDraft(adminMode);
@@ -690,8 +691,8 @@ export function renderPowerRankings(week) {
   } catch (_) {}
   const teamMap = {};
   (config.DB.teams || []).forEach(t => { teamMap[t.id] = t; });
-  const isCurrent = w === config.CURRENT_WEEK;
-  const weekLabel = `Week ${w}${isCurrent ? ' · Current' : ''}`;
+  const isLatest = w === Math.max(1, config.CURRENT_WEEK - 1);
+  const weekLabel = `Week ${w}${isLatest ? ' · Latest' : ''}`;
   if (!weekData.length) {
     el.innerHTML = `<div class="pr-week-label">${weekLabel}</div><div style="color:#8a8580;font-style:italic;padding:1rem 0;">No rankings for this week yet.</div>`;
     return;
