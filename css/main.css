@@ -167,7 +167,7 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .mc-score{font-family:'Cinzel',serif;font-size:1.2rem;color:#c8c0b0;}
 .mc-score.winner{color:#c8a84b;font-weight:700;}
 .mc-dash{font-family:'Cinzel',serif;font-size:0.9rem;color:#4a5a6a;margin:0 0.1rem;}
-.mc-winner-tag{font-size:0.9rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2fa89a;text-align:center;padding:0.1rem 0 0.25rem;}
+.mc-winner-tag{font-size:0.9rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2fa89a;text-align:center;padding:0 0.7rem 0.55rem;}
 /* Box score — clean, minimal stat-sheet feel */
 .box-score-wrap{margin-top:0.75rem;overflow-x:auto;}
 .box-score-game-score{font-family:'Cinzel',serif;font-size:1.35rem;font-weight:600;letter-spacing:0.08em;color:#c8a84b;margin-bottom:1.25rem;text-align:center;}

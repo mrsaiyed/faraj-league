@@ -335,8 +335,8 @@ function buildMatchupCard(g, gameId) {
     ? `<button type="button" class="schedule-expand-btn mc-box-btn" data-game-id="${gameId}">View box score</button>`
     : '';
 
-  const boxRow = (winnerLine || viewBoxBtn)
-    ? `<div class="mc-box-row">${winnerLine}${viewBoxBtn}</div>`
+  const boxRow = viewBoxBtn
+    ? `<div class="mc-box-row">${viewBoxBtn}</div>`
     : '';
 
   // Away (t2): logo outer-left, name right of logo toward center
@@ -348,6 +348,7 @@ function buildMatchupCard(g, gameId) {
       ${mid}
       <div class="mc-home"><span class="mc-team-name mc-home-name">${escapeHtmlAttr(g.t1)}</span>${teamLogoHtml(g.t1, 'home')}</div>
     </div>
+    ${winnerLine}
     ${boxRow}
   </div>`;
 }
