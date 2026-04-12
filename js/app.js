@@ -47,7 +47,7 @@ function showPage(id, skipPush = false) {
   if (!pageEl) { showPage('home', skipPush); return; }
   pageEl.classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(b => {
-    if (b.textContent.toLowerCase().trim() === id.toLowerCase()) b.classList.add('active');
+    if (b.getAttribute('href') === '#' + id) b.classList.add('active');
   });
   window.scrollTo(0, 0);
   if (!skipPush) history.pushState({ page: id }, '', '#' + id);
