@@ -656,12 +656,14 @@ export function renderStats() {
   const rows = teamFilter ? allRows.filter(r => r.team === teamFilter) : allRows;
   const pointsDef = defs.find(d => d.slug === 'points');
   const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
+  const standings = calcStandings();
+  const teamRec = name => { const s = standings[name]; return s ? ` (${s.w}-${s.l})` : ''; };
   if (leadersWrap) {
     const ranked = rows.filter(r => r.gp > 0)
       .map(r => ({ ...r, ppg: calcPpg(r) }))
       .sort((a, b) => b.ppg - a.ppg)
       .slice(0, 3);
-    leadersWrap.innerHTML = ranked.map((r, i) => `<div class="stat-leader-card"><div class="slc-rank">#${i + 1}</div><div class="slc-name">${escapeHtmlAttr(r.name)}</div><div class="slc-team">${escapeHtmlAttr(r.team)}</div><div class="slc-ppg">${r.ppg.toFixed(1)} PPG</div><div class="slc-sub">${pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total} total pts</div></div>`).join('');
+    leadersWrap.innerHTML = ranked.map((r, i) => `<div class="stat-leader-card"><div class="slc-rank">#${i + 1}</div><div class="slc-name">${escapeHtmlAttr(r.name)}</div><div class="slc-team">${escapeHtmlAttr(r.team)}${escapeHtmlAttr(teamRec(r.team))}</div><div class="slc-ppg">${r.ppg.toFixed(1)} PPG</div><div class="slc-sub">${pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total} total pts</div></div>`).join('');
   }
   const theadCells = `<th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">GP</th>${defs.map(d => `<th style="padding:0.75rem 1rem;">${escapeHtmlAttr(d.name)}</th>`).join('')}<th style="padding:0.75rem 1rem;">PPG</th>`;
   const noData = `<tr><td colspan="${3 + defs.length + 1}" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`;
@@ -671,7 +673,7 @@ export function renderStats() {
       const val = r.statValues?.[d.id] ?? 0;
       return `<td style="padding:0.7rem 1rem${d.slug === 'points' ? ';color:#c8a84b' : ''}">${val > 0 ? val : '—'}</td>`;
     }).join('');
-    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem"><div style="font-size:1.38rem;color:#f5f0e8;font-family:'Cinzel',serif">${escapeHtmlAttr(r.name)}</div><div style="font-size:0.78rem;color:#2fa89a;letter-spacing:0.05em;margin-top:0.1rem">${escapeHtmlAttr(r.team)}</div></td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}<td style="padding:0.7rem 1rem;color:#2fa89a">${ppg > 0 ? ppg.toFixed(1) : '—'}</td></tr>`;
+    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem"><div style="font-size:1.05rem;color:#f5f0e8;font-family:'Cinzel',serif">${escapeHtmlAttr(r.name)}</div><div style="font-size:0.78rem;color:#2fa89a;letter-spacing:0.05em;margin-top:0.1rem">${escapeHtmlAttr(r.team)}${escapeHtmlAttr(teamRec(r.team))}</div></td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}<td style="padding:0.7rem 1rem;color:#2fa89a">${ppg > 0 ? ppg.toFixed(1) : '—'}</td></tr>`;
   }).join('');
   wrap.innerHTML = `<table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);">${theadCells}</tr></thead><tbody>${rows.length ? tbodyRows : noData}</tbody></table>`;
 }
