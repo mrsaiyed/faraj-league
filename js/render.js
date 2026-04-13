@@ -671,7 +671,7 @@ export function renderStats() {
       const val = r.statValues?.[d.id] ?? 0;
       return `<td style="padding:0.7rem 1rem${d.slug === 'points' ? ';color:#c8a84b' : ''}">${val > 0 ? val : '—'}</td>`;
     }).join('');
-    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem"><div style="font-size:1.38rem;color:#f5f0e8;font-family:'Cinzel',serif">${escapeHtmlAttr(r.name)}</div><div style="font-size:0.78rem;color:#2fa89a;letter-spacing:0.05em;margin-top:0.1rem">${escapeHtmlAttr(r.team)}</div></td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}<td style="padding:0.7rem 1rem;color:#2fa89a">${ppg > 0 ? ppg.toFixed(1) : '—'}</td></tr>`;
+    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem"><div style="font-size:1.05rem;color:#f5f0e8;font-family:'Cinzel',serif">${escapeHtmlAttr(r.name)}</div><div style="font-size:0.78rem;color:#2fa89a;letter-spacing:0.05em;margin-top:0.1rem">${escapeHtmlAttr(r.team)}</div></td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}<td style="padding:0.7rem 1rem;color:#2fa89a">${ppg > 0 ? ppg.toFixed(1) : '—'}</td></tr>`;
   }).join('');
   wrap.innerHTML = `<table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);">${theadCells}</tr></thead><tbody>${rows.length ? tbodyRows : noData}</tbody></table>`;
 }
