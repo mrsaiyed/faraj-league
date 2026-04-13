@@ -653,8 +653,8 @@ export function renderStats(teamFilter) {
   if (filterWrap) {
     const teams = [...new Set(allRows.map(r => r.team).filter(Boolean))].sort();
     const rec = teamFilter ? standings[teamFilter] : null;
-    const recLine = rec ? `<div style="text-align:center;color:#c8a84b;font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.06em;margin-top:0.5rem;">${escapeHtmlAttr(teamFilter)} &middot; ${rec.w}-${rec.l}</div>` : '';
-    filterWrap.innerHTML = `<div class="week-dropdown-wrap"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select></div>${recLine}`;
+    const recSpan = rec ? `<span style="flex:1;text-align:center;color:#c8a84b;font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.06em;">${escapeHtmlAttr(teamFilter)} &middot; ${rec.w}-${rec.l}</span>` : '';
+    filterWrap.innerHTML = `<div class="week-dropdown-wrap"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select>${recSpan}</div>`;
     // Explicitly sync select value after innerHTML replacement to guarantee correct state
     const sel = document.getElementById('stats-team-filter');
     if (sel) sel.value = teamFilter;
