@@ -210,7 +210,8 @@ export function renderHome() {
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
   if (homeAwards) homeAwards.innerHTML = `
-    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>`;
+    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>
+    ${games.map((g, i) => `<div class="award-card home-award-link"><div class="award-label">${motmLabel(g.game || i + 1)}</div><div class="award-game">${g.t1} vs ${g.t2}</div><div class="award-winner">${wa['motm' + (g.game || i + 1)] || pending()}</div></div>`).join('')}`;
 }
 
 export function renderStandings() {
@@ -630,54 +631,29 @@ export function closeRoster() {
   }
 }
 
-export function renderStats(teamFilter) {
+export function renderStats() {
   const wrap = document.getElementById('stats-table-wrap');
-  const leadersWrap = document.getElementById('stats-leaders-wrap');
-  const filterWrap = document.getElementById('stats-filter-wrap');
   if (!wrap) return;
-  if (teamFilter === undefined) teamFilter = document.getElementById('stats-team-filter')?.value || '';
   const defs = config.DB.statDefinitions || [];
+  const rows = (config.DB.stats || [])
+    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 15);
   const sub = document.getElementById('stats-section-sub');
   if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
-  const allRows = (config.DB.stats || [])
-    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0))
-    .sort((a, b) => b.total - a.total);
+  const colspan = 4 + Math.max(defs.length, 1);
   if (!defs.length) {
-    if (leadersWrap) leadersWrap.innerHTML = '';
-    if (filterWrap) filterWrap.innerHTML = '';
     wrap.innerHTML = `<div style="padding:1.8rem;text-align:center;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stat types defined — add them in the admin Stats tab.</div>`;
     return;
   }
-  const standings = calcStandings();
-  const teamRec = name => { const s = standings[name]; return s ? ` (${s.w}-${s.l})` : ''; };
-  if (filterWrap) {
-    const teams = [...new Set(allRows.map(r => r.team).filter(Boolean))].sort();
-    const rec = teamFilter ? standings[teamFilter] : null;
-    const recSpan = rec ? `<span style="flex:1;text-align:center;color:#c8a84b;font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.06em;">${escapeHtmlAttr(teamFilter)} &middot; ${rec.w}-${rec.l}</span>` : '';
-    filterWrap.innerHTML = `<div class="week-dropdown-wrap"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select>${recSpan}</div>`;
-    // Explicitly sync select value after innerHTML replacement to guarantee correct state
-    const sel = document.getElementById('stats-team-filter');
-    if (sel) sel.value = teamFilter;
-  }
-  const rows = teamFilter ? allRows.filter(r => r.team === teamFilter) : allRows;
-  const pointsDef = defs.find(d => d.slug === 'points');
-  const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
-  if (leadersWrap) {
-    const ranked = rows.filter(r => r.gp > 0)
-      .map(r => ({ ...r, ppg: calcPpg(r) }))
-      .sort((a, b) => b.ppg - a.ppg)
-      .slice(0, 3);
-    leadersWrap.innerHTML = ranked.map((r, i) => `<div class="stat-leader-card"><div class="slc-rank">#${i + 1}</div><div class="slc-name">${escapeHtmlAttr(r.name)}</div><div class="slc-team">${escapeHtmlAttr(r.team)}${teamFilter ? '' : escapeHtmlAttr(teamRec(r.team))}</div><div class="slc-ppg">${r.ppg.toFixed(1)} PPG</div><div class="slc-sub">${pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total} total pts</div></div>`).join('');
-  }
-  const theadCells = `<th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">GP</th>${defs.map(d => `<th style="padding:0.75rem 1rem;">${escapeHtmlAttr(d.name)}</th>`).join('')}<th style="padding:0.75rem 1rem;">PPG</th>`;
-  const noData = `<tr><td colspan="${3 + defs.length + 1}" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`;
+  const theadCells = `<th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">Team</th><th style="padding:0.75rem 1rem;">GP</th>${defs.map(d => `<th style="padding:0.75rem 1rem;">${escapeHtmlAttr(d.name)}</th>`).join('')}`;
+  const noData = `<tr><td colspan="${colspan}" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`;
   const tbodyRows = rows.map((r, i) => {
-    const ppg = calcPpg(r);
     const defCells = defs.map(d => {
       const val = r.statValues?.[d.id] ?? 0;
       return `<td style="padding:0.7rem 1rem${d.slug === 'points' ? ';color:#c8a84b' : ''}">${val > 0 ? val : '—'}</td>`;
     }).join('');
-    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem"><div style="font-size:0.92rem;color:#f5f0e8;font-weight:600">${escapeHtmlAttr(r.name)}</div><div style="font-size:0.78rem;color:#2fa89a;letter-spacing:0.05em;margin-top:0.1rem">${escapeHtmlAttr(r.team)}${teamFilter ? '' : escapeHtmlAttr(teamRec(r.team))}</div></td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}<td style="padding:0.7rem 1rem;color:#2fa89a">${ppg > 0 ? ppg.toFixed(1) : '—'}</td></tr>`;
+    return `<tr><td style="padding:0.7rem 1rem;color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td style="padding:0.7rem 1rem;color:#f5f0e8">${r.name}</td><td style="padding:0.7rem 1rem">${r.team}</td><td style="padding:0.7rem 1rem">${r.gp}</td>${defCells}</tr>`;
   }).join('');
   wrap.innerHTML = `<table class="standings-table" style="width:100%;"><thead><tr style="background:rgba(200,168,75,0.04);">${theadCells}</tr></thead><tbody>${rows.length ? tbodyRows : noData}</tbody></table>`;
 }
@@ -689,7 +665,10 @@ export function renderAwards(week) {
   const games = config.DB.scores.filter(g => Number(g.week) === w);
   const g1 = games[0] || { t1: 'TBD', t2: 'TBD' }, g2 = games[1] || { t1: 'TBD', t2: 'TBD' }, g3 = games[2] || { t1: 'TBD', t2: 'TBD' };
   awardsGrid.innerHTML = `
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>`;
+    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(1)}</div><div class="award-game">${g1.t1} vs ${g1.t2}</div><div class="award-winner" id="award-winner-motm1" data-field="motm1">${wa.motm1 || pending()}</div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(2)}</div><div class="award-game">${g2.t1} vs ${g2.t2}</div><div class="award-winner" id="award-winner-motm2" data-field="motm2">${wa.motm2 || pending()}</div></div>
+    <div class="award-card"><div class="award-label">${motmLabel(3)}</div><div class="award-game">${g3.t1} vs ${g3.t2}</div><div class="award-winner" id="award-winner-motm3" data-field="motm3">${wa.motm3 || pending()}</div></div>`;
   const sa = config.DB.awards.find(a => a.champ) || {};
   const saChamp = document.getElementById('sa-champ');
   const saMvp = document.getElementById('sa-mvp');
