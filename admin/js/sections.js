@@ -1107,9 +1107,9 @@ export function attachAwardsWeeklyOverlays(ctx) {
           season_id: seasonId,
           week: currentWeek,
           akhlaq: field === 'akhlaq' ? (value || null) : (wa.akhlaq ?? null),
-          motm1: field === 'motm1' ? (value || null) : (wa.motm1 ?? null),
-          motm2: field === 'motm2' ? (value || null) : (wa.motm2 ?? null),
-          motm3: field === 'motm3' ? (value || null) : (wa.motm3 ?? null),
+          motm1: null,
+          motm2: null,
+          motm3: null,
           champ: wa.champ ?? null,
           mvp: wa.mvp ?? null,
           scoring: wa.scoring ?? null,
@@ -1117,7 +1117,7 @@ export function attachAwardsWeeklyOverlays(ctx) {
       });
     };
 
-    ['akhlaq', 'motm1', 'motm2', 'motm3'].forEach(field => {
+    ['akhlaq'].forEach(field => {
       const el = document.getElementById('award-winner-' + field);
       if (!el || el.dataset.awardsOverlayAttached) return;
       el.dataset.awardsOverlayAttached = '1';
@@ -2044,9 +2044,6 @@ export async function renderAwards(content, ctx) {
     <form id="awards-form" style="max-width:500px;margin-top:1rem;">
       <h4>Weekly</h4>
       <label style="display:block;margin:0.5rem 0;">Akhlaq: <input type="text" id="awards-akhlaq" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
-      <label style="display:block;margin:0.5rem 0;">MOTM 1: <input type="text" id="awards-motm1" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
-      <label style="display:block;margin:0.5rem 0;">MOTM 2: <input type="text" id="awards-motm2" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
-      <label style="display:block;margin:0.5rem 0;">MOTM 3: <input type="text" id="awards-motm3" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
       <h4 style="margin-top:1rem;">Season</h4>
       <label style="display:block;margin:0.5rem 0;">Champ: <input type="text" id="awards-champ" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
       <label style="display:block;margin:0.5rem 0;">MVP: <input type="text" id="awards-mvp" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
@@ -2057,9 +2054,6 @@ export async function renderAwards(content, ctx) {
   const loadWeek = (w) => {
     const a = weekAwards[w] || {};
     document.getElementById('awards-akhlaq').value = a.akhlaq || '';
-    document.getElementById('awards-motm1').value = a.motm1 || '';
-    document.getElementById('awards-motm2').value = a.motm2 || '';
-    document.getElementById('awards-motm3').value = a.motm3 || '';
     document.getElementById('awards-champ').value = a.champ || '';
     document.getElementById('awards-mvp').value = a.mvp || '';
     document.getElementById('awards-scoring').value = a.scoring || '';
@@ -2077,9 +2071,9 @@ export async function renderAwards(content, ctx) {
           season_id: seasonId,
           week,
           akhlaq: document.getElementById('awards-akhlaq').value,
-          motm1: document.getElementById('awards-motm1').value,
-          motm2: document.getElementById('awards-motm2').value,
-          motm3: document.getElementById('awards-motm3').value,
+          motm1: null,
+          motm2: null,
+          motm3: null,
           champ: document.getElementById('awards-champ').value,
           mvp: document.getElementById('awards-mvp').value,
           scoring: document.getElementById('awards-scoring').value,
@@ -2252,7 +2246,6 @@ export async function renderSponsors(content, ctx) {
           <option value="title">Title</option>
           <option value="conference_mecca">Conference Mecca</option>
           <option value="conference_medina">Conference Medina</option>
-          <option value="motm">MOTM</option>
         </select></label>
         <label style="display:block;margin:0.5rem 0;">Name: <input type="text" id="sponsors-name" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Logo URL: <input type="text" id="sponsors-logo" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
