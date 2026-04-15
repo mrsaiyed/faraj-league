@@ -27,6 +27,18 @@ function buildWeekDropdown(elId, includeAll, maxWeek) {
   for (let w = 1; w <= max; w++) el.innerHTML += `<option value="${w}">Week ${w}${w === config.CURRENT_WEEK ? ' (Current)' : ''}</option>`;
 }
 
+function buildScoresWeekDropdown() {
+  const el = document.getElementById('scores-week-select');
+  if (!el) return;
+  const playedWeeks = [...new Set(
+    (config.DB.scores || []).filter(g => g.s1 !== '' && g.s2 !== '').map(g => g.week)
+  )].sort((a, b) => a - b);
+  el.innerHTML = '<option value="all">All Weeks</option>';
+  playedWeeks.forEach(w => {
+    el.innerHTML += `<option value="${w}">Week ${w}${w === config.CURRENT_WEEK ? ' (Current)' : ''}</option>`;
+  });
+}
+
 function buildScheduleTeamFilter() {
   const el = document.getElementById('schedule-team-filter'); if (!el) return;
   el.innerHTML = '<option value="">All teams</option>';
@@ -129,7 +141,7 @@ export function renderAll(adminMode = false) {
     if (hbScoring) hbScoring.textContent = sa.scoring || '—';
   }
 
-  buildWeekDropdown('scores-week-select', true);
+  buildScoresWeekDropdown();
   buildWeekDropdown('awards-week-select', false);
   const awsel = document.getElementById('awards-week-select');
   if (awsel) awsel.value = String(config.CURRENT_WEEK);
@@ -224,8 +236,8 @@ export function renderStandings() {
       const confId = c.id || c.name;
       const slug = String(confId).toLowerCase().replace(/\W+/g, '_');
       const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
-      const rowsHtml = rows.map((r, i) => `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td></tr>`).join('');
-      return `<div class="card"><div class="conf-header" id="conf-header-${slug}">${confLabel(confId)}</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="${slug}-standings">${rowsHtml}</tbody></table></div>`;
+      const rowsHtml = rows.map((r, i) => { const pd = (r.pf || 0) - (r.pa || 0); return `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td><td>${pd > 0 ? '+' + pd : pd}</td></tr>`; }).join('');
+      return `<div class="card"><div class="conf-header" id="conf-header-${slug}">${confLabel(confId)}</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="${slug}-standings">${rowsHtml}</tbody></table></div>`;
     }).join('');
   } else {
     conferences.forEach(c => {
@@ -234,7 +246,7 @@ export function renderStandings() {
       const tbody = document.getElementById(slug + '-standings');
       if (!tbody) return;
       const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
-      tbody.innerHTML = rows.map((r, i) => `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td></tr>`).join('');
+      tbody.innerHTML = rows.map((r, i) => { const pd = (r.pf || 0) - (r.pa || 0); return `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td><td>${pd > 0 ? '+' + pd : pd}</td></tr>`; }).join('');
     });
   }
 }
@@ -327,13 +339,11 @@ function buildMatchupCard(g, gameId) {
   const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
   const w1 = played && s1 > s2, w2 = played && s2 > s1;
 
-  // Header band: Game N (left) | time (center) | date (right)
-  const dateStr = formatGameDate(g.scheduled_at);
+  // Header band: Game N (left) | time (right) — date shown at week level
   const timeStr = played ? '' : formatGameTime(g.scheduled_at, g.game || 1);
   const header = `<div class="mc-header">
     <span class="mc-meta-game">Game ${g.game || 1}</span>
     <span class="mc-meta-time">${timeStr}</span>
-    <span class="mc-meta-date">${dateStr}</span>
   </div>`;
 
   const mid = played
@@ -373,8 +383,8 @@ function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
   const played = game.s1 !== '' && game.s2 !== '';
   const defs = statDefinitions || [];
   const gsv = gameStatValues?.[gameId] || {};
-  const roster1 = t1?.roster || [];
-  const roster2 = t2?.roster || [];
+  const roster1 = [...(t1?.roster || [])];
+  const roster2 = [...(t2?.roster || [])];
   const pointsDef = defs.find(d => d.slug === 'points');
 
   const getPoints = (playerId) => {
@@ -382,6 +392,8 @@ function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
     const v = gsv[playerId]?.[pointsDef.id];
     return typeof v === 'number' ? v : (parseFloat(v) || 0);
   };
+  roster1.sort((a, b) => getPoints(b.id) - getPoints(a.id));
+  roster2.sort((a, b) => getPoints(b.id) - getPoints(a.id));
   const maxPts1 = roster1.length ? Math.max(...roster1.map(p => getPoints(p.id))) : 0;
   const maxPts2 = roster2.length ? Math.max(...roster2.map(p => getPoints(p.id))) : 0;
   const isTopScorer = (roster, idx, maxPts) => {
@@ -484,8 +496,10 @@ export function renderSchedule(focusWeek, teamFilter) {
     let games = (config.DB.scores || []).filter(g => g.week === w);
     if (teamFilter) games = games.filter(g => g.t1 === teamFilter || g.t2 === teamFilter);
     if (!games.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">${scheduleWeekTitle(w)} — No games${teamFilter ? ' for this team' : ''}.</div></div>`;
+    const weekDate = games.find(g => g.scheduled_at)?.scheduled_at;
+    const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
     const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
-    return `<div data-week="${w}" style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
+    return `<div data-week="${w}" style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}${weekDateStr}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
 
   const sectionHeader = (label, isCurrent) =>
@@ -544,11 +558,17 @@ export function renderScores(week) {
   if (!el) return;
   const rw = w => {
     const games = config.DB.scores.filter(g => g.week === w);
-    if (!games.length || games.every(g => !g.s1 && !g.s2)) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
-    const cards = games.map(g => buildMatchupCard(g, g.gameId || ''));
-    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
+    const played = games.filter(g => g.s1 !== '' && g.s2 !== '');
+    if (!played.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
+    const weekDate = games.find(g => g.scheduled_at)?.scheduled_at;
+    const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
+    const cards = played.map(g => buildMatchupCard(g, g.gameId || ''));
+    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}${weekDateStr}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
-  el.innerHTML = week === 'all' ? Array.from({ length: config.TOTAL_WEEKS }, (_, i) => rw(i + 1)).join('') : rw(parseInt(week));
+  const playedWeeks = [...new Set((config.DB.scores || []).filter(g => g.s1 !== '' && g.s2 !== '').map(g => g.week))].sort((a, b) => a - b);
+  el.innerHTML = week === 'all'
+    ? playedWeeks.map(w => rw(w)).join('')
+    : rw(parseInt(week));
 }
 
 export function renderTeams() {

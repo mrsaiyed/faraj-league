@@ -54,8 +54,8 @@ export const STANDINGS_TEMPLATE = `
   <div class="section">
     <p class="section-sub" id="standings-section-sub">Spring 2026</p><h2 class="section-title">Standings</h2><div class="section-line"></div>
     <div class="conf-grid">
-      <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
-      <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th></tr></thead><tbody id="medina-standings"><tr><td colspan="6" class="loading">Loading...</td></tr></tbody></table></div>
+      <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody></table></div>
+      <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="medina-standings"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody></table></div>
     </div>
     <hr class="section-divider">
     <p class="section-sub">Results by Week</p><h2 class="section-title">Scores</h2><div class="section-line"></div>

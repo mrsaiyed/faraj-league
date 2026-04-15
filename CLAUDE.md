@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm test                              # Run all unit tests (vitest)
-npx vitest run tests/standings.test.js  # Run a single test file
+npx vitest run tests/standings.test.js  # Run a single test file (also: tests/stats.test.js)
 
 npm run seed      # Seed database with placeholder data
 
@@ -61,8 +61,9 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 
 | File | Purpose |
 |------|---------|
-| `js/config.js` | Supabase URL, anon key, sponsor/conference constants |
+| `js/config.js` | Supabase URL, anon key, sponsor/conference constants; `config.CURRENT_WEEK` and `config.TOTAL_WEEKS` runtime state; `getConferences()` reads dynamic conference list from `content_blocks.conferences_layout` (falls back to Mecca/Medina) |
 | `js/data.js` | `fetchSeasons`, `fetchSeasonData`, `transformSeasonData` |
+| `js/render.js` | All DOM updates: `renderAll`, `renderHome`, `renderStandings`, `renderSchedule`, `renderScores`, `renderStats`, `renderAwards`, etc. `buildMatchupCard()` is the shared helper for home/schedule/scores cards. `TEAM_LOGOS` map + `teamLogoUrl()` serve team logos from `images/teams/` (keyed by lowercase name slug) |
 | `lib/standings.js` | Pure function: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both) |
 | `lib/stats.js` | Pure function: `aggregateStats()` → player stat aggregation; falls back to `player_stat_values` if no game stats |
 | `admin/js/draft-drag-drop.js` | Drag-and-drop for draft UI |
@@ -73,6 +74,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 `seasons`, `teams`, `players`, `rosters`, `games`, `game_stat_values`, `awards`, `stat_definitions`, `player_stat_values`, `sponsors`, `media_items`, `media_slots`, `content_blocks`, `login_attempts` (rate limiting).
 
 RLS allows public read on all tables; writes are enforced by Edge Function JWT validation, not RLS policies.
+
+`content_blocks` stores freeform JSON values by key. Schedule-specific keys: `schedule_week_labels` (week heading text), `schedule_slots_by_week` (per-week game slots), `schedule_dates_by_week` (per-week date strings). Conference keys: `conferences_layout` (JSON with `conferences[]` array), `conf_name_mecca`, `conf_name_medina`. Other keys: `hero_badge`, `season_tag`, `about_text`, `draft_recap`, `draft_team_order`, `media_layout`, sponsor tier labels.
 
 ### Environment
 
