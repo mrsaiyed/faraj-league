@@ -69,3 +69,20 @@ Five targeted UI improvements to the public standings tab and shared box score c
 3. Open the Schedule tab and verify that week headings show the date (e.g. `WEEK 3 · APR 5`) and individual game cards no longer show a date.
 4. Check that the home matchup cards and admin matchup cards look correct with the date removed.
 5. Sync and PR into the production fork when satisfied.
+
+---
+
+## Schedule Card Time Centering & Home Page Date Label
+
+**Commit**: `6a7a961`
+
+### Changes
+
+1. **Centered game time in matchup card header** (`js/render.js` — `buildMatchupCard`)
+   - The CSS already set `.mc-meta-time { flex:1; text-align:center }` to center the time, but with only two flex children (Game N left, time right) the time was visually offset right.
+   - Added an invisible ghost `<span class="mc-meta-game" aria-hidden="true" style="visibility:hidden">` on the right side to balance the left-side "Game N" label, making the time truly centered.
+
+2. **Home page week subheader shows game date** (`js/render.js` — `renderHome`)
+   - Derives `weekDateStr` from `weekGames.find(g => g.scheduled_at)?.scheduled_at` using the existing `formatGameDate` helper (returns e.g. `Apr 12`).
+   - When a date is available it replaces the word "Previous" / "Results" / "Upcoming" — label reads `Week 3 · Apr 12`.
+   - Falls back to the old text labels when no `scheduled_at` is present.
