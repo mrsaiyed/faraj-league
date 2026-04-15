@@ -198,7 +198,9 @@ export function renderHome() {
   const weekGames = config.DB.scores.filter(g => g.week === displayWeek);
   const wa = config.DB.awards.find(a => a.week === displayWeek) || {};
   const t = config.DB.teams;
-  const subLabel = upcoming ? 'Upcoming' : (displayWeek < config.CURRENT_WEEK ? 'Previous' : (wp > 0 ? 'Results' : 'Upcoming'));
+  const weekDate = weekGames.find(g => g.scheduled_at)?.scheduled_at;
+  const weekDateStr = weekDate ? formatGameDate(weekDate) : '';
+  const subLabel = weekDateStr || (upcoming ? 'Upcoming' : (displayWeek < config.CURRENT_WEEK ? 'Previous' : (wp > 0 ? 'Results' : 'Upcoming')));
   const matchupSub = document.getElementById('home-matchup-sub');
   const awardsSub = document.getElementById('home-awards-sub');
   if (matchupSub) matchupSub.textContent = `Week ${displayWeek} · ${subLabel}`;
@@ -338,11 +340,12 @@ function buildMatchupCard(g, gameId) {
   const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
   const w1 = played && s1 > s2, w2 = played && s2 > s1;
 
-  // Header band: Game N (left) | time (right) — date shown at week level
+  // Header band: Game N (left) | time (center) | ghost spacer (right to balance)
   const timeStr = played ? '' : formatGameTime(g.scheduled_at, g.game || 1);
   const header = `<div class="mc-header">
     <span class="mc-meta-game">Game ${g.game || 1}</span>
     <span class="mc-meta-time">${timeStr}</span>
+    <span class="mc-meta-game" aria-hidden="true" style="visibility:hidden">Game ${g.game || 1}</span>
   </div>`;
 
   const mid = played
