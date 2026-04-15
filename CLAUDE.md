@@ -13,7 +13,7 @@ npm run seed      # Seed database with placeholder data
 # Deploy an Edge Function
 npx supabase functions deploy <function-name>
 
-# Push DB migrations (run in order: 001–006)
+# Push DB migrations (run in order: 001–007)
 npx supabase db push
 ```
 
@@ -62,10 +62,11 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 | File | Purpose |
 |------|---------|
 | `js/config.js` | Supabase URL, anon key, sponsor/conference constants; `config.CURRENT_WEEK` and `config.TOTAL_WEEKS` runtime state; `getConferences()` reads dynamic conference list from `content_blocks.conferences_layout` (falls back to Mecca/Medina) |
-| `js/data.js` | `fetchSeasons`, `fetchSeasonData`, `transformSeasonData` |
+| `js/data.js` | `fetchSeasons`, `fetchSeasonData`, `transformSeasonData`; `deriveWeeks(scores, season)` derives `TOTAL_WEEKS`/`CURRENT_WEEK` (min 8, overridden by `season.total_weeks`); `applySponsorOverrides(overrides)` mutates `config` SP1/SP2A/SP2B from sponsor rows |
 | `js/render.js` | All DOM updates: `renderAll`, `renderHome`, `renderStandings`, `renderSchedule`, `renderScores`, `renderStats`, `renderAwards`, etc. `buildMatchupCard()` is the shared helper for home/schedule/scores cards. `TEAM_LOGOS` map + `teamLogoUrl()` serve team logos from `images/teams/` (keyed by lowercase name slug) |
-| `lib/standings.js` | Pure function: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both) |
+| `lib/standings.js` | Pure functions: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both); `calcSeeds(teams, scores)` → per-conf seed numbers with tiebreakers (conf record → H2H → PD → PF); returns `'TBD'` for all when no scored games |
 | `lib/stats.js` | Pure function: `aggregateStats()` → player stat aggregation; falls back to `player_stat_values` if no game stats |
+| `admin/js/sections.js` | All admin CRUD section renderers — one `renderX(content, ctx)` per entity; wires modals, inline overlays, and the season/logout drawer |
 | `admin/js/draft-drag-drop.js` | Drag-and-drop for draft UI |
 | `admin/js/draft-timer.js` | Draft timer and round management |
 
@@ -74,6 +75,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 `seasons`, `teams`, `players`, `rosters`, `games`, `game_stat_values`, `awards`, `stat_definitions`, `player_stat_values`, `sponsors`, `media_items`, `media_slots`, `content_blocks`, `login_attempts` (rate limiting).
 
 RLS allows public read on all tables; writes are enforced by Edge Function JWT validation, not RLS policies.
+
+`config.DB` extended shape after `transformSeasonData`: `gameStatValues` (`{ [gameId]: { [playerId]: { [statDefId]: value } } }`), `statDefinitions` (game-scoped stat columns), `draftBank` (unrostered players), `draftTeamOrder` (from `content_blocks.draft_team_order` or team sort order).
 
 `content_blocks` stores freeform JSON values by key. Schedule-specific keys: `schedule_week_labels` (week heading text), `schedule_slots_by_week` (per-week game slots), `schedule_dates_by_week` (per-week date strings). Conference keys: `conferences_layout` (JSON with `conferences[]` array), `conf_name_mecca`, `conf_name_medina`. Other keys: `hero_badge`, `season_tag`, `about_text`, `draft_recap`, `draft_team_order`, `media_layout`, sponsor tier labels.
 
@@ -90,4 +93,4 @@ Copy `.env.example` to `.env` for local development. The seed script and Edge Fu
 
 ### Deploy Flow
 
-**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–006).
+**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–007).
