@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { game_id, values = [] } = body;
+    const { game_id, values = [], dnp_player_ids = [] } = body;
 
     if (!game_id) return jsonResponse({ error: 'game_id required' }, 400);
 
@@ -56,6 +56,27 @@ Deno.serve(async (req) => {
           { onConflict: 'game_id,player_id,stat_definition_id' }
         );
       if (upsertErr) return jsonResponse({ error: upsertErr.message }, 400);
+    }
+
+    // Delete stat values for DNP players and sync game_dnp table
+    for (const pid of dnp_player_ids) {
+      if (!rosterPlayerIds.has(pid)) continue;
+      const { error: delErr } = await supabase
+        .from('game_stat_values')
+        .delete()
+        .eq('game_id', game_id)
+        .eq('player_id', pid);
+      if (delErr) return jsonResponse({ error: delErr.message }, 400);
+    }
+    await supabase.from('game_dnp').delete().eq('game_id', game_id);
+    if (dnp_player_ids.length > 0) {
+      const validDnp = (dnp_player_ids as string[]).filter((pid: string) => rosterPlayerIds.has(pid));
+      if (validDnp.length > 0) {
+        const { error: dnpErr } = await supabase
+          .from('game_dnp')
+          .insert(validDnp.map((pid: string) => ({ game_id, player_id: pid })));
+        if (dnpErr) return jsonResponse({ error: dnpErr.message }, 400);
+      }
     }
 
     // Score derivation: sum points per team, update games

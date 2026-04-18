@@ -1750,11 +1750,12 @@ async function openStatSheet(game, content, ctx, onSaved) {
     </div>`;
   document.body.appendChild(wrap);
 
-  const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }] = await Promise.all([
+  const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }] = await Promise.all([
     supabase.from('rosters').select('*').or(`team_id.eq.${game.t1Id},team_id.eq.${game.t2Id}`),
     supabase.from('players').select('*').eq('season_id', window.adminSeasonId),
     supabase.from('stat_definitions').select('*').order('sort_order'),
     supabase.from('game_stat_values').select('*').eq('game_id', game.gameId),
+    supabase.from('game_dnp').select('player_id').eq('game_id', game.gameId),
   ]);
 
   const playerMap = {};
@@ -1767,46 +1768,67 @@ async function openStatSheet(game, content, ctx, onSaved) {
     gsvMap[row.player_id][row.stat_definition_id] = row.value;
   });
   const defs = (statDefs || []).filter(s => s.scope === 'game' || s.scope == null);
+  const dnpSet = new Set((dnpRows || []).map(r => r.player_id));
 
-  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div><h5>Home</h5><table><thead><tr><th>Player</th>';
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div><h5>Home</h5><table><thead><tr><th>Player</th><th>DNP</th>';
   defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
   html += '</tr></thead><tbody>';
   const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
   for (let i = 0; i < maxRows; i++) {
     const p = homeRoster[i];
+    const isDnp = p ? dnpSet.has(p.id) : false;
     html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
+    html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
     defs.forEach(d => {
-      const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+      const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
     });
     html += '</tr>';
   }
-  html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th>';
+  html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th><th>DNP</th>';
   defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
   html += '</tr></thead><tbody>';
   for (let i = 0; i < maxRows; i++) {
     const p = awayRoster[i];
+    const isDnp = p ? dnpSet.has(p.id) : false;
     html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
+    html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
     defs.forEach(d => {
-      const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+      const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
     });
     html += '</tr>';
   }
   html += '</tbody></table></div></div>';
-  wrap.querySelector('#stat-sheet-content').innerHTML = homeRoster.length || awayRoster.length ? html : '<p>Add players to teams first.</p>';
+  const statSheetContentEl = wrap.querySelector('#stat-sheet-content');
+  statSheetContentEl.innerHTML = homeRoster.length || awayRoster.length ? html : '<p>Add players to teams first.</p>';
+
+  statSheetContentEl.querySelectorAll('input.dnp-check').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const pid = cb.dataset.player;
+      statSheetContentEl.querySelectorAll(`input[data-player="${pid}"][data-stat]`).forEach(inp => {
+        inp.disabled = cb.checked;
+        inp.style.opacity = cb.checked ? '0.3' : '';
+        if (cb.checked) inp.value = '';
+      });
+    });
+  });
 
   wrap.querySelector('#stat-sheet-close').onclick = () => wrap.remove();
   wrap.querySelector('#stat-sheet-save').onclick = async () => {
+    const dnpPlayerIds = [];
+    wrap.querySelectorAll('input.dnp-check:checked').forEach(cb => {
+      if (cb.dataset.player) dnpPlayerIds.push(cb.dataset.player);
+    });
     const values = [];
     wrap.querySelectorAll('input[data-player][data-stat]').forEach(inp => {
       const pid = inp.dataset.player;
-      if (!pid) return;
+      if (!pid || inp.disabled) return;
       const val = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
       values.push({ player_id: pid, stat_definition_id: inp.dataset.stat, value: isNaN(val) ? 0 : val });
     });
     try {
-      await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: game.gameId, values }) });
+      await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: dnpPlayerIds }) });
       wrap.querySelector('#stat-sheet-msg').innerHTML = '<p class="msg success">Saved.</p>';
       const { data: updated } = await supabase.from('games').select('home_score,away_score').eq('id', game.gameId).single();
       if (updated) wrap.querySelector('#stat-sheet-scores').textContent = `Score: ${updated.home_score ?? '?'} – ${updated.away_score ?? '?'}`;
@@ -1926,11 +1948,12 @@ export async function renderGames(content, ctx) {
       statSheetNote.style.display = 'block';
       statSheetMsg.innerHTML = '';
 
-      const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }] = await Promise.all([
+      const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }] = await Promise.all([
         supabase.from('rosters').select('*').or(`team_id.eq.${g.home_team_id},team_id.eq.${g.away_team_id}`),
         supabase.from('players').select('*').eq('season_id', g.season_id),
         supabase.from('stat_definitions').select('*').order('sort_order'),
         supabase.from('game_stat_values').select('*').eq('game_id', g.id),
+        supabase.from('game_dnp').select('player_id').eq('game_id', g.id),
       ]);
 
       const playerMap = {};
@@ -1952,47 +1975,67 @@ export async function renderGames(content, ctx) {
       }
       document.getElementById('games-stat-sheet-save').style.display = '';
 
+      const dnpSet = new Set((dnpRows || []).map(r => r.player_id));
       const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
-      let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-x:auto;"><div><h5>Home</h5><table><thead><tr><th>Player</th>';
+      let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-x:auto;"><div><h5>Home</h5><table><thead><tr><th>Player</th><th>DNP</th>';
       defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
       html += '</tr></thead><tbody>';
       for (let i = 0; i < maxRows; i++) {
         const p = homeRoster[i];
+        const isDnp = p ? dnpSet.has(p.id) : false;
         html += '<tr>';
         html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
+        html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
         defs.forEach(d => {
-          const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+          const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
         });
         html += '</tr>';
       }
-      html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th>';
+      html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th><th>DNP</th>';
       defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
       html += '</tr></thead><tbody>';
       for (let i = 0; i < maxRows; i++) {
         const p = awayRoster[i];
+        const isDnp = p ? dnpSet.has(p.id) : false;
         html += '<tr>';
         html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
+        html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
         defs.forEach(d => {
-          const val = p ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}" style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></td>`;
+          const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
         });
         html += '</tr>';
       }
       html += '</tbody></table></div></div>';
       statSheetContent.innerHTML = html;
 
+      statSheetContent.querySelectorAll('input.dnp-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const pid = cb.dataset.player;
+          statSheetContent.querySelectorAll(`input[data-player="${pid}"][data-stat]`).forEach(inp => {
+            inp.disabled = cb.checked;
+            inp.style.opacity = cb.checked ? '0.3' : '';
+            if (cb.checked) inp.value = '';
+          });
+        });
+      });
+
       document.getElementById('games-stat-sheet-save').onclick = async () => {
+        const dnpPlayerIds = [];
+        statSheetContent.querySelectorAll('input.dnp-check:checked').forEach(cb => {
+          if (cb.dataset.player) dnpPlayerIds.push(cb.dataset.player);
+        });
         const values = [];
         statSheetContent.querySelectorAll('input[data-player][data-stat]').forEach(inp => {
           const pid = inp.dataset.player;
-          if (!pid) return;
+          if (!pid || inp.disabled) return;
           const val = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
           if (isNaN(val)) return;
           values.push({ player_id: pid, stat_definition_id: inp.dataset.stat, value: val });
         });
         try {
-          await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: g.id, values }) });
+          await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: g.id, values, dnp_player_ids: dnpPlayerIds }) });
           statSheetMsg.innerHTML = '<p class="msg success">Saved.</p>';
           const { data: updated } = await supabase.from('games').select('home_score,away_score').eq('id', g.id).single();
           if (updated) statSheetScores.textContent = `Score: ${updated.home_score ?? '?'} – ${updated.away_score ?? '?'}`;
