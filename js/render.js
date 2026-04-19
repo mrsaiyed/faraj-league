@@ -235,9 +235,8 @@ export function renderHome() {
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
   if (homeAwards) {
-    const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>` : '';
+    const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap">${instagramIframe(wa.akhlaq_post_url, { height: '500' })}</div>` : '';
     homeAwards.innerHTML = `<div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div>${akhlaqPost}</div>`;
-    if (wa.akhlaq_post_url) activateInstagramEmbeds();
   }
 }
 
@@ -725,10 +724,9 @@ export function renderAwards(week) {
   const w = parseInt(week, 10), wa = config.DB.awards.find(a => Number(a.week) === w) || {};
   const games = config.DB.scores.filter(g => Number(g.week) === w);
   const g1 = games[0] || { t1: 'TBD', t2: 'TBD' }, g2 = games[1] || { t1: 'TBD', t2: 'TBD' }, g3 = games[2] || { t1: 'TBD', t2: 'TBD' };
-  const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>` : '';
+  const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap">${instagramIframe(wa.akhlaq_post_url, { height: '600' })}</div>` : '';
   awardsGrid.innerHTML = `
     <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div>${akhlaqPost}</div>`;
-  if (wa.akhlaq_post_url) activateInstagramEmbeds();
   const sa = config.DB.awards.find(a => a.champ) || {};
   const saChamp = document.getElementById('sa-champ');
   const saMvp = document.getElementById('sa-mvp');
@@ -807,15 +805,16 @@ function getMediaLayout(blocks) {
   return layout;
 }
 
-export function activateInstagramEmbeds() {
-  if (window.instgrm) {
-    window.instgrm.Embeds.process();
-  } else if (!document.querySelector('script[src*="instagram.com/embed.js"]')) {
-    const s = document.createElement('script');
-    s.src = 'https://www.instagram.com/embed.js';
-    s.async = true;
-    document.head.appendChild(s);
-  }
+export function activateInstagramEmbeds() {}
+
+function instagramEmbedUrl(url) {
+  return url.split('?')[0].split('#')[0].replace(/\/?$/, '') + '/embed/';
+}
+
+function instagramIframe(url, opts = {}) {
+  const src = instagramEmbedUrl(url);
+  const height = opts.height || '600';
+  return `<iframe src="${src}" width="100%" height="${height}" frameborder="0" scrolling="no" allowtransparency="true" loading="lazy" style="max-width:480px;display:block;margin:0 auto;border:none;"></iframe>`;
 }
 
 export function renderMedia(week) {
@@ -849,7 +848,7 @@ export function renderMedia(week) {
       const spanStyle = b.width === 'full' ? ' style="grid-column:1/-1;"' : '';
       const dataAttrs = ` data-section-id="${secId}" data-block-id="${bid}"`;
       const cardInner = url
-        ? `<div class="instagram-embed-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>`
+        ? `<div class="instagram-embed-wrap">${instagramIframe(url)}</div>`
         : `<div class="video-icon">▶</div><div class="video-label">${btitle}</div>${soon}`;
       return `<div class="video-card"${dataAttrs}${spanStyle}>${cardInner}</div>`;
     }).join('');
@@ -858,7 +857,6 @@ export function renderMedia(week) {
 
   el.innerHTML = `<div class="media-layout-wrap" style="margin-bottom:1.8rem;">${sectionHtml}</div>`;
   renderMediaLinks();
-  activateInstagramEmbeds();
 }
 
 function renderMediaLinks() {
