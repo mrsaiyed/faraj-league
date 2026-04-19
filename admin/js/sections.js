@@ -2622,8 +2622,8 @@ export async function attachMediaSlotOverlays(ctx) {
               <label style="display:block;margin:0.5rem 0;">Section title: <input type="text" id="es-title" value="${escapeHtml(sec?.title || '')}" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
               <div style="margin:0.75rem 0;">
                 <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-                <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="es-week" value="all" ${!isScoped ? 'checked' : ''}> All Weeks</label>
-                <label style="display:block;cursor:pointer;"><input type="radio" name="es-week" value="current" ${isScoped ? 'checked' : ''}> This week only (Week ${secWeekDisplay})</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="es-week" value="all" ${!isScoped ? 'checked' : ''}> All Weeks</label>
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="radio" name="es-week" value="current" ${isScoped ? 'checked' : ''}> This week only (Week ${secWeekDisplay})</label>
               </div>
               <div class="admin-modal-actions" style="margin-top:1rem;">
                 <button type="submit" class="btn-primary">Save</button>
@@ -2831,8 +2831,8 @@ async function openAddSectionModal(ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Section title: <input type="text" id="as-title" placeholder="e.g. Highlights" value="New Section" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <div style="margin:0.75rem 0;">
           <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="as-week" value="all" checked> All Weeks</label>
-          <label style="display:block;cursor:pointer;"><input type="radio" name="as-week" value="current"> This week only (Week ${selectedWeek})</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="as-week" value="all" checked> All Weeks</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="radio" name="as-week" value="current"> This week only (Week ${selectedWeek})</label>
         </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Add</button>
@@ -2893,8 +2893,8 @@ async function openAddMediaModal(ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Width: <select id="am-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half">Half (2 per row)</option><option value="full">Full width</option></select></label>
         <div style="margin:0.75rem 0;">
           <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="am-week" value="all" checked> All Weeks</label>
-          <label style="display:block;cursor:pointer;"><input type="radio" name="am-week" value="current"> This week only (Week ${selectedWeek})</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="am-week" value="all" checked> All Weeks</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="radio" name="am-week" value="current"> This week only (Week ${selectedWeek})</label>
         </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Add</button>
@@ -2976,8 +2976,8 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Width: <select id="eb-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half" ${(block.width || 'half') === 'half' ? 'selected' : ''}>Half (2 per row)</option><option value="full" ${block.width === 'full' ? 'selected' : ''}>Full width</option></select></label>
         <div style="margin:0.75rem 0;">
           <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="eb-week" value="all" ${!blockIsScoped ? 'checked' : ''}> All Weeks</label>
-          <label style="display:block;cursor:pointer;"><input type="radio" name="eb-week" value="current" ${blockIsScoped ? 'checked' : ''}> This week only (Week ${blockWeekDisplay})</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="eb-week" value="all" ${!blockIsScoped ? 'checked' : ''}> All Weeks</label>
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="radio" name="eb-week" value="current" ${blockIsScoped ? 'checked' : ''}> This week only (Week ${blockWeekDisplay})</label>
         </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Save</button>
