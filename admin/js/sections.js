@@ -2765,7 +2765,7 @@ async function openAddSectionModal(ctx, onSaved) {
     if (parsed?.sections) layout = parsed;
   } catch (_) {}
   if (!Array.isArray(layout.sections)) layout.sections = [];
-  const currentWeek = config.CURRENT_WEEK || 1;
+  const selectedWeek = parseInt(document.getElementById('media-week-select')?.value) || config.CURRENT_WEEK || 1;
 
   const backdrop = document.createElement('div');
   backdrop.className = 'admin-modal-backdrop';
@@ -2776,8 +2776,8 @@ async function openAddSectionModal(ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Section title: <input type="text" id="as-title" placeholder="e.g. Highlights" value="New Section" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <div style="margin:0.75rem 0;">
           <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-          <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="as-week" value="all" checked> All Weeks</label>
-          <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="radio" name="as-week" value="current"> This week only (Week ${currentWeek})</label>
+          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="as-week" value="all" checked> All Weeks</label>
+          <label style="display:block;cursor:pointer;"><input type="radio" name="as-week" value="current"> This week only (Week ${selectedWeek})</label>
         </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Add</button>
@@ -2796,7 +2796,7 @@ async function openAddSectionModal(ctx, onSaved) {
     e.preventDefault();
     const title = backdrop.querySelector('#as-title').value.trim() || 'New Section';
     const weekVal = backdrop.querySelector('input[name="as-week"]:checked')?.value;
-    const week = weekVal === 'current' ? currentWeek : null;
+    const week = weekVal === 'current' ? selectedWeek : null;
     layout.sections.push({ id: 'sec_' + Date.now(), title, week, blocks: [] });
     try {
       await ctx.adminFetch('admin-content', {
@@ -2820,7 +2820,7 @@ async function openAddMediaModal(ctx, onSaved) {
     if (parsed?.sections) layout = parsed;
   } catch (_) {}
   if (!Array.isArray(layout.sections)) layout.sections = [];
-  const currentWeek = config.CURRENT_WEEK || 1;
+  const selectedWeek = parseInt(document.getElementById('media-week-select')?.value) || config.CURRENT_WEEK || 1;
   const sectionOptions = layout.sections.map((s, i) => `<option value="${escapeHtml(s.id || '')}">${escapeHtml(s.title || 'Section ' + (i + 1))}</option>`).join('');
   const noSections = !layout.sections.length;
   const newSectionSelected = noSections ? ' selected' : '';
@@ -2838,8 +2838,8 @@ async function openAddMediaModal(ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Width: <select id="am-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half">Half (2 per row)</option><option value="full">Full width</option></select></label>
         <div style="margin:0.75rem 0;">
           <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
-          <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="am-week" value="all" checked> All Weeks</label>
-          <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="radio" name="am-week" value="current"> This week only (Week ${currentWeek})</label>
+          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="am-week" value="all" checked> All Weeks</label>
+          <label style="display:block;cursor:pointer;"><input type="radio" name="am-week" value="current"> This week only (Week ${selectedWeek})</label>
         </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Add</button>
@@ -2867,7 +2867,7 @@ async function openAddMediaModal(ctx, onSaved) {
     const url = backdrop.querySelector('#am-url').value.trim() || '';
     const width = backdrop.querySelector('#am-width').value || 'half';
     const weekVal = backdrop.querySelector('input[name="am-week"]:checked')?.value;
-    const blockWeek = weekVal === 'current' ? currentWeek : null;
+    const blockWeek = weekVal === 'current' ? selectedWeek : null;
     let targetSectionId = sectionVal;
     if (sectionVal === '__new__') {
       const newId = 'sec_' + Date.now();
