@@ -139,13 +139,19 @@
   font-family: inherit;
   resize: vertical;
 }
-.admin-modal input {
+.admin-modal input:not([type="radio"]):not([type="checkbox"]) {
   width: 100%;
   padding: 0.75rem;
   background: #1a1a1a;
   border: 1px solid #444;
   color: #e8e4e0;
   border-radius: 4px;
+}
+.admin-modal input[type="radio"],
+.admin-modal input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+  padding: 0;
 }
 .admin-modal-actions {
   margin-top: 1rem;
