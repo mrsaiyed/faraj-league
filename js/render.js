@@ -15,6 +15,16 @@ function escapeHtmlAttr(s) {
 function initials(n) { return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
 function pending() { return `<span class="pending">Pending</span>`; }
 function getWeeksPlayed() { return new Set(config.DB.scores.filter(g => g.s1 !== '' && g.s2 !== '').map(g => g.week)).size; }
+// Returns the week to feature: current week if it has stats entered, otherwise previous week.
+function getDisplayWeek() {
+  if (!config.CURRENT_WEEK) return 1;
+  const currentWeekGames = config.DB.scores.filter(g => g.week === config.CURRENT_WEEK);
+  const hasStats = currentWeekGames.some(g => {
+    const gsv = config.DB.gameStatValues?.[g.gameId];
+    return gsv && Object.keys(gsv).length > 0;
+  });
+  return hasStats ? config.CURRENT_WEEK : Math.max(1, config.CURRENT_WEEK - 1);
+}
 // Standings use config.DB.scores (from games.home_score, away_score). Score derivation in
 // admin-game-stats Edge Function updates games when stat sheet is saved; getSeasonData brings them in.
 export function calcStandings() {
@@ -167,7 +177,12 @@ export function renderAll(adminMode = false) {
   renderTeams();
   renderStats();
   renderAwards(config.CURRENT_WEEK);
-  renderScores('all');
+  const scoresDisplayWeek = config.CURRENT_WEEK ? getDisplayWeek() : 1;
+  const scoresEl = document.getElementById('scores-week-select');
+  if (scoresEl) scoresEl.value = String(scoresDisplayWeek);
+  renderScores(scoresDisplayWeek);
+  const standingsSub = document.getElementById('standings-section-sub');
+  if (standingsSub) standingsSub.textContent = `Week ${scoresDisplayWeek}`;
   const schedWeekVal = ssel?.value;
   const schedFocusWeek = (!schedWeekVal || schedWeekVal === 'all') ? 'all' : parseInt(schedWeekVal, 10);
   renderSchedule(schedFocusWeek, teamFilterVal || null);
@@ -194,17 +209,7 @@ export function renderHome() {
   if (weeksPlayedEl) weeksPlayedEl.textContent = wp;
   // Week 0 = show week 1 as upcoming; show current week if stats exist, otherwise fall back to previous week
   const upcoming = config.CURRENT_WEEK === 0;
-  let displayWeek;
-  if (upcoming) {
-    displayWeek = 1;
-  } else {
-    const currentWeekGames = config.DB.scores.filter(g => g.week === config.CURRENT_WEEK);
-    const hasStats = currentWeekGames.some(g => {
-      const gsv = config.DB.gameStatValues?.[g.gameId];
-      return gsv && Object.keys(gsv).length > 0;
-    });
-    displayWeek = hasStats ? config.CURRENT_WEEK : Math.max(1, config.CURRENT_WEEK - 1);
-  }
+  const displayWeek = upcoming ? 1 : getDisplayWeek();
   const weekGames = config.DB.scores.filter(g => g.week === displayWeek);
   const wa = config.DB.awards.find(a => a.week === displayWeek) || {};
   const t = config.DB.teams;
