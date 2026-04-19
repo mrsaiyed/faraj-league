@@ -52,6 +52,7 @@ function transformSeasonData(raw) {
   const awardsTransformed = (awards || []).map(a => ({
     week: a.week,
     akhlaq: a.akhlaq || '',
+    akhlaq_post_url: a.akhlaq_post_url || '',
     motm1: a.motm1 || '',
     motm2: a.motm2 || '',
     motm3: a.motm3 || '',

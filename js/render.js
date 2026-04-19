@@ -234,8 +234,11 @@ export function renderHome() {
   const homeMatchups = document.getElementById('home-matchups');
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
-  if (homeAwards) homeAwards.innerHTML = `
-    <div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div></div>`;
+  if (homeAwards) {
+    const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>` : '';
+    homeAwards.innerHTML = `<div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div>${akhlaqPost}</div>`;
+    if (wa.akhlaq_post_url) activateInstagramEmbeds();
+  }
 }
 
 export function renderStandings() {
@@ -722,8 +725,10 @@ export function renderAwards(week) {
   const w = parseInt(week, 10), wa = config.DB.awards.find(a => Number(a.week) === w) || {};
   const games = config.DB.scores.filter(g => Number(g.week) === w);
   const g1 = games[0] || { t1: 'TBD', t2: 'TBD' }, g2 = games[1] || { t1: 'TBD', t2: 'TBD' }, g3 = games[2] || { t1: 'TBD', t2: 'TBD' };
+  const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>` : '';
   awardsGrid.innerHTML = `
-    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div></div>`;
+    <div class="award-card akhlaq-card"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(w)}</div><div class="award-winner" id="award-winner-akhlaq" data-field="akhlaq">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood on and off the court</div></div></div>${akhlaqPost}</div>`;
+  if (wa.akhlaq_post_url) activateInstagramEmbeds();
   const sa = config.DB.awards.find(a => a.champ) || {};
   const saChamp = document.getElementById('sa-champ');
   const saMvp = document.getElementById('sa-mvp');
@@ -802,35 +807,50 @@ function getMediaLayout(blocks) {
   return layout;
 }
 
+export function activateInstagramEmbeds() {
+  if (window.instgrm) {
+    window.instgrm.Embeds.process();
+  } else if (!document.querySelector('script[src*="instagram.com/embed.js"]')) {
+    const s = document.createElement('script');
+    s.src = 'https://www.instagram.com/embed.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }
+}
+
 export function renderMedia(week) {
-  const ws = week === 'all' ? Array.from({ length: config.TOTAL_WEEKS }, (_, i) => i + 1) : [parseInt(week)];
+  const displayWeek = (week && week !== 'all') ? parseInt(week, 10) : config.CURRENT_WEEK;
   const soon = `<div class="video-title" style="font-style:italic;">Coming soon</div>`;
-  const mediaItems = config.DB.mediaItems || [];
-  const mediaSlots = config.DB.mediaSlots || {};
   const blocks = config.DB.contentBlocks || {};
   const el = document.getElementById('media-content');
   if (!el) return;
   const layout = getMediaLayout(blocks);
-  const hasSections = layout.sections?.length > 0;
 
-  if (!hasSections) {
+  const visibleSections = (layout.sections || [])
+    .map(sec => ({
+      ...sec,
+      blocks: (sec.blocks || []).filter(b => b.week == null || b.week === displayWeek),
+    }))
+    .filter(sec => (sec.week == null || sec.week === displayWeek) && sec.blocks.length > 0);
+
+  if (!visibleSections.length) {
     el.innerHTML = `<div class="media-empty-state" style="text-align:center;padding:3rem 1.5rem;color:#8a8580;font-size:0.95rem;">Add a section to get started.</div>`;
     renderMediaLinks();
     return;
   }
 
-  const sectionHtml = layout.sections.map((sec, si) => {
+  const sectionHtml = visibleSections.map((sec, si) => {
     const secId = (sec.id || 'sec_' + si).replace(/"/g, '&quot;');
     const secTitle = (sec.title || 'Section').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    const blockCards = (sec.blocks || []).map((b, bi) => {
+    const blockCards = sec.blocks.map((b, bi) => {
       const bid = (b.id || 'blk_' + bi).replace(/"/g, '&quot;');
       const btitle = (b.title || 'Media').replace(/</g, '&lt;').replace(/"/g, '&quot;');
       const url = b.url || '';
       const spanStyle = b.width === 'full' ? ' style="grid-column:1/-1;"' : '';
       const dataAttrs = ` data-section-id="${secId}" data-block-id="${bid}"`;
       const cardInner = url
-        ? `<div class="video-icon">▶</div><div class="video-label">${btitle}</div><a href="${url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" class="insta-btn">Watch</a>`
-        : `<div class="video-icon">▶</div><div class="video-label">${btitle}</div>${soon}<button class="insta-btn">View on Instagram</button>`;
+        ? `<div class="instagram-embed-wrap"><blockquote class="instagram-media" data-instgrm-permalink="${url.replace(/"/g, '&quot;')}" data-instgrm-version="14" style="width:100%;max-width:540px;margin:0 auto;"></blockquote></div>`
+        : `<div class="video-icon">▶</div><div class="video-label">${btitle}</div>${soon}`;
       return `<div class="video-card"${dataAttrs}${spanStyle}>${cardInner}</div>`;
     }).join('');
     return `<div class="media-layout-section" data-section-id="${secId}"><div class="media-section-header" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;"><div class="media-section-title" data-section-id="${secId}" data-editable-title>${secTitle}</div></div><div class="media-grid">${blockCards}</div></div>`;
@@ -838,6 +858,7 @@ export function renderMedia(week) {
 
   el.innerHTML = `<div class="media-layout-wrap" style="margin-bottom:1.8rem;">${sectionHtml}</div>`;
   renderMediaLinks();
+  activateInstagramEmbeds();
 }
 
 function renderMediaLinks() {

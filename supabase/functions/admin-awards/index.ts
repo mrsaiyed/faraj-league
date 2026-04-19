@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const supabase = await createServiceClient();
 
-    const { season_id, week, akhlaq, motm1, motm2, motm3, champ, mvp, scoring } = body;
+    const { season_id, week, akhlaq, akhlaq_post_url, motm1, motm2, motm3, champ, mvp, scoring } = body;
     if (!season_id || week == null) return jsonResponse({ error: 'season_id and week required' }, 400);
 
     const { data: existing } = await supabase
@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
 
     const row = {
       akhlaq: akhlaq ?? null,
+      akhlaq_post_url: akhlaq_post_url ?? null,
       motm1: motm1 ?? null,
       motm2: motm2 ?? null,
       motm3: motm3 ?? null,

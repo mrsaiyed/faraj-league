@@ -1107,6 +1107,7 @@ export function attachAwardsWeeklyOverlays(ctx) {
           season_id: seasonId,
           week: currentWeek,
           akhlaq: field === 'akhlaq' ? (value || null) : (wa.akhlaq ?? null),
+          akhlaq_post_url: wa.akhlaq_post_url ?? null,
           motm1: null,
           motm2: null,
           motm3: null,
@@ -2087,6 +2088,7 @@ export async function renderAwards(content, ctx) {
     <form id="awards-form" style="max-width:500px;margin-top:1rem;">
       <h4>Weekly</h4>
       <label style="display:block;margin:0.5rem 0;">Akhlaq: <input type="text" id="awards-akhlaq" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
+      <label style="display:block;margin:0.5rem 0;">Akhlaq Post (Instagram URL): <input type="url" id="awards-akhlaq-post-url" placeholder="https://www.instagram.com/p/XXXXX/" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
       <h4 style="margin-top:1rem;">Season</h4>
       <label style="display:block;margin:0.5rem 0;">Champ: <input type="text" id="awards-champ" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
       <label style="display:block;margin:0.5rem 0;">MVP: <input type="text" id="awards-mvp" style="padding:0.4rem;width:100%;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></label>
@@ -2097,6 +2099,7 @@ export async function renderAwards(content, ctx) {
   const loadWeek = (w) => {
     const a = weekAwards[w] || {};
     document.getElementById('awards-akhlaq').value = a.akhlaq || '';
+    document.getElementById('awards-akhlaq-post-url').value = a.akhlaq_post_url || '';
     document.getElementById('awards-champ').value = a.champ || '';
     document.getElementById('awards-mvp').value = a.mvp || '';
     document.getElementById('awards-scoring').value = a.scoring || '';
@@ -2114,6 +2117,7 @@ export async function renderAwards(content, ctx) {
           season_id: seasonId,
           week,
           akhlaq: document.getElementById('awards-akhlaq').value,
+          akhlaq_post_url: document.getElementById('awards-akhlaq-post-url').value || null,
           motm1: null,
           motm2: null,
           motm3: null,
@@ -2648,6 +2652,15 @@ export async function attachMediaSlotOverlays(ctx) {
         container.appendChild(editBtn);
         container.appendChild(delBtn);
       }
+      // Week badge for scoped blocks
+      const sec = layout.sections.find(s => (s.id || '') === sectionId);
+      const block = sec?.blocks?.find(b => (b.id || '') === blockId);
+      if (block?.week != null) {
+        const badge = document.createElement('span');
+        badge.textContent = `Week ${block.week} only`;
+        badge.style.cssText = 'font-size:0.65rem;color:#8a8580;margin-left:0.5rem;font-style:italic;';
+        card.appendChild(badge);
+      }
     });
   }
 
@@ -2752,17 +2765,51 @@ async function openAddSectionModal(ctx, onSaved) {
     if (parsed?.sections) layout = parsed;
   } catch (_) {}
   if (!Array.isArray(layout.sections)) layout.sections = [];
-  const newTitle = 'New Section';
-  layout.sections.push({ id: 'sec_' + Date.now(), title: newTitle, blocks: [] });
-  try {
-    await ctx.adminFetch('admin-content', {
-      method: 'POST',
-      body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
-    });
-    await onSaved();
-  } catch (err) {
-    alert(err.message || 'Failed to add section');
-  }
+  const currentWeek = config.CURRENT_WEEK || 1;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'admin-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="admin-modal">
+      <h4>Add section</h4>
+      <form id="add-section-form">
+        <label style="display:block;margin:0.5rem 0;">Section title: <input type="text" id="as-title" placeholder="e.g. Highlights" value="New Section" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <div style="margin:0.75rem 0;">
+          <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
+          <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="as-week" value="all" checked> All Weeks</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="radio" name="as-week" value="current"> This week only (Week ${currentWeek})</label>
+        </div>
+        <div class="admin-modal-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn-primary">Add</button>
+          <button type="button" class="btn-secondary" id="as-cancel">Cancel</button>
+        </div>
+      </form>
+      <div id="as-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = () => backdrop.remove();
+  backdrop.querySelector('#as-cancel').onclick = close;
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+  backdrop.querySelector('#add-section-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const title = backdrop.querySelector('#as-title').value.trim() || 'New Section';
+    const weekVal = backdrop.querySelector('input[name="as-week"]:checked')?.value;
+    const week = weekVal === 'current' ? currentWeek : null;
+    layout.sections.push({ id: 'sec_' + Date.now(), title, week, blocks: [] });
+    try {
+      await ctx.adminFetch('admin-content', {
+        method: 'POST',
+        body: JSON.stringify([{ key: 'media_layout', value: JSON.stringify(layout), season_id: window.adminSeasonId }]),
+      });
+      close();
+      await onSaved();
+    } catch (err) {
+      backdrop.querySelector('#as-msg').textContent = err.message || 'Failed to add section';
+      backdrop.querySelector('#as-msg').style.display = 'block';
+    }
+  };
 }
 
 async function openAddMediaModal(ctx, onSaved) {
@@ -2773,6 +2820,7 @@ async function openAddMediaModal(ctx, onSaved) {
     if (parsed?.sections) layout = parsed;
   } catch (_) {}
   if (!Array.isArray(layout.sections)) layout.sections = [];
+  const currentWeek = config.CURRENT_WEEK || 1;
   const sectionOptions = layout.sections.map((s, i) => `<option value="${escapeHtml(s.id || '')}">${escapeHtml(s.title || 'Section ' + (i + 1))}</option>`).join('');
   const noSections = !layout.sections.length;
   const newSectionSelected = noSections ? ' selected' : '';
@@ -2786,8 +2834,13 @@ async function openAddMediaModal(ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Section: <select id="am-section" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;">${sectionOptions}<option value="__new__"${newSectionSelected}>+ New section</option></select></label>
         <div id="am-new-section-wrap" style="display:${newSectionWrapDisplay};margin:0.5rem 0;"><label>New section name: <input type="text" id="am-new-section-name" placeholder="Section title" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label></div>
         <label style="display:block;margin:0.5rem 0;">Block title: <input type="text" id="am-title" required placeholder="e.g. Top Plays" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="am-url" placeholder="https://..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Instagram Post URL: <input type="url" id="am-url" placeholder="https://www.instagram.com/p/XXXXX/" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Width: <select id="am-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half">Half (2 per row)</option><option value="full">Full width</option></select></label>
+        <div style="margin:0.75rem 0;">
+          <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
+          <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="am-week" value="all" checked> All Weeks</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="radio" name="am-week" value="current"> This week only (Week ${currentWeek})</label>
+        </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Add</button>
           <button type="button" class="btn-secondary" id="am-cancel">Cancel</button>
@@ -2813,10 +2866,12 @@ async function openAddMediaModal(ctx, onSaved) {
     const blockTitle = backdrop.querySelector('#am-title').value.trim() || 'Media';
     const url = backdrop.querySelector('#am-url').value.trim() || '';
     const width = backdrop.querySelector('#am-width').value || 'half';
+    const weekVal = backdrop.querySelector('input[name="am-week"]:checked')?.value;
+    const blockWeek = weekVal === 'current' ? currentWeek : null;
     let targetSectionId = sectionVal;
     if (sectionVal === '__new__') {
       const newId = 'sec_' + Date.now();
-      layout.sections.push({ id: newId, title: newSectionName || 'New Section', blocks: [] });
+      layout.sections.push({ id: newId, title: newSectionName || 'New Section', week: null, blocks: [] });
       targetSectionId = newId;
     }
     const sec = layout.sections.find(s => (s.id || '') === targetSectionId);
@@ -2826,7 +2881,7 @@ async function openAddMediaModal(ctx, onSaved) {
       return;
     }
     if (!sec.blocks) sec.blocks = [];
-    sec.blocks.push({ id: 'blk_' + Date.now(), title: blockTitle, url, width });
+    sec.blocks.push({ id: 'blk_' + Date.now(), title: blockTitle, url, width, week: blockWeek });
     try {
       await ctx.adminFetch('admin-content', {
         method: 'POST',
@@ -2859,7 +2914,7 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
       <h4>Edit block</h4>
       <form id="edit-block-form">
         <label style="display:block;margin:0.5rem 0;">Title: <input type="text" id="eb-title" value="${escapeHtml(block.title || '')}" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
-        <label style="display:block;margin:0.5rem 0;">URL: <input type="url" id="eb-url" value="${escapeHtml(block.url || '')}" placeholder="https://..." style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+        <label style="display:block;margin:0.5rem 0;">Instagram Post URL: <input type="url" id="eb-url" value="${escapeHtml(block.url || '')}" placeholder="https://www.instagram.com/p/XXXXX/" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Width: <select id="eb-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half" ${(block.width || 'half') === 'half' ? 'selected' : ''}>Half (2 per row)</option><option value="full" ${block.width === 'full' ? 'selected' : ''}>Full width</option></select></label>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Save</button>
