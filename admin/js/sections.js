@@ -2602,6 +2602,58 @@ export async function attachMediaSlotOverlays(ctx) {
     pageMedia.querySelectorAll('.media-layout-section[data-section-id]').forEach(sectionEl => {
       if (sectionEl.querySelector('.admin-delete-section-btn')) return;
       const sectionId = sectionEl.dataset.sectionId;
+      const sec = layout.sections.find(s => (s.id || '') === sectionId);
+
+      const editSectionBtn = document.createElement('button');
+      editSectionBtn.type = 'button';
+      editSectionBtn.className = 'admin-edit-btn admin-edit-section-btn';
+      editSectionBtn.textContent = 'Edit section';
+      editSectionBtn.style.cssText = 'position:static;padding:0.2rem 0.5rem;font-size:0.7rem;cursor:pointer;';
+      editSectionBtn.onclick = () => {
+        const selectedWeek = parseInt(document.getElementById('media-week-select')?.value) || config.CURRENT_WEEK || 1;
+        const isScoped = sec?.week != null;
+        const secWeekDisplay = sec?.week ?? selectedWeek;
+        const modal = document.createElement('div');
+        modal.className = 'admin-modal-backdrop';
+        modal.innerHTML = `
+          <div class="admin-modal">
+            <h4>Edit section</h4>
+            <form id="edit-section-form">
+              <label style="display:block;margin:0.5rem 0;">Section title: <input type="text" id="es-title" value="${escapeHtml(sec?.title || '')}" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
+              <div style="margin:0.75rem 0;">
+                <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
+                <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="es-week" value="all" ${!isScoped ? 'checked' : ''}> All Weeks</label>
+                <label style="display:block;cursor:pointer;"><input type="radio" name="es-week" value="current" ${isScoped ? 'checked' : ''}> This week only (Week ${secWeekDisplay})</label>
+              </div>
+              <div class="admin-modal-actions" style="margin-top:1rem;">
+                <button type="submit" class="btn-primary">Save</button>
+                <button type="button" class="btn-secondary" id="es-cancel">Cancel</button>
+              </div>
+            </form>
+            <div id="es-msg" class="admin-edit-msg" style="display:none;margin-top:0.5rem;"></div>
+          </div>`;
+        document.body.appendChild(modal);
+        const closeModal = () => modal.remove();
+        modal.querySelector('#es-cancel').onclick = closeModal;
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        modal.querySelector('#edit-section-form').onsubmit = async (e) => {
+          e.preventDefault();
+          if (sec) {
+            sec.title = modal.querySelector('#es-title').value.trim() || sec.title;
+            const weekVal = modal.querySelector('input[name="es-week"]:checked')?.value;
+            sec.week = weekVal === 'current' ? secWeekDisplay : null;
+          }
+          try {
+            await saveContent('media_layout', JSON.stringify(layout));
+            closeModal();
+            await onMediaSaved();
+          } catch (err) {
+            modal.querySelector('#es-msg').textContent = err.message || 'Save failed.';
+            modal.querySelector('#es-msg').style.display = 'block';
+          }
+        };
+      };
+
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
       delBtn.className = 'admin-edit-btn admin-delete-section-btn';
@@ -2614,7 +2666,10 @@ export async function attachMediaSlotOverlays(ctx) {
         await onMediaSaved();
       };
       const headerEl = sectionEl.querySelector('.media-section-header');
-      if (headerEl) headerEl.appendChild(delBtn);
+      if (headerEl) {
+        headerEl.appendChild(editSectionBtn);
+        headerEl.appendChild(delBtn);
+      }
     });
 
     pageMedia.querySelectorAll('.video-card[data-section-id][data-block-id]').forEach(card => {
@@ -2907,6 +2962,9 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
   const sec = layout.sections.find(s => (s.id || '') === sectionId);
   const block = sec?.blocks?.find(b => (b.id || '').toString() === blockId.toString());
   if (!block) return;
+  const selectedWeek = parseInt(document.getElementById('media-week-select')?.value) || config.CURRENT_WEEK || 1;
+  const blockIsScoped = block.week != null;
+  const blockWeekDisplay = block.week ?? selectedWeek;
   const backdrop = document.createElement('div');
   backdrop.className = 'admin-modal-backdrop';
   backdrop.innerHTML = `
@@ -2916,6 +2974,11 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
         <label style="display:block;margin:0.5rem 0;">Title: <input type="text" id="eb-title" value="${escapeHtml(block.title || '')}" required style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Instagram Post URL: <input type="url" id="eb-url" value="${escapeHtml(block.url || '')}" placeholder="https://www.instagram.com/p/XXXXX/" style="padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"></label>
         <label style="display:block;margin:0.5rem 0;">Width: <select id="eb-width" style="padding:0.4rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;"><option value="half" ${(block.width || 'half') === 'half' ? 'selected' : ''}>Half (2 per row)</option><option value="full" ${block.width === 'full' ? 'selected' : ''}>Full width</option></select></label>
+        <div style="margin:0.75rem 0;">
+          <div style="font-size:0.85rem;color:#c8c0b0;margin-bottom:0.4rem;">Apply to:</div>
+          <label style="display:block;margin-bottom:0.3rem;cursor:pointer;"><input type="radio" name="eb-week" value="all" ${!blockIsScoped ? 'checked' : ''}> All Weeks</label>
+          <label style="display:block;cursor:pointer;"><input type="radio" name="eb-week" value="current" ${blockIsScoped ? 'checked' : ''}> This week only (Week ${blockWeekDisplay})</label>
+        </div>
         <div class="admin-modal-actions" style="margin-top:1rem;">
           <button type="submit" class="btn-primary">Save</button>
           <button type="button" class="btn-secondary" id="eb-cancel">Cancel</button>
@@ -2935,6 +2998,8 @@ async function openMediaBlockModal(sectionId, blockId, ctx, onSaved) {
     block.title = backdrop.querySelector('#eb-title').value.trim() || 'Media';
     block.url = backdrop.querySelector('#eb-url').value.trim() || '';
     block.width = backdrop.querySelector('#eb-width').value || 'half';
+    const weekVal = backdrop.querySelector('input[name="eb-week"]:checked')?.value;
+    block.week = weekVal === 'current' ? blockWeekDisplay : null;
     try {
       await ctx.adminFetch('admin-content', {
         method: 'POST',
