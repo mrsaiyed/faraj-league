@@ -383,9 +383,9 @@ function buildMatchupCard(g, gameId) {
   return `<div class="matchup-card"${g.week != null ? ` data-week="${g.week}"` : ''}>
     ${header}
     <div class="mc-body">
-      <div class="mc-away">${teamLogoHtml(g.t2, 'away')}<span class="mc-team-name mc-away-name">${escapeHtmlAttr(g.t2)}</span></div>
+      <div class="mc-away">${teamLogoHtml(g.t2, 'away')}<span class="mc-team-name mc-away-name"${g.t2Id ? ` data-team-id="${escapeHtmlAttr(g.t2Id)}"` : ''}>${escapeHtmlAttr(g.t2)}</span></div>
       ${mid}
-      <div class="mc-home"><span class="mc-team-name mc-home-name">${escapeHtmlAttr(g.t1)}</span>${teamLogoHtml(g.t1, 'home')}</div>
+      <div class="mc-home"><span class="mc-team-name mc-home-name"${g.t1Id ? ` data-team-id="${escapeHtmlAttr(g.t1Id)}"` : ''}>${escapeHtmlAttr(g.t1)}</span>${teamLogoHtml(g.t1, 'home')}</div>
     </div>
     ${winnerLine}
     ${boxRow}

@@ -155,6 +155,8 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .mc-logo-home{background:#0d4f47;border:2px solid rgba(47,168,154,0.35);color:#2fa89a;}
 .mc-logo-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;transform-origin:center;}
 .mc-team-name{font-size:0.9rem;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+#page-schedule .mc-team-name[data-team-id]{cursor:pointer;}
+#page-schedule .mc-team-name[data-team-id]:hover{text-decoration:underline;color:#c8a84b;}
 .mc-away-name{color:#e8e4e0;}
 .mc-home-name{color:#2fa89a;text-align:right;}
 .mc-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:0.2rem;}
