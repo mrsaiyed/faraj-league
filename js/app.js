@@ -72,6 +72,14 @@ function navToMatchup(week) {
   });
 }
 
+// Delegated click: schedule team names → team page
+document.addEventListener('click', e => {
+  const nameEl = e.target.closest('.mc-team-name[data-team-id]');
+  if (!nameEl || !nameEl.closest('#page-schedule')) return;
+  e.stopPropagation();
+  goToTeam(nameEl.dataset.teamId);
+});
+
 // Delegated click: home matchup cards → schedule tab at that week
 document.addEventListener('click', e => {
   if (!e.target.closest('#home-matchups')) return;
