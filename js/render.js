@@ -192,9 +192,19 @@ export function renderHome() {
   const wp = getWeeksPlayed();
   const weeksPlayedEl = document.getElementById('weeks-played');
   if (weeksPlayedEl) weeksPlayedEl.textContent = wp;
-  // Week 0 = show week 1 as upcoming; otherwise show previous week's results
+  // Week 0 = show week 1 as upcoming; show current week if stats exist, otherwise fall back to previous week
   const upcoming = config.CURRENT_WEEK === 0;
-  const displayWeek = upcoming ? 1 : Math.max(1, config.CURRENT_WEEK - 1);
+  let displayWeek;
+  if (upcoming) {
+    displayWeek = 1;
+  } else {
+    const currentWeekGames = config.DB.scores.filter(g => g.week === config.CURRENT_WEEK);
+    const hasStats = currentWeekGames.some(g => {
+      const gsv = config.DB.gameStatValues?.[g.gameId];
+      return gsv && Object.keys(gsv).length > 0;
+    });
+    displayWeek = hasStats ? config.CURRENT_WEEK : Math.max(1, config.CURRENT_WEEK - 1);
+  }
   const weekGames = config.DB.scores.filter(g => g.week === displayWeek);
   const wa = config.DB.awards.find(a => a.week === displayWeek) || {};
   const t = config.DB.teams;
