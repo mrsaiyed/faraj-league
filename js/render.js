@@ -613,7 +613,7 @@ export function renderTeams() {
     return `
     <div class="teams-conf-section" data-conf="${escapeHtmlAttr(conf)}" style="margin-bottom:1.6rem;">
       <div id="teams-conf-header-${slug}" class="teams-conf-header" style="font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.75rem;padding-bottom:0.35rem;border-bottom:1px solid rgba(200,168,75,0.2);">${confLabel(conf)}</div>
-      <div class="teams-grid teams-drop-zone" data-conf="${escapeHtmlAttr(conf)}">${config.DB.teams.filter(t => t.conf === conf).sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map(teamCard).join('')}</div>
+      <div class="teams-grid teams-drop-zone" data-conf="${escapeHtmlAttr(conf)}">${config.DB.teams.filter(t => t.conf === conf).sort((a, b) => (seeds[a.name] ?? 999) - (seeds[b.name] ?? 999)).map(teamCard).join('')}</div>
     </div>`;
   });
   if (unassignedTeams.length > 0) {
