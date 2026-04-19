@@ -217,11 +217,12 @@ export function renderHome() {
   if (awardsSub) awardsSub.textContent = `Week ${displayWeek} · ${subLabel}`;
 
   const rec = calcStandings();
+  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
   const homeStandings = document.getElementById('home-standings');
   if (!homeStandings) return;
   homeStandings.innerHTML = (getConferences().map(c => c.id || c.name)).map(conf => {
     const idA = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
-    const rows = config.DB.teams.filter(t => t.conf === conf).map(t => ({ ...rec[t.name] || { w: 0, l: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
+    const rows = config.DB.teams.filter(t => t.conf === conf).map(t => ({ ...rec[t.name] || { w: 0, l: 0 }, name: t.name, id: t.id })).sort((a, b) => (seeds[a.name] ?? 999) - (seeds[b.name] ?? 999));
     return `<div class="home-conf-block"><div class="home-conf-title">${confLabel(conf)}</div>${rows.map((r, i) => `<div class="home-stand-row" onclick="goToTeam(${idA(r.id)})"><span class="home-stand-rank">${i + 1}</span><span class="home-stand-name">${r.name}</span><span class="home-stand-rec">${r.w}-${r.l}</span></div>`).join('')}</div>`;
   }).join('');
 
@@ -239,6 +240,7 @@ export function renderHome() {
 
 export function renderStandings() {
   const rec = calcStandings();
+  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
   const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   const confGrid = document.querySelector('#page-standings .conf-grid, .conf-grid');
   const conferences = getConferences();
@@ -246,7 +248,7 @@ export function renderStandings() {
     confGrid.innerHTML = conferences.map(c => {
       const confId = c.id || c.name;
       const slug = String(confId).toLowerCase().replace(/\W+/g, '_');
-      const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
+      const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => (seeds[a.name] ?? 999) - (seeds[b.name] ?? 999));
       const rowsHtml = rows.map((r, i) => { const pd = (r.pf || 0) - (r.pa || 0); return `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td><td>${pd > 0 ? '+' + pd : pd}</td></tr>`; }).join('');
       return `<div class="card"><div class="conf-header" id="conf-header-${slug}">${confLabel(confId)}</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="${slug}-standings">${rowsHtml}</tbody></table></div>`;
     }).join('');
@@ -256,7 +258,7 @@ export function renderStandings() {
       const slug = String(confId).toLowerCase().replace(/\W+/g, '_');
       const tbody = document.getElementById(slug + '-standings');
       if (!tbody) return;
-      const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa));
+      const rows = config.DB.teams.filter(t => t.conf === confId).map(t => ({ ...rec[t.name] || { w: 0, l: 0, pf: 0, pa: 0 }, name: t.name, id: t.id })).sort((a, b) => (seeds[a.name] ?? 999) - (seeds[b.name] ?? 999));
       tbody.innerHTML = rows.map((r, i) => { const pd = (r.pf || 0) - (r.pa || 0); return `<tr><td style="color:#c8c0b0;font-size:0.82rem">${i + 1}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td><td>${pd > 0 ? '+' + pd : pd}</td></tr>`; }).join('');
     });
   }
