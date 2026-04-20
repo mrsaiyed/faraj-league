@@ -220,6 +220,11 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .pr-list{display:flex;flex-direction:column;gap:0.5rem;}
 .pr-row{display:flex;align-items:center;gap:1rem;background:#0e2535;border:1px solid rgba(200,168,75,0.15);border-radius:6px;padding:0.85rem 1rem;}
 .pr-rank{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:#c8a84b;min-width:2.8rem;text-align:center;flex-shrink:0;}
+.pr-move{min-width:1.6rem;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:0.05rem;}
+.pr-move-up .pr-move-arrow{color:#22c55e;font-size:0.8rem;line-height:1;}
+.pr-move-up .pr-move-num{color:#22c55e;font-size:0.68rem;font-weight:700;line-height:1;}
+.pr-move-dn .pr-move-arrow{color:#ef4444;font-size:0.8rem;line-height:1;}
+.pr-move-dn .pr-move-num{color:#ef4444;font-size:0.68rem;font-weight:700;line-height:1;}
 .pr-logo{width:52px;height:52px;border-radius:50%;background:#1a2535;border:2px solid rgba(200,168,75,0.28);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#c8a84b;flex-shrink:0;position:relative;overflow:hidden;}
 .pr-info{flex:1;min-width:0;}
 .pr-team-name{font-size:1rem;font-weight:700;color:#f5f0e8;line-height:1.2;}

@@ -747,14 +747,17 @@ export function renderPowerRankings(week) {
   const el = document.getElementById('pr-content');
   if (!el) return;
   const w = parseInt(week, 10);
-  let weekData = [];
+  let allData = {};
   try {
     const raw = config.DB.contentBlocks?.power_rankings_data;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      weekData = parsed[String(w)] || parsed[w] || [];
-    }
+    if (raw) allData = JSON.parse(raw);
   } catch (_) {}
+  const weekData = allData[String(w)] || allData[w] || [];
+
+  const prevData = allData[String(w - 1)] || allData[w - 1] || [];
+  const prevRankMap = {};
+  prevData.forEach((entry, i) => { prevRankMap[entry.teamId] = i + 1; });
+
   const teamMap = {};
   (config.DB.teams || []).forEach(t => { teamMap[t.id] = t; });
   const isLatest = w === Math.max(1, config.CURRENT_WEEK - 1);
@@ -774,8 +777,16 @@ export function renderPowerRankings(week) {
       ? `<img src="${logoUrl}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
       : initials(name);
     const noteHtml = entry.note ? `<div class="pr-note">${entry.note}</div>` : '';
+    const prevRank = prevRankMap[entry.teamId];
+    const delta = prevRank != null ? prevRank - (i + 1) : 0;
+    const moveHtml = delta > 0
+      ? `<div class="pr-move pr-move-up"><span class="pr-move-arrow">▲</span><span class="pr-move-num">${delta}</span></div>`
+      : delta < 0
+        ? `<div class="pr-move pr-move-dn"><span class="pr-move-arrow">▼</span><span class="pr-move-num">${Math.abs(delta)}</span></div>`
+        : `<div class="pr-move"></div>`;
     return `<div class="pr-row">
       <div class="pr-rank">#${i + 1}</div>
+      ${moveHtml}
       <div class="pr-logo">${logoInner}</div>
       <div class="pr-info"><div class="pr-team-name">${escapeHtmlAttr(name)}</div>${noteHtml}</div>
     </div>`;
