@@ -191,13 +191,15 @@ export function renderAll(adminMode = false) {
   const prevPrWeekVal = document.getElementById('pr-week-select')?.value;
   buildWeekDropdown('pr-week-select', false, config.CURRENT_WEEK);
   const prSel = document.getElementById('pr-week-select');
+  const gsvGameIds = new Set(Object.keys(config.DB.gameStatValues || {}));
+  const weeksWithStats = (config.DB.scores || []).filter(g => gsvGameIds.has(g.gameId)).map(g => g.week);
+  const defaultPrWeek = weeksWithStats.length > 0 ? Math.max(...weeksWithStats) : Math.max(1, config.CURRENT_WEEK - 1);
   if (prSel) {
-    const defaultPrWeek = Math.max(1, config.CURRENT_WEEK - 1);
     const restoredPr = prevPrWeekVal && parseInt(prevPrWeekVal) >= 1 && parseInt(prevPrWeekVal) <= config.CURRENT_WEEK
       ? prevPrWeekVal : String(defaultPrWeek);
     prSel.value = restoredPr;
   }
-  renderPowerRankings(parseInt(prSel?.value || Math.max(1, config.CURRENT_WEEK - 1)));
+  renderPowerRankings(parseInt(prSel?.value || defaultPrWeek));
   set('pr-section-sub', config.currentSeasonLabel);
   renderAbout();
   renderDraft(adminMode);
