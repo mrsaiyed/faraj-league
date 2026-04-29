@@ -766,22 +766,25 @@ export function renderMvpLadder(week) {
   });
 
   const defs = config.DB.statDefinitions || [];
-  const pointsDef = defs.find(d => d.slug === 'points');
+  // Look for MVP points stat definition (try common slugs)
+  const mvpDef = defs.find(d => d.slug === 'mvp_pts') || defs.find(d => d.slug === 'mvp_points') || defs.find(d => (d.slug || '').includes('mvp'));
   const statsMap = {};
   (config.DB.stats || []).forEach(s => {
-    const pts = pointsDef ? (s.statValues?.[pointsDef.id] || 0) : s.total;
-    statsMap[s.name] = s.gp > 0 ? pts / s.gp : null;
+    if (mvpDef) {
+      const val = s.statValues?.[mvpDef.id];
+      statsMap[s.name] = (val != null && val > 0) ? Number(val) : null;
+    }
   });
 
   const entries = ladderPlayerIds.map((id, i) => {
     const p = playerMap[id];
     if (!p) return null;
-    return { rank: i + 1, name: p.name, team: p.team, ppg: statsMap[p.name] ?? null };
+    return { rank: i + 1, name: p.name, team: p.team, mvpPts: statsMap[p.name] ?? null };
   }).filter(Boolean);
 
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
-  const ppgDisplay = (ppg) => (ppg != null && ppg > 0) ? ppg.toFixed(1) + ' PPG' : '—';
+  const mvpPtsDisplay = (pts) => (pts != null && pts > 0) ? `${pts} MVP Pts` : '—';
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
@@ -812,14 +815,14 @@ export function renderMvpLadder(week) {
         <div class="mvp-podium-info">
           <div class="mvp-podium-player">${escapeHtmlAttr(e.name)}</div>
           <div class="mvp-podium-team mvp-podium-team-desktop" style="color:${m.color};">${escapeHtmlAttr(e.team)}</div>
-          <div class="mvp-podium-ppg">${ppgDisplay(e.ppg)}</div>
+          <div class="mvp-podium-ppg">${mvpPtsDisplay(e.mvpPts)}</div>
         </div>
       </div>
     </div>`;
   }).join('');
 
   const listHtml = rest.map(e =>
-    `<div class="mvp-ladder-row"><span class="mvp-ladder-rank">#${e.rank}</span><span class="mvp-ladder-name">${escapeHtmlAttr(e.name)}</span><span class="mvp-ladder-team">${escapeHtmlAttr(e.team)}</span><span class="mvp-ladder-ppg">${ppgDisplay(e.ppg)}</span></div>`
+    `<div class="mvp-ladder-row"><span class="mvp-ladder-rank">#${e.rank}</span><span class="mvp-ladder-name">${escapeHtmlAttr(e.name)}</span><span class="mvp-ladder-team">${escapeHtmlAttr(e.team)}</span><span class="mvp-ladder-ppg">${mvpPtsDisplay(e.mvpPts)}</span></div>`
   ).join('');
 
   wrap.innerHTML = `
