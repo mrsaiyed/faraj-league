@@ -785,9 +785,33 @@ export function renderMvpLadder(week) {
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
-  const cardsHtml = top3.map(e =>
-    `<div class="stat-leader-card"><div class="slc-rank">#${e.rank}</div><div class="slc-name">${escapeHtmlAttr(e.name)}</div><div class="slc-team">${escapeHtmlAttr(e.team)}</div><div class="slc-ppg">${ppgDisplay(e.ppg)}</div></div>`
-  ).join('');
+  const RANK_META = {
+    1: { color: '#c8a84b', shadow: 'rgba(200,168,75,0.35)', label: 'gold' },
+    2: { color: '#a8b8c8', shadow: 'rgba(168,184,200,0.3)', label: 'silver' },
+    3: { color: '#c8845a', shadow: 'rgba(200,132,90,0.28)', label: 'bronze' },
+  };
+
+  // Shield SVG badge: rank number inside a shield shape
+  const shieldBadge = (rank) => {
+    const m = RANK_META[rank];
+    return `<svg viewBox="0 0 60 72" width="52" height="62" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 0.6rem;filter:drop-shadow(0 0 8px ${m.shadow});">
+      <defs><linearGradient id="sg${rank}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${m.color}" stop-opacity="1"/><stop offset="100%" stop-color="${m.color}" stop-opacity="0.55"/></linearGradient></defs>
+      <path d="M30 2 L58 14 L58 36 C58 54 30 70 30 70 C30 70 2 54 2 36 L2 14 Z" fill="url(#sg${rank})" stroke="${m.color}" stroke-width="2"/>
+      <text x="30" y="44" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel,serif" font-size="24" font-weight="700" fill="#060f1a">${rank}</text>
+    </svg>`;
+  };
+
+  // Podium order: 2nd left, 1st center, 3rd right
+  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+  const podiumHtml = podiumOrder.map(e => {
+    const m = RANK_META[e.rank];
+    return `<div class="mvp-podium-card mvp-podium-rank${e.rank}" style="border-color:${m.color};box-shadow:0 0 14px ${m.shadow};">
+      ${shieldBadge(e.rank)}
+      <div class="slc-name">${escapeHtmlAttr(e.name)}</div>
+      <div class="slc-team">${escapeHtmlAttr(e.team)}</div>
+      <div class="slc-ppg" style="color:${m.color};">${ppgDisplay(e.ppg)}</div>
+    </div>`;
+  }).join('');
 
   const listHtml = rest.map(e =>
     `<div class="mvp-ladder-row"><span class="mvp-ladder-rank">#${e.rank}</span><span class="mvp-ladder-name">${escapeHtmlAttr(e.name)}</span><span class="mvp-ladder-team">${escapeHtmlAttr(e.team)}</span><span class="mvp-ladder-ppg">${ppgDisplay(e.ppg)}</span></div>`
@@ -798,7 +822,7 @@ export function renderMvpLadder(week) {
     <p class="section-sub">Season in Progress</p>
     <h2 class="section-title">Midseason MVP Ranking</h2>
     <div class="section-line"></div>
-    <div class="stats-leaders">${cardsHtml}</div>
+    <div class="mvp-podium">${podiumHtml}</div>
     ${rest.length ? `<div class="mvp-ladder-list card">${listHtml}</div>` : ''}`;
 }
 
