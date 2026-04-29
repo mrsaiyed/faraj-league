@@ -824,7 +824,7 @@ export function renderMvpLadder(week) {
 
   wrap.innerHTML = `
     <hr class="section-divider">
-    <p class="section-sub">Season in Progress</p>
+    <p class="section-sub">Mid Season Awards</p>
     <h2 class="section-title">Midseason MVP Ranking</h2>
     <div class="section-line"></div>
     <div class="mvp-podium">${podiumHtml}</div>
