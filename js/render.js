@@ -805,13 +805,16 @@ export function renderMvpLadder(week) {
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
   const podiumHtml = podiumOrder.map(e => {
     const m = RANK_META[e.rank];
-    const star = e.rank === 1 ? `<div style="color:#c8a84b;font-size:1rem;margin:0.3rem 0 0.5rem;letter-spacing:0.3em;">★</div>` : `<div style="margin:0.3rem 0 0.5rem;height:1.4rem;"></div>`;
     return `<div class="mvp-podium-card mvp-podium-rank${e.rank}" style="border-color:${m.color};box-shadow:0 0 18px ${m.shadow};">
-      ${shieldBadge(e.rank)}
-      <div class="slc-name">${escapeHtmlAttr(e.name)}</div>
-      <div class="slc-team">${escapeHtmlAttr(e.team)}</div>
-      ${star}
-      <div class="slc-ppg" style="color:${m.color};">${ppgDisplay(e.ppg)}</div>
+      <div class="mvp-podium-badge">${shieldBadge(e.rank)}</div>
+      <div class="mvp-podium-body">
+        <div class="mvp-podium-logo">${teamEmblemHtml(e.team)}</div>
+        <div class="mvp-podium-info">
+          <div class="mvp-podium-player">${escapeHtmlAttr(e.name)}</div>
+          <div class="mvp-podium-team" style="color:${m.color};">${escapeHtmlAttr(e.team)}</div>
+          <div class="mvp-podium-ppg">${ppgDisplay(e.ppg)}</div>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
