@@ -748,43 +748,36 @@ export function renderMvpLadder(week) {
   const wrap = document.getElementById('awards-mvp-ladder-wrap');
   if (!wrap) return;
 
-  let ladderPlayerIds = null;
+  let ladderEntries = null;
   try {
     const raw = config.DB.contentBlocks?.mvp_ladder_data;
     if (raw) {
       const allData = JSON.parse(raw);
       const keys = Object.keys(allData).map(Number).filter(k => k <= week).sort((a, b) => b - a);
-      if (keys.length > 0) ladderPlayerIds = allData[String(keys[0])];
+      if (keys.length > 0) ladderEntries = allData[String(keys[0])];
     }
   } catch (_) {}
 
-  if (!ladderPlayerIds?.length) { wrap.innerHTML = ''; return; }
+  if (!ladderEntries?.length) { wrap.innerHTML = ''; return; }
 
   const playerMap = {};
   (config.DB.teams || []).forEach(t => {
     (t.roster || []).forEach(p => { playerMap[p.id] = { name: p.name, team: t.name }; });
   });
 
-  const defs = config.DB.statDefinitions || [];
-  // Look for MVP points stat definition (try common slugs)
-  const mvpDef = defs.find(d => d.slug === 'mvp_pts') || defs.find(d => d.slug === 'mvp_points') || defs.find(d => (d.slug || '').includes('mvp'));
-  const statsMap = {};
-  (config.DB.stats || []).forEach(s => {
-    if (mvpDef) {
-      const val = s.statValues?.[mvpDef.id];
-      statsMap[s.name] = (val != null && val > 0) ? Number(val) : null;
-    }
-  });
+  // Normalize: old format = array of id strings, new format = array of {id, pts}
+  const normalize = (e) => typeof e === 'string' ? { id: e, pts: null } : { id: e?.id || '', pts: e?.pts ?? null };
 
-  const entries = ladderPlayerIds.map((id, i) => {
+  const entries = ladderEntries.map((raw, i) => {
+    const { id, pts } = normalize(raw);
     const p = playerMap[id];
     if (!p) return null;
-    return { rank: i + 1, name: p.name, team: p.team, mvpPts: statsMap[p.name] ?? null };
+    return { rank: i + 1, name: p.name, team: p.team, mvpPts: (pts != null && pts !== '') ? Number(pts) : null };
   }).filter(Boolean);
 
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
-  const mvpPtsDisplay = (pts) => (pts != null && pts > 0) ? `${pts} MVP Pts` : '—';
+  const mvpPtsDisplay = (pts) => (pts != null && pts >= 0) ? `${pts} MVP Pts` : '—';
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 

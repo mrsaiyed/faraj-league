@@ -2181,20 +2181,24 @@ export async function renderAdminMvpLadder(content, ctx) {
     });
   }
 
-  function buildSlots(ladderIds = []) {
+  // Normalize entry: supports old format (string id) and new format ({id, pts})
+  function normalizeEntry(e) { return typeof e === 'string' ? { id: e, pts: '' } : { id: e?.id || '', pts: e?.pts ?? '' }; }
+
+  function buildSlots(entries = []) {
     slotsEl.innerHTML = '';
     for (let i = 0; i < 10; i++) {
-      const selectedId = ladderIds[i] || '';
+      const entry = normalizeEntry(entries[i]);
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:0.6rem;';
       row.innerHTML = `
         <span style="color:#c8a84b;font-family:'Cinzel',serif;font-size:0.82rem;width:1.8rem;text-align:right;flex-shrink:0;">#${i + 1}</span>
-        <input type="text" placeholder="Search..." style="padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#c8c0b0;border-radius:4px;font-size:0.82rem;width:120px;flex-shrink:0;" />
-        <select style="flex:1;padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#f5f0e8;border-radius:4px;font-size:0.85rem;">${playerOptHtml}</select>`;
+        <input type="text" placeholder="Search..." class="ladder-search" style="padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#c8c0b0;border-radius:4px;font-size:0.82rem;width:100px;flex-shrink:0;" />
+        <select class="ladder-player" style="flex:1;padding:0.35rem 0.5rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#f5f0e8;border-radius:4px;font-size:0.85rem;">${playerOptHtml}</select>
+        <input type="number" class="ladder-pts" placeholder="Pts" min="0" value="${entry.pts}" style="padding:0.35rem 0.4rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);color:#c8a84b;border-radius:4px;font-size:0.85rem;width:58px;flex-shrink:0;" />`;
       slotsEl.appendChild(row);
-      const searchInput = row.querySelector('input');
-      const select = row.querySelector('select');
-      if (selectedId) select.value = selectedId;
+      const searchInput = row.querySelector('.ladder-search');
+      const select = row.querySelector('.ladder-player');
+      if (entry.id) select.value = entry.id;
       searchInput.addEventListener('input', () => {
         const q = searchInput.value.toLowerCase();
         Array.from(select.options).forEach(opt => {
@@ -2206,7 +2210,8 @@ export async function renderAdminMvpLadder(content, ctx) {
 
   function loadWeekLadder(w) {
     const keys = Object.keys(currentLadderData).map(Number).filter(k => k <= w).sort((a, b) => b - a);
-    buildSlots(keys.length > 0 ? (currentLadderData[String(keys[0])] || []) : defaultLadderIds());
+    const raw = keys.length > 0 ? (currentLadderData[String(keys[0])] || []) : defaultLadderIds();
+    buildSlots(raw);
   }
 
   loadWeekLadder(currentWeek);
@@ -2215,8 +2220,13 @@ export async function renderAdminMvpLadder(content, ctx) {
   content.querySelector('#ladder-save-btn').addEventListener('click', async () => {
     const msgEl = content.querySelector('#ladder-msg');
     const week = parseInt(weekSelEl.value);
-    const ids = Array.from(slotsEl.querySelectorAll('select')).map(s => s.value).filter(Boolean);
-    currentLadderData[String(week)] = ids;
+    const rows = Array.from(slotsEl.querySelectorAll('.mvp-podium-card, div')).filter(r => r.querySelector('.ladder-player'));
+    const entries = Array.from(slotsEl.children).map(row => {
+      const id = row.querySelector('.ladder-player')?.value || '';
+      const pts = row.querySelector('.ladder-pts')?.value;
+      return id ? { id, pts: pts !== '' ? Number(pts) : null } : null;
+    }).filter(Boolean);
+    currentLadderData[String(week)] = entries;
     try {
       await adminFetch('admin-content', {
         method: 'POST',
