@@ -2172,6 +2172,15 @@ export async function renderAdminMvpLadder(content, ctx) {
   const playerOptHtml = `<option value="">— Select player —</option>` +
     allPlayers.map(p => `<option value="${p.id}">${p.name} (${p.team})</option>`).join('');
 
+  const DEFAULT_NAMES = ['Saif', 'Alireza', 'Raamiz', 'Tahir', 'Dayyem', 'Imran', 'Raza', 'Aun Ali', 'Hyder', 'Humza Hussain'];
+  function defaultLadderIds() {
+    return DEFAULT_NAMES.map(n => {
+      const nl = n.toLowerCase();
+      const p = allPlayers.find(pl => pl.name.toLowerCase() === nl || pl.name.toLowerCase().startsWith(nl + ' ') || pl.name.toLowerCase().startsWith(nl));
+      return p?.id || '';
+    });
+  }
+
   function buildSlots(ladderIds = []) {
     slotsEl.innerHTML = '';
     for (let i = 0; i < 10; i++) {
@@ -2197,7 +2206,7 @@ export async function renderAdminMvpLadder(content, ctx) {
 
   function loadWeekLadder(w) {
     const keys = Object.keys(currentLadderData).map(Number).filter(k => k <= w).sort((a, b) => b - a);
-    buildSlots(keys.length > 0 ? (currentLadderData[String(keys[0])] || []) : []);
+    buildSlots(keys.length > 0 ? (currentLadderData[String(keys[0])] || []) : defaultLadderIds());
   }
 
   loadWeekLadder(currentWeek);
