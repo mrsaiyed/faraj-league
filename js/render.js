@@ -811,7 +811,7 @@ export function renderMvpLadder(week) {
         <div class="mvp-podium-logo">${teamEmblemHtml(e.team)}</div>
         <div class="mvp-podium-info">
           <div class="mvp-podium-player">${escapeHtmlAttr(e.name)}</div>
-          <div class="mvp-podium-team" style="color:${m.color};">${escapeHtmlAttr(e.team)}</div>
+          <div class="mvp-podium-team mvp-podium-team-desktop" style="color:${m.color};">${escapeHtmlAttr(e.team)}</div>
           <div class="mvp-podium-ppg">${ppgDisplay(e.ppg)}</div>
         </div>
       </div>
