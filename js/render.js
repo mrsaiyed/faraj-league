@@ -777,6 +777,15 @@ export function renderMvpLadder(week) {
 
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
+  // Sort by MVP pts descending; players with no pts stay in original order at the bottom
+  entries.sort((a, b) => {
+    if (a.mvpPts == null && b.mvpPts == null) return 0;
+    if (a.mvpPts == null) return 1;
+    if (b.mvpPts == null) return -1;
+    return b.mvpPts - a.mvpPts;
+  });
+  entries.forEach((e, i) => { e.rank = i + 1; });
+
   const mvpPtsDisplay = (pts) => (pts != null && pts >= 0) ? `${pts} MVP Pts` : '—';
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
