@@ -741,6 +741,65 @@ export function renderAwards(week) {
   if (saChamp) saChamp.textContent = sa.champ || `${config.currentSeasonLabel} — In Progress`;
   if (saMvp) saMvp.textContent = sa.mvp || 'Season in progress';
   if (saScoring) saScoring.textContent = sa.scoring || 'Season in progress';
+  renderMvpLadder(w);
+}
+
+export function renderMvpLadder(week) {
+  const wrap = document.getElementById('awards-mvp-ladder-wrap');
+  if (!wrap) return;
+
+  let ladderPlayerIds = null;
+  try {
+    const raw = config.DB.contentBlocks?.mvp_ladder_data;
+    if (raw) {
+      const allData = JSON.parse(raw);
+      const keys = Object.keys(allData).map(Number).filter(k => k <= week).sort((a, b) => b - a);
+      if (keys.length > 0) ladderPlayerIds = allData[String(keys[0])];
+    }
+  } catch (_) {}
+
+  if (!ladderPlayerIds?.length) { wrap.innerHTML = ''; return; }
+
+  const playerMap = {};
+  (config.DB.teams || []).forEach(t => {
+    (t.roster || []).forEach(p => { playerMap[p.id] = { name: p.name, team: t.name }; });
+  });
+
+  const defs = config.DB.statDefinitions || [];
+  const pointsDef = defs.find(d => d.slug === 'points');
+  const statsMap = {};
+  (config.DB.stats || []).forEach(s => {
+    const pts = pointsDef ? (s.statValues?.[pointsDef.id] || 0) : s.total;
+    statsMap[s.name] = s.gp > 0 ? pts / s.gp : null;
+  });
+
+  const entries = ladderPlayerIds.map((id, i) => {
+    const p = playerMap[id];
+    if (!p) return null;
+    return { rank: i + 1, name: p.name, team: p.team, ppg: statsMap[p.name] ?? null };
+  }).filter(Boolean);
+
+  if (!entries.length) { wrap.innerHTML = ''; return; }
+
+  const ppgDisplay = (ppg) => (ppg != null && ppg > 0) ? ppg.toFixed(1) + ' PPG' : '—';
+  const top3 = entries.slice(0, 3);
+  const rest = entries.slice(3);
+
+  const cardsHtml = top3.map(e =>
+    `<div class="stat-leader-card"><div class="slc-rank">#${e.rank}</div><div class="slc-name">${escapeHtmlAttr(e.name)}</div><div class="slc-team">${escapeHtmlAttr(e.team)}</div><div class="slc-ppg">${ppgDisplay(e.ppg)}</div></div>`
+  ).join('');
+
+  const listHtml = rest.map(e =>
+    `<div class="mvp-ladder-row"><span class="mvp-ladder-rank">#${e.rank}</span><span class="mvp-ladder-name">${escapeHtmlAttr(e.name)}</span><span class="mvp-ladder-team">${escapeHtmlAttr(e.team)}</span><span class="mvp-ladder-ppg">${ppgDisplay(e.ppg)}</span></div>`
+  ).join('');
+
+  wrap.innerHTML = `
+    <hr class="section-divider">
+    <p class="section-sub">Season in Progress</p>
+    <h2 class="section-title">Midseason MVP Ranking</h2>
+    <div class="section-line"></div>
+    <div class="stats-leaders">${cardsHtml}</div>
+    ${rest.length ? `<div class="mvp-ladder-list card">${listHtml}</div>` : ''}`;
 }
 
 export function renderPowerRankings(week) {
