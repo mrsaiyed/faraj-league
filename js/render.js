@@ -777,12 +777,14 @@ export function renderMvpLadder(week) {
 
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
-  // Sort by MVP pts descending; players with no pts stay in original order at the bottom
+  // Sort by MVP pts desc; tiebreaker = team seed (lower seed # = higher rank)
+  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
   entries.sort((a, b) => {
-    if (a.mvpPts == null && b.mvpPts == null) return 0;
+    if (a.mvpPts == null && b.mvpPts == null) return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
     if (a.mvpPts == null) return 1;
     if (b.mvpPts == null) return -1;
-    return b.mvpPts - a.mvpPts;
+    if (b.mvpPts !== a.mvpPts) return b.mvpPts - a.mvpPts;
+    return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
   });
   entries.forEach((e, i) => { e.rank = i + 1; });
 
