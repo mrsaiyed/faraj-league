@@ -251,17 +251,17 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .mvp-podium{display:flex;align-items:flex-end;gap:0.75rem;margin-bottom:1.4rem;width:100%;}
 .mvp-podium-card{background:#0e2535;border:2px solid;border-radius:6px;flex:1;min-width:0;display:flex;flex-direction:column;position:relative;}
 .mvp-podium-badge{display:flex;justify-content:center;margin-top:-26px;margin-bottom:0;}
-.mvp-podium-body{display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.9rem 0.9rem;flex:1;}
+.mvp-podium-body{display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.75rem 0.9rem;flex:1;}
 .mvp-podium-logo{flex-shrink:0;}
-.mvp-podium-logo .team-emblem{width:56px;height:56px;font-size:1.1rem;}
-.mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:72px;height:72px;font-size:1.3rem;}
-.mvp-podium-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:0.15rem;}
-.mvp-podium-player{font-family:'Cinzel',serif;font-size:0.82rem;color:#c8c0b0;letter-spacing:0.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mvp-podium-team{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:0.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mvp-podium-rank1 .mvp-podium-team{font-size:1.15rem;}
-.mvp-podium-ppg{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;color:#f5f0e8;}
-.mvp-podium-rank1 .mvp-podium-ppg{font-size:1.6rem;}
-@media(max-width:600px){.mvp-podium{flex-direction:column;align-items:stretch;}.mvp-podium-badge{margin-top:0.6rem;margin-bottom:-10px;}.mvp-podium-rank1,.mvp-podium-rank2,.mvp-podium-rank3{order:0;}.mvp-podium-rank1{order:-1;}.mvp-podium-logo .team-emblem{width:48px;height:48px;}.mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:56px;height:56px;}.mvp-podium-team{font-size:0.9rem;}.mvp-podium-rank1 .mvp-podium-team{font-size:1rem;}.mvp-podium-ppg{font-size:1.1rem;}.mvp-podium-rank1 .mvp-podium-ppg{font-size:1.3rem;}}
+.mvp-podium-logo .team-emblem{width:48px;height:48px;font-size:1rem;}
+.mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:60px;height:60px;font-size:1.2rem;}
+.mvp-podium-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:0.1rem;}
+.mvp-podium-player{font-family:'Cinzel',serif;font-size:0.72rem;color:#c8c0b0;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mvp-podium-team{font-family:'Cinzel',serif;font-size:0.85rem;font-weight:700;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mvp-podium-rank1 .mvp-podium-team{font-size:1rem;}
+.mvp-podium-ppg{font-family:'Cinzel',serif;font-size:1.15rem;font-weight:600;color:#f5f0e8;}
+.mvp-podium-rank1 .mvp-podium-ppg{font-size:1.4rem;}
+@media(max-width:500px){.mvp-podium{gap:0.4rem;}.mvp-podium-body{gap:0.4rem;padding:0.5rem 0.45rem 0.7rem;}.mvp-podium-logo .team-emblem{width:36px;height:36px;font-size:0.8rem;}.mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:44px;height:44px;}.mvp-podium-player{font-size:0.62rem;}.mvp-podium-team{font-size:0.7rem;}.mvp-podium-rank1 .mvp-podium-team{font-size:0.8rem;}.mvp-podium-ppg{font-size:0.95rem;}.mvp-podium-rank1 .mvp-podium-ppg{font-size:1.15rem;}}
 .mvp-ladder-list{overflow:hidden;margin-top:0;}
 .mvp-ladder-row{display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1.1rem;border-bottom:1px solid rgba(200,168,75,0.08);}
 .mvp-ladder-row:last-child{border-bottom:none;}

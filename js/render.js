@@ -794,7 +794,7 @@ export function renderMvpLadder(week) {
   // Shield SVG badge: rank number inside a shield shape
   const shieldBadge = (rank) => {
     const m = RANK_META[rank];
-    return `<svg viewBox="0 0 60 72" width="52" height="62" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 0.6rem;filter:drop-shadow(0 0 8px ${m.shadow});">
+    return `<svg viewBox="0 0 60 72" width="40" height="48" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 0.3rem;filter:drop-shadow(0 0 8px ${m.shadow});">
       <defs><linearGradient id="sg${rank}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${m.color}" stop-opacity="1"/><stop offset="100%" stop-color="${m.color}" stop-opacity="0.55"/></linearGradient></defs>
       <path d="M30 2 L58 14 L58 36 C58 54 30 70 30 70 C30 70 2 54 2 36 L2 14 Z" fill="url(#sg${rank})" stroke="${m.color}" stroke-width="2"/>
       <text x="30" y="44" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel,serif" font-size="24" font-weight="700" fill="#060f1a">${rank}</text>
