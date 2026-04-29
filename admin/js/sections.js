@@ -2131,7 +2131,13 @@ export async function renderAwards(content, ctx) {
     } catch (e) { document.getElementById('awards-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
   };
 
-  // MVP Ladder section
+}
+
+export async function renderAdminMvpLadder(content, ctx) {
+  const { adminFetch } = ctx;
+  const seasonId = window.adminSeasonId;
+  if (!seasonId || !content) return;
+
   const { config: adminConfig } = await importRootJs('config.js');
   const allPlayers = [];
   (adminConfig.DB?.teams || []).forEach(t => {
@@ -2150,22 +2156,19 @@ export async function renderAwards(content, ctx) {
     .map(w => `<option value="${w}"${w === currentWeek ? ' selected' : ''}>Week ${w}${w === currentWeek ? ' (Current)' : ''}</option>`)
     .join('');
 
-  const ladderSection = document.createElement('div');
-  ladderSection.style.cssText = 'margin-top:2rem;border-top:1px solid rgba(200,168,75,0.2);padding-top:1.5rem;';
-  ladderSection.innerHTML = `
-    <h4 style="color:#c8a84b;margin:0 0 0.7rem;font-size:0.9rem;letter-spacing:0.08em;text-transform:uppercase;">Midseason MVP Ranking</h4>
+  content.innerHTML = `
+    <h4 style="color:#c8a84b;margin:0 0 0.7rem;font-size:0.9rem;letter-spacing:0.08em;text-transform:uppercase;">Edit Midseason MVP Ranking</h4>
     <div id="ladder-msg" style="margin-bottom:0.5rem;min-height:1.2rem;"></div>
     <div style="margin-bottom:1rem;">
       <label style="color:#c8c0b0;font-size:0.85rem;margin-right:0.5rem;">Save to Week</label>
       <select id="ladder-week-select" style="background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);color:#f5f0e8;padding:0.4rem 0.6rem;border-radius:4px;">${weekOpts}</select>
-      <div style="margin-top:0.4rem;font-size:0.78rem;color:#8a8580;">Ladder will be visible from this week onward until overwritten by a later week.</div>
+      <div style="margin-top:0.4rem;font-size:0.78rem;color:#8a8580;">Ladder shows from this week onward until overwritten by a later week's entry.</div>
     </div>
     <div id="ladder-slots" style="display:flex;flex-direction:column;gap:0.45rem;margin-bottom:1rem;"></div>
     <button id="ladder-save-btn" style="padding:0.5rem 1.4rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:0.9rem;">Save Ladder</button>`;
-  content.appendChild(ladderSection);
 
-  const slotsEl = ladderSection.querySelector('#ladder-slots');
-  const weekSelEl = ladderSection.querySelector('#ladder-week-select');
+  const slotsEl = content.querySelector('#ladder-slots');
+  const weekSelEl = content.querySelector('#ladder-week-select');
   const playerOptHtml = `<option value="">— Select player —</option>` +
     allPlayers.map(p => `<option value="${p.id}">${p.name} (${p.team})</option>`).join('');
 
@@ -2200,8 +2203,8 @@ export async function renderAwards(content, ctx) {
   loadWeekLadder(currentWeek);
   weekSelEl.addEventListener('change', () => loadWeekLadder(parseInt(weekSelEl.value)));
 
-  ladderSection.querySelector('#ladder-save-btn').addEventListener('click', async () => {
-    const msgEl = ladderSection.querySelector('#ladder-msg');
+  content.querySelector('#ladder-save-btn').addEventListener('click', async () => {
+    const msgEl = content.querySelector('#ladder-msg');
     const week = parseInt(weekSelEl.value);
     const ids = Array.from(slotsEl.querySelectorAll('select')).map(s => s.value).filter(Boolean);
     currentLadderData[String(week)] = ids;

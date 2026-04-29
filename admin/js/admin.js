@@ -134,6 +134,12 @@ async function adminShowPage(id) {
     const sel = document.getElementById('awards-week-select');
     const week = sel ? (parseInt(sel.value, 10) || config.CURRENT_WEEK) : config.CURRENT_WEEK;
     if (typeof window.renderAwards === 'function') window.renderAwards(week);
+    const adminContent = document.getElementById('awards-admin-content');
+    if (adminContent) {
+      import('./sections.js').then(async ({ renderAdminMvpLadder }) => {
+        await renderAdminMvpLadder(adminContent, { adminFetch });
+      });
+    }
   }
   if (id === 'power-rankings') {
     const prSel = document.getElementById('pr-week-select');
