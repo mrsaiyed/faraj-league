@@ -263,16 +263,20 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .mvp-podium-rank1 .mvp-podium-ppg{font-size:1.4rem;}
 @media(max-width:500px){
   .mvp-podium{flex-direction:column;align-items:stretch;gap:0.5rem;}
-  .mvp-podium-rank1{order:-1;}
-  .mvp-podium-badge{margin-top:0.6rem;margin-bottom:-10px;}
-  .mvp-podium-body{flex-direction:column;align-items:center;text-align:center;gap:0.4rem;padding:0.5rem 0.75rem 0.85rem;}
-  .mvp-podium-logo .team-emblem{width:52px;height:52px;font-size:1rem;}
-  .mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:64px;height:64px;font-size:1.15rem;}
-  .mvp-podium-info{align-items:center;}
+  .mvp-podium-rank1{order:-1;padding-top:0;padding-bottom:0;}
+  .mvp-podium-rank2{padding-top:0;padding-bottom:0;}
+  .mvp-podium-rank3{padding-top:0;padding-bottom:0;}
+  .mvp-podium-card{min-height:110px;}
+  .mvp-podium-badge{margin-top:0.5rem;margin-bottom:-14px;}
+  .mvp-podium-body{flex:1;flex-direction:row;align-items:center;text-align:left;gap:0.75rem;padding:0.4rem 0.85rem 0.7rem;}
+  .mvp-podium-logo{align-self:stretch;display:flex;align-items:center;}
+  .mvp-podium-logo .team-emblem{width:72px;height:72px;font-size:1.2rem;}
+  .mvp-podium-rank1 .mvp-podium-logo .team-emblem{width:72px;height:72px;font-size:1.2rem;}
+  .mvp-podium-info{align-items:flex-start;justify-content:space-evenly;align-self:stretch;}
   .mvp-podium-team-desktop{display:none;}
-  .mvp-podium-player{font-size:0.78rem;}
-  .mvp-podium-ppg{font-size:1.1rem;}
-  .mvp-podium-rank1 .mvp-podium-ppg{font-size:1.3rem;}
+  .mvp-podium-player{font-size:0.88rem;}
+  .mvp-podium-ppg{font-size:1.5rem;}
+  .mvp-podium-rank1 .mvp-podium-ppg{font-size:1.5rem;}
 }
 .mvp-ladder-list{overflow:hidden;margin-top:0;}
 .mvp-ladder-row{display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1.1rem;border-bottom:1px solid rgba(200,168,75,0.08);}
