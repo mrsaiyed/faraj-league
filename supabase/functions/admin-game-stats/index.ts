@@ -8,11 +8,20 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { game_id, values = [], dnp_player_ids = [] } = body;
+    const { game_id, values = [], dnp_player_ids = [], forfeit_team_id = null } = body;
 
     if (!game_id) return jsonResponse({ error: 'game_id required' }, 400);
 
     const supabase = await createServiceClient();
+
+    // Validate forfeit_team_id if provided
+    if (forfeit_team_id !== null && forfeit_team_id !== undefined && forfeit_team_id !== '') {
+      const { data: teamCheck } = await supabase.from('teams').select('id').eq('id', forfeit_team_id).maybeSingle();
+      if (!teamCheck) return jsonResponse({ error: 'Invalid forfeit_team_id' }, 400);
+    }
+
+    // Save forfeit_team_id to game (null clears it)
+    await supabase.from('games').update({ forfeit_team_id: forfeit_team_id || null }).eq('id', game_id);
 
     // Fetch game
     const { data: game, error: gameErr } = await supabase

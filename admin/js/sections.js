@@ -1751,13 +1751,15 @@ async function openStatSheet(game, content, ctx, onSaved) {
     </div>`;
   document.body.appendChild(wrap);
 
-  const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }] = await Promise.all([
+  const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }, { data: gameRow }] = await Promise.all([
     supabase.from('rosters').select('*').or(`team_id.eq.${game.t1Id},team_id.eq.${game.t2Id}`),
     supabase.from('players').select('*').eq('season_id', window.adminSeasonId),
     supabase.from('stat_definitions').select('*').order('sort_order'),
     supabase.from('game_stat_values').select('*').eq('game_id', game.gameId),
     supabase.from('game_dnp').select('player_id').eq('game_id', game.gameId),
+    supabase.from('games').select('forfeit_team_id').eq('id', game.gameId).single(),
   ]);
+  const existingForfeitTeamId = gameRow?.forfeit_team_id || null;
 
   const playerMap = {};
   (players || []).forEach(p => { playerMap[p.id] = p; });
@@ -1801,8 +1803,23 @@ async function openStatSheet(game, content, ctx, onSaved) {
     html += '</tr>';
   }
   html += '</tbody></table></div></div>';
+  const t1Name = teamMap[game.t1Id] || 'Home';
+  const t2Name = teamMap[game.t2Id] || 'Away';
+  const forfeitHtml = `
+    <div id="forfeit-wrap" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#1a1a1a;border-radius:6px;border:1px solid #444;">
+      <span style="color:#c8c0b0;font-size:0.85rem;margin-right:1rem;font-weight:600;">Forfeit:</span>
+      <label style="display:inline-flex;align-items:center;gap:0.4rem;margin-right:1.2rem;cursor:pointer;font-size:0.85rem;">
+        <input type="radio" name="forfeit" value="" ${!existingForfeitTeamId ? 'checked' : ''}> None
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:0.4rem;margin-right:1.2rem;cursor:pointer;font-size:0.85rem;">
+        <input type="radio" name="forfeit" value="${game.t1Id}" ${existingForfeitTeamId === game.t1Id ? 'checked' : ''}> ${escapeHtml(t1Name)} (Home)
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.85rem;">
+        <input type="radio" name="forfeit" value="${game.t2Id}" ${existingForfeitTeamId === game.t2Id ? 'checked' : ''}> ${escapeHtml(t2Name)} (Away)
+      </label>
+    </div>`;
   const statSheetContentEl = wrap.querySelector('#stat-sheet-content');
-  statSheetContentEl.innerHTML = homeRoster.length || awayRoster.length ? html : '<p>Add players to teams first.</p>';
+  statSheetContentEl.innerHTML = forfeitHtml + (homeRoster.length || awayRoster.length ? html : '<p>Add players to teams first.</p>');
 
   statSheetContentEl.querySelectorAll('input.dnp-check').forEach(cb => {
     cb.addEventListener('change', () => {
@@ -1829,7 +1846,8 @@ async function openStatSheet(game, content, ctx, onSaved) {
       values.push({ player_id: pid, stat_definition_id: inp.dataset.stat, value: isNaN(val) ? 0 : val });
     });
     try {
-      await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: dnpPlayerIds }) });
+      const forfeitTeamId = wrap.querySelector('input[name="forfeit"]:checked')?.value || null;
+      await adminFetch('admin-game-stats', { method: 'POST', body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: dnpPlayerIds, forfeit_team_id: forfeitTeamId || null }) });
       wrap.querySelector('#stat-sheet-msg').innerHTML = '<p class="msg success">Saved.</p>';
       const { data: updated } = await supabase.from('games').select('home_score,away_score').eq('id', game.gameId).single();
       if (updated) wrap.querySelector('#stat-sheet-scores').textContent = `Score: ${updated.home_score ?? '?'} – ${updated.away_score ?? '?'}`;

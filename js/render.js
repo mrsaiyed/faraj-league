@@ -359,10 +359,15 @@ function teamLogoHtml(name, side) {
 function buildMatchupCard(g, gameId) {
   const played = g.s1 !== '' && g.s2 !== '';
   const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
-  const w1 = played && s1 > s2, w2 = played && s2 > s1;
+
+  // Forfeit overrides winner regardless of score
+  const forfeit = g.forfeit || null; // 't1' or 't2' or null
+  const w1 = forfeit ? forfeit === 't2' : (played && s1 > s2);
+  const w2 = forfeit ? forfeit === 't1' : (played && s2 > s1);
+  const isDecided = forfeit || played;
 
   // Header band: Game N (left) | time (center) | ghost spacer (right to balance)
-  const timeStr = played ? '' : formatGameTime(g.scheduled_at, g.game || 1);
+  const timeStr = isDecided ? '' : formatGameTime(g.scheduled_at, g.game || 1);
   const header = `<div class="mc-header">
     <span class="mc-meta-game">Game ${g.game || 1}</span>
     <span class="mc-meta-time">${timeStr}</span>
@@ -371,10 +376,12 @@ function buildMatchupCard(g, gameId) {
 
   const mid = played
     ? `<div class="mc-mid"><div class="mc-score-row"><span class="mc-score${w2 ? ' winner' : ''}">${g.s2}</span><span class="mc-dash">—</span><span class="mc-score${w1 ? ' winner' : ''}">${g.s1}</span></div></div>`
-    : `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs-deco">VS</span><span class="mc-vs">VS</span></div></div>`;
+    : isDecided
+      ? `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs">W</span></div></div>`
+      : `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs-deco">VS</span><span class="mc-vs">VS</span></div></div>`;
 
-  const winnerLine = played
-    ? `<div class="mc-winner-tag">${s1 > s2 ? escapeHtmlAttr(g.t1) : escapeHtmlAttr(g.t2)} Win</div>`
+  const winnerLine = isDecided
+    ? `<div class="mc-winner-tag">${w1 ? escapeHtmlAttr(g.t1) : escapeHtmlAttr(g.t2)} Win</div>`
     : '';
 
   const viewBoxBtn = gameId

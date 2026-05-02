@@ -36,6 +36,11 @@ function transformSeasonData(raw) {
     t2: teamMap[g.away_team_id]?.name || '',
     s2: g.away_score != null ? String(g.away_score) : '',
     scheduled_at: g.scheduled_at || null,
+    // forfeit: 't1' if home team forfeited, 't2' if away team forfeited, null otherwise
+    forfeit: g.forfeit_team_id
+      ? (g.forfeit_team_id === g.home_team_id ? 't1' : 't2')
+      : null,
+    forfeitTeamId: g.forfeit_team_id || null,
   }));
 
   // gameStatValues: { [gameId]: { [playerId]: { [statDefId]: value } } }
