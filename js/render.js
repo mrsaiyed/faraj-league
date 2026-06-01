@@ -27,8 +27,11 @@ function getDisplayWeek() {
 }
 // Standings use config.DB.scores (from games.home_score, away_score). Score derivation in
 // admin-game-stats Edge Function updates games when stat sheet is saved; getSeasonData brings them in.
+function regularSeasonScores() {
+  return (config.DB.scores || []).filter(g => !config.DB.playoffWeeks?.[String(g.week)]);
+}
 export function calcStandings() {
-  return calcStandingsPure(config.DB.teams, config.DB.scores);
+  return calcStandingsPure(config.DB.teams, regularSeasonScores());
 }
 function buildWeekDropdown(elId, includeAll, maxWeek) {
   const max = maxWeek != null ? maxWeek : config.TOTAL_WEEKS;
@@ -224,7 +227,7 @@ export function renderHome() {
   if (awardsSub) awardsSub.textContent = `Week ${displayWeek} · ${subLabel}`;
 
   const rec = calcStandings();
-  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
+  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
   const homeStandings = document.getElementById('home-standings');
   if (!homeStandings) return;
   homeStandings.innerHTML = (getConferences().map(c => c.id || c.name)).map(conf => {
@@ -240,7 +243,13 @@ export function renderHome() {
   ];
   const homeMatchups = document.getElementById('home-matchups');
   const homeAwards = document.getElementById('home-awards');
-  if (homeMatchups) homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
+  if (homeMatchups) {
+    if (config.DB.playoffWeeks?.[String(displayWeek)]) {
+      homeMatchups.innerHTML = renderPlayoffBracket(displayWeek);
+    } else {
+      homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
+    }
+  }
   if (homeAwards) {
     const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap" style="margin-top:0.75rem;text-align:center;"><a href="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1.1rem;background:rgba(200,168,75,0.1);border:1px solid rgba(200,168,75,0.3);border-radius:4px;color:#c8a84b;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;">▶ Watch on Instagram</a></div>` : '';
     homeAwards.innerHTML = `<div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div>${akhlaqPost}</div>`;
@@ -249,7 +258,7 @@ export function renderHome() {
 
 export function renderStandings() {
   const rec = calcStandings();
-  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
+  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
   const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   const confGrid = document.querySelector('#page-standings .conf-grid, .conf-grid');
   const conferences = getConferences();
@@ -525,20 +534,22 @@ function renderPlayoffBracket(w) {
     <div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.9rem;">${title}${weekDateStr}</div>
     <div class="playoff-bracket-scroll">
       <div class="playoff-bracket">
-        <div class="playoff-bracket-col playoff-bracket-semis">
-          <div class="playoff-round-label">Conference Finals</div>
-          <div class="playoff-bracket-cards">
+        <div class="playoff-bracket-semis-row">
+          <div class="playoff-bracket-col">
+            <div class="playoff-round-label">Conference Final</div>
             ${card1}
+          </div>
+          <div class="playoff-bracket-col">
+            <div class="playoff-round-label">Conference Final</div>
             ${card2}
           </div>
         </div>
-        <div class="playoff-bracket-connector" aria-hidden="true">
-          <div class="playoff-conn-pad"></div>
-          <div class="playoff-conn-lines"></div>
+        <div class="playoff-conn-v" aria-hidden="true">
+          <div class="playoff-conn-v-stem"></div>
         </div>
-        <div class="playoff-bracket-col playoff-bracket-final">
-          <div class="playoff-round-label">Championship</div>
-          <div class="playoff-bracket-cards playoff-bracket-final-cards">
+        <div class="playoff-bracket-final-row">
+          <div class="playoff-bracket-col">
+            <div class="playoff-round-label">Championship</div>
             ${card3}
           </div>
         </div>
@@ -651,7 +662,7 @@ export function renderTeams() {
   const teamsGrid = document.getElementById('teams-grid');
   if (!teamsGrid) return;
   const rec = calcStandings();
-  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
+  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
   const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   const effectiveCaptain = (t) => {
     const cap = (t.captain || '').trim();
@@ -831,7 +842,7 @@ export function renderMvpLadder(week) {
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
   // Sort by MVP pts desc; tiebreaker = team seed (lower seed # = higher rank)
-  const seeds = calcSeedsPure(config.DB.teams, config.DB.scores);
+  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
   entries.sort((a, b) => {
     if (a.mvpPts == null && b.mvpPts == null) return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
     if (a.mvpPts == null) return 1;

@@ -144,16 +144,17 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 /* ── Playoff bracket ───────────────────────────────────────────── */
 .playoff-bracket-wrap{margin-bottom:1.1rem;}
 .playoff-bracket-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.playoff-bracket{display:flex;align-items:stretch;min-width:540px;padding-bottom:0.5rem;}
-.playoff-bracket-col{display:flex;flex-direction:column;flex:1;min-width:200px;max-width:340px;}
+.playoff-bracket{display:flex;flex-direction:column;min-width:440px;}
+.playoff-bracket-semis-row{display:flex;gap:1rem;}
+.playoff-bracket-col{flex:1;display:flex;flex-direction:column;}
+.playoff-bracket-final-row{display:flex;justify-content:center;}
+.playoff-bracket-final-row .playoff-bracket-col{flex:0 1 calc(50% - 0.5rem);max-width:calc(50% - 0.5rem);}
 .playoff-round-label{height:2rem;line-height:2rem;font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:#9ab8c8;text-align:center;flex-shrink:0;}
-.playoff-bracket-cards{display:flex;flex-direction:column;gap:1.1rem;}
-.playoff-bracket-final-cards{flex:1;display:flex;flex-direction:column;justify-content:center;}
-.playoff-bracket-connector{display:flex;flex-direction:column;width:44px;flex-shrink:0;}
-.playoff-conn-pad{height:2rem;flex-shrink:0;}
-.playoff-conn-lines{flex:1;position:relative;}
-.playoff-conn-lines::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(200,168,75,0.45);border-radius:1px;}
-.playoff-conn-lines::after{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:rgba(200,168,75,0.45);border-radius:1px;transform:translateY(-50%);}
+.playoff-conn-v{position:relative;height:32px;margin:0.2rem 0;}
+.playoff-conn-v::before{content:'';position:absolute;left:25%;right:50%;top:0;height:50%;border-left:2px solid rgba(200,168,75,0.45);border-bottom:2px solid rgba(200,168,75,0.45);border-bottom-left-radius:3px;}
+.playoff-conn-v::after{content:'';position:absolute;left:50%;right:25%;top:0;height:50%;border-right:2px solid rgba(200,168,75,0.45);border-bottom:2px solid rgba(200,168,75,0.45);border-bottom-right-radius:3px;}
+.playoff-conn-v-stem{position:absolute;left:50%;top:50%;bottom:0;width:2px;background:rgba(200,168,75,0.45);border-radius:1px;transform:translateX(-50%);}
+.playoff-bracket-wrap .mc-team-name{white-space:normal;}
 .matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;overflow:hidden;}
 /* mc-* = matchup card internals */
 .mc-header{display:flex;align-items:center;justify-content:space-between;padding:0.48rem 0.9rem;background:#091c2b;border-bottom:1px solid rgba(200,168,75,0.18);font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;}
@@ -452,6 +453,7 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
   .mc-score-row{flex-direction:column;align-items:center;gap:0;}
   .mc-score{font-size:1rem;}
   .mc-dash{font-size:0.65rem;margin:0;}
+  .mc-team-name{white-space:normal;}
 }
 
 /* ── Desktop 110% scale ──────────────────────────────────────── */

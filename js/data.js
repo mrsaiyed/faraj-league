@@ -66,6 +66,21 @@ function transformSeasonData(raw) {
     scoring: a.scoring || '',
   }));
 
+  // Build content_blocks map early so playoffWeeks can filter stats
+  const contentBlocksMap = {};
+  (content_blocks || []).filter(b => !b.season_id).forEach(b => { contentBlocksMap[b.key] = b.value; });
+  (content_blocks || []).filter(b => b.season_id === season?.id).forEach(b => { contentBlocksMap[b.key] = b.value; });
+
+  /** Parsed from content_blocks.playoffs_by_week JSON; keys are week numbers as strings, values are true */
+  let playoffWeeks = {};
+  try {
+    const raw = contentBlocksMap.playoffs_by_week;
+    if (raw && typeof raw === 'string') {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) playoffWeeks = parsed;
+    }
+  } catch (_) {}
+
   const rosterToTeam = {};
   const playerToTeamId = {};
   (rosters || []).forEach(r => {
@@ -73,12 +88,19 @@ function transformSeasonData(raw) {
     playerToTeamId[r.player_id] = r.team_id;
   });
 
+  // Exclude playoff games from stats aggregation
+  const playoffGameIds = new Set(
+    (games || []).filter(g => playoffWeeks[String(g.week)]).map(g => g.id)
+  );
+  const regularGames = (games || []).filter(g => !playoffGameIds.has(g.id));
+  const regularGameStatValues = (game_stat_values || []).filter(gsv => !playoffGameIds.has(gsv.game_id));
+
   const stats = aggregateStats({
-    game_stat_values,
+    game_stat_values: regularGameStatValues,
     player_stat_values,
     stat_definitions,
     rosters,
-    games,
+    games: regularGames,
     players,
     rosterToTeam,
     playerToTeamId,
@@ -102,10 +124,6 @@ function transformSeasonData(raw) {
       sponsorOverrides.SP2B_DESC = s.label ?? '';
     }
   });
-
-  const contentBlocksMap = {};
-  (content_blocks || []).filter(b => !b.season_id).forEach(b => { contentBlocksMap[b.key] = b.value; });
-  (content_blocks || []).filter(b => b.season_id === season?.id).forEach(b => { contentBlocksMap[b.key] = b.value; });
 
   // mediaSlots: { [week]: { [slot_key]: { title, url } } }
   const mediaSlots = {};
@@ -142,16 +160,6 @@ function transformSeasonData(raw) {
     if (raw && typeof raw === 'string') {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) scheduleWeekLabels = parsed;
-    }
-  } catch (_) {}
-
-  /** Parsed from content_blocks.playoffs_by_week JSON; keys are week numbers as strings, values are true */
-  let playoffWeeks = {};
-  try {
-    const raw = contentBlocksMap.playoffs_by_week;
-    if (raw && typeof raw === 'string') {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) playoffWeeks = parsed;
     }
   } catch (_) {}
 
