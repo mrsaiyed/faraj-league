@@ -149,9 +149,13 @@ export function renderAll(adminMode = false) {
     const hbChamp = document.getElementById('hb-champ');
     const hbMvp = document.getElementById('hb-mvp');
     const hbScoring = document.getElementById('hb-scoring');
+    const hbPlayoffsMvp = document.getElementById('hb-playoffs-mvp');
+    const hbDpoy = document.getElementById('hb-dpoy');
     if (hbChamp) hbChamp.textContent = sa.champ || '—';
     if (hbMvp) hbMvp.textContent = sa.mvp || '—';
     if (hbScoring) hbScoring.textContent = sa.scoring || '—';
+    if (hbPlayoffsMvp) hbPlayoffsMvp.textContent = config.DB.contentBlocks?.playoffs_mvp || '—';
+    if (hbDpoy) hbDpoy.textContent = config.DB.contentBlocks?.dpoy || '—';
   }
 
   buildScoresWeekDropdown();
@@ -804,9 +808,27 @@ export function renderAwards(week) {
   const saChamp = document.getElementById('sa-champ');
   const saMvp = document.getElementById('sa-mvp');
   const saScoring = document.getElementById('sa-scoring');
-  if (saChamp) saChamp.textContent = sa.champ || `${config.currentSeasonLabel} — In Progress`;
+  const saPlayoffsMvp = document.getElementById('sa-playoffs-mvp');
+  const saDpoy = document.getElementById('sa-dpoy');
+  // Championship — show team name + roster with captain marked
+  if (saChamp) {
+    const champName = sa.champ || '';
+    if (champName) {
+      const champTeam = (config.DB.teams || []).find(t => t.name === champName);
+      const captain = champTeam?.captain || '';
+      const roster = champTeam?.roster || [];
+      const rosterHtml = roster.length
+        ? `<div class="sa-champ-roster">${roster.map(p => `<span class="sa-champ-player">${p.name}${p.name === captain ? ' <span class="sa-captain-mark">(C)</span>' : ''}</span>`).join('')}</div>`
+        : '';
+      saChamp.innerHTML = `<span class="sa-champ-name">${champName}</span>${rosterHtml}`;
+    } else {
+      saChamp.textContent = `${config.currentSeasonLabel} — In Progress`;
+    }
+  }
   if (saMvp) saMvp.textContent = sa.mvp || 'Season in progress';
   if (saScoring) saScoring.textContent = sa.scoring || 'Season in progress';
+  if (saPlayoffsMvp) saPlayoffsMvp.textContent = config.DB.contentBlocks?.playoffs_mvp || 'Season in progress';
+  if (saDpoy) saDpoy.textContent = config.DB.contentBlocks?.dpoy || 'Season in progress';
   renderMvpLadder(w);
 }
 

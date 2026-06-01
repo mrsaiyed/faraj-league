@@ -21,7 +21,9 @@ export const HOME_TEMPLATE = `
     <div class="season-champs">
       <div><div class="champ-label">Champions</div><div class="champ-value" id="hb-champ">—</div></div>
       <div><div class="champ-label">MVP</div><div class="champ-value" id="hb-mvp">—</div></div>
-      <div><div class="champ-label">Scoring Title</div><div class="champ-value" id="hb-scoring">—</div></div>
+      <div><div class="champ-label">Scoring Leader</div><div class="champ-value" id="hb-scoring">—</div></div>
+      <div><div class="champ-label">Playoffs MVP</div><div class="champ-value" id="hb-playoffs-mvp">—</div></div>
+      <div><div class="champ-label">DPOY</div><div class="champ-value" id="hb-dpoy">—</div></div>
     </div>
   </div>
   <div class="quick-stats">
