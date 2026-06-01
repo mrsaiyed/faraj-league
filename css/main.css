@@ -322,7 +322,7 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .roster-player:last-child{border-bottom:none;}
 .roster-num{font-size:0.78rem;color:#2fa89a;width:22px;flex-shrink:0;}
 .season-awards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;}
-.season-award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.5rem 1rem;text-align:center;}
+.season-award-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:4px;padding:1.5rem 1rem;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .season-award-icon{font-size:1.7rem;margin-bottom:0.6rem;}
 .season-award-title{font-family:'Cinzel',serif;font-size:0.9rem;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.5rem;}
 .season-award-holder{font-size:0.94rem;color:#c8c0b0;}
