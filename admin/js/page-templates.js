@@ -20,10 +20,6 @@ export const HOME_TEMPLATE = `
     <div class="historic-banner-label">Season Complete</div>
     <div class="season-champs">
       <div><div class="champ-label">Champions</div><div class="champ-value" id="hb-champ">—</div></div>
-      <div><div class="champ-label">MVP</div><div class="champ-value" id="hb-mvp">—</div></div>
-      <div><div class="champ-label">Scoring Leader</div><div class="champ-value" id="hb-scoring">—</div></div>
-      <div><div class="champ-label">Playoffs MVP</div><div class="champ-value" id="hb-playoffs-mvp">—</div></div>
-      <div><div class="champ-label">DPOY</div><div class="champ-value" id="hb-dpoy">—</div></div>
     </div>
   </div>
   <div class="quick-stats">
@@ -47,6 +43,13 @@ export const HOME_TEMPLATE = `
       <h2 class="section-title">Recent Awards</h2>
       <div class="section-line"></div>
       <div class="home-awards-grid" id="home-awards"><div class="loading">Loading...</div></div>
+    </div>
+    <div id="home-season-awards-wrap" style="display:none;margin-top:2rem;">
+      <div class="section-line" style="margin-bottom:1rem;"></div>
+      <p class="section-sub">End of Season</p>
+      <h2 class="section-title" style="margin-bottom:1rem;">Season Awards</h2>
+      <div class="section-line"></div>
+      <div class="season-awards-grid" id="home-season-awards"></div>
     </div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
