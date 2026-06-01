@@ -624,12 +624,15 @@ export async function renderFullScheduleEditor(content, ctx) {
   let weekLabels = {};
   /** @type {Record<string, string>} week key -> YYYY-MM-DD (saved even when week has no games yet) */
   let datesByWeek = {};
-  const { data: cbMeta } = await supabase.from('content_blocks').select('key,value').eq('season_id', seasonId).in('key', ['schedule_slots_by_week', 'schedule_week_labels', 'schedule_dates_by_week']);
+  /** @type {Record<string, true>} week key -> true when week renders as playoff bracket */
+  let playoffsByWeek = {};
+  const { data: cbMeta } = await supabase.from('content_blocks').select('key,value').eq('season_id', seasonId).in('key', ['schedule_slots_by_week', 'schedule_week_labels', 'schedule_dates_by_week', 'playoffs_by_week']);
   (cbMeta || []).forEach(row => {
     try {
       if (row.key === 'schedule_slots_by_week') slotsByWeek = JSON.parse(row.value || '{}') || {};
       if (row.key === 'schedule_week_labels') weekLabels = JSON.parse(row.value || '{}') || {};
       if (row.key === 'schedule_dates_by_week') datesByWeek = JSON.parse(row.value || '{}') || {};
+      if (row.key === 'playoffs_by_week') playoffsByWeek = JSON.parse(row.value || '{}') || {};
     } catch (_) {}
   });
   if (config.DB && (cbMeta || []).some(r => r.key === 'schedule_week_labels')) {
@@ -669,6 +672,15 @@ export async function renderFullScheduleEditor(content, ctx) {
       body: JSON.stringify([{ key: 'schedule_dates_by_week', value: JSON.stringify(datesByWeek), season_id: seasonId }]),
     });
     if (config.DB.contentBlocks) config.DB.contentBlocks.schedule_dates_by_week = JSON.stringify(datesByWeek);
+  }
+
+  async function persistPlayoffsByWeek() {
+    await adminFetch('admin-content', {
+      method: 'POST',
+      body: JSON.stringify([{ key: 'playoffs_by_week', value: JSON.stringify(playoffsByWeek), season_id: seasonId }]),
+    });
+    if (config.DB.contentBlocks) config.DB.contentBlocks.playoffs_by_week = JSON.stringify(playoffsByWeek);
+    config.DB.playoffWeeks = { ...playoffsByWeek };
   }
 
   function openEditorShell() {
@@ -863,12 +875,17 @@ export async function renderFullScheduleEditor(content, ctx) {
         </div>`;
       });
       const addSlotBtn = `<button type="button" class="admin-edit-btn fse-add-slot-btn" data-week="${w}" style="position:static;background:#2a4a6a;color:#c8e0ff;font-size:0.72rem;">+ Slot</button>`;
+      const isPlayoff = !!playoffsByWeek[String(w)];
       return `<div class="fse-week" data-week="${w}">
         <div class="fse-week-header" style="flex-wrap:wrap;gap:0.5rem;">
           <input type="text" class="fse-week-title-input" data-week="${w}" value="${escapeHtmlAttr(titleVal)}" placeholder="Week ${w} — custom title" style="flex:1;min-width:160px;background:#0e2535;border:1px solid #4a7a9a;color:#e8e4e0;padding:0.25rem 0.5rem;border-radius:3px;font-size:0.78rem;">
           <button type="button" class="admin-edit-btn fse-week-title-save" data-week="${w}" style="position:static;font-size:0.72rem;">Save title</button>
           ${addSlotBtn}
           <input type="date" class="fse-date-input" data-week="${w}" value="${weekDate}" title="Week date (applies to all games this week)">
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:#c8a84b;cursor:pointer;flex-shrink:0;margin-left:0.25rem;" title="When checked, this week renders as a playoff bracket on the schedule tab">
+            <input type="checkbox" class="fse-playoff-toggle" data-week="${w}" ${isPlayoff ? 'checked' : ''} style="cursor:pointer;accent-color:#c8a84b;">
+            Playoff Week
+          </label>
         </div>
         ${slots.join('')}
       </div>`;
@@ -1059,6 +1076,21 @@ export async function renderFullScheduleEditor(content, ctx) {
           showMsg('Week title saved.');
         } catch (err) { showMsg(err.message || 'Save failed.', true); }
       };
+    });
+
+    el.querySelectorAll('.fse-playoff-toggle').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const w = String(cb.dataset.week);
+        if (cb.checked) playoffsByWeek[w] = true;
+        else delete playoffsByWeek[w];
+        try {
+          await persistPlayoffsByWeek();
+          showMsg('Playoff setting saved.');
+        } catch (err) {
+          showMsg(err.message || 'Save failed.', true);
+          cb.checked = !cb.checked;
+        }
+      });
     });
 
     el.querySelectorAll('.fse-add-slot-btn').forEach(btn => {

@@ -145,6 +145,16 @@ function transformSeasonData(raw) {
     }
   } catch (_) {}
 
+  /** Parsed from content_blocks.playoffs_by_week JSON; keys are week numbers as strings, values are true */
+  let playoffWeeks = {};
+  try {
+    const raw = contentBlocksMap.playoffs_by_week;
+    if (raw && typeof raw === 'string') {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) playoffWeeks = parsed;
+    }
+  } catch (_) {}
+
   return {
     season,
     teams,
@@ -161,6 +171,7 @@ function transformSeasonData(raw) {
     draftBank,
     draftTeamOrder,
     scheduleWeekLabels,
+    playoffWeeks,
   };
 }
 

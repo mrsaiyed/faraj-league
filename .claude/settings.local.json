@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(head -30 C:/Users/mraza/projects/faraj-league/tests/*.test.js)",
+      "Bash(grep -n \"scheduled_at\\\\|game_time\\\\|game_date\\\\|game_number\\\\|game_index\\\\|week_date\\\\|week_label\" C:/Users/mraza/projects/faraj-league/supabase/migrations/*.sql)",
+      "Bash(git revert:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git rebase:*)",
+      "Bash(grep -E \"^d|\\\\.html$|\\\\.json$\")",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"adminFetch\\\\|admin fetch\" /c/Users/mraza/projects/faraj-league/admin/js/*.js)",
+      "Bash(npx supabase:*)"
+    ]
+  }
+}
