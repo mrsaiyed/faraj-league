@@ -245,8 +245,10 @@ export function renderHome() {
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) {
     if (config.DB.playoffWeeks?.[String(displayWeek)]) {
+      homeMatchups.classList.remove('matchups-grid');
       homeMatchups.innerHTML = renderPlayoffBracket(displayWeek);
     } else {
+      homeMatchups.classList.add('matchups-grid');
       homeMatchups.innerHTML = games.map((g, i) => buildMatchupCard({ ...g, game: g.game || i + 1 }, g.gameId || '')).join('');
     }
   }

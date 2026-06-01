@@ -454,6 +454,9 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
   .mc-score{font-size:1rem;}
   .mc-dash{font-size:0.65rem;margin:0;}
   .mc-team-name{white-space:normal;}
+  /* Playoff bracket cards on mobile: hide names (winner line still shows), scores left-to-right */
+  .playoff-bracket-wrap .mc-team-name{display:none;}
+  .playoff-bracket-wrap .mc-score-row{flex-direction:row;align-items:center;gap:0.1rem;}
 }
 
 /* ── Desktop 110% scale ──────────────────────────────────────── */
