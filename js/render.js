@@ -147,15 +147,7 @@ export function renderAll(adminMode = false) {
   if (hb) hb.style.display = showHistoric ? 'block' : 'none';
   if (showHistoric && sa) {
     const hbChamp = document.getElementById('hb-champ');
-    const hbMvp = document.getElementById('hb-mvp');
-    const hbScoring = document.getElementById('hb-scoring');
-    const hbPlayoffsMvp = document.getElementById('hb-playoffs-mvp');
-    const hbDpoy = document.getElementById('hb-dpoy');
     if (hbChamp) hbChamp.textContent = sa.champ || '—';
-    if (hbMvp) hbMvp.textContent = sa.mvp || '—';
-    if (hbScoring) hbScoring.textContent = sa.scoring || '—';
-    if (hbPlayoffsMvp) hbPlayoffsMvp.textContent = config.DB.contentBlocks?.playoffs_mvp || '—';
-    if (hbDpoy) hbDpoy.textContent = config.DB.contentBlocks?.dpoy || '—';
   }
 
   buildScoresWeekDropdown();
@@ -259,6 +251,30 @@ export function renderHome() {
   if (homeAwards) {
     const akhlaqPost = wa.akhlaq_post_url ? `<div class="akhlaq-post-wrap" style="margin-top:0.75rem;text-align:center;"><a href="${wa.akhlaq_post_url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1.1rem;background:rgba(200,168,75,0.1);border:1px solid rgba(200,168,75,0.3);border-radius:4px;color:#c8a84b;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;">▶ Watch on Instagram</a></div>` : '';
     homeAwards.innerHTML = `<div class="award-card akhlaq-card home-award-link"><div class="akhlaq-inner"><div class="akhlaq-medal">☽</div><div><div class="award-label">${akhlaqLabel(displayWeek)}</div><div class="award-winner">${wa.akhlaq || pending()}</div><div class="award-winner-sub">Exemplary character & brotherhood</div></div></div>${akhlaqPost}</div>`;
+  }
+
+  const seasonAwardsWrap = document.getElementById('home-season-awards-wrap');
+  const seasonAwardsGrid = document.getElementById('home-season-awards');
+  const saFull = config.DB.awards?.find(a => a.champ);
+  if (seasonAwardsWrap && seasonAwardsGrid && saFull?.champ) {
+    const champTeam = (config.DB.teams || []).find(t => t.name === saFull.champ);
+    const captain = champTeam?.captain || '';
+    const roster = champTeam?.roster || [];
+    const rosterHtml = roster.length
+      ? `<div class="sa-champ-roster">${roster.map(p => `<span class="sa-champ-player">${p.name}${p.name === captain ? ' <span class="sa-captain-mark">(C)</span>' : ''}</span>`).join('')}</div>`
+      : '';
+    const playoffsMvp = config.DB.contentBlocks?.playoffs_mvp || '—';
+    const dpoy = config.DB.contentBlocks?.dpoy || '—';
+    seasonAwardsGrid.innerHTML = `
+      <div class="season-award-card"><div class="season-award-label">Championship</div><div class="season-award-winner"><span class="sa-champ-name">${saFull.champ}</span>${rosterHtml}</div></div>
+      <div class="season-award-card"><div class="season-award-label">MVP</div><div class="season-award-winner">${saFull.mvp || '—'}</div></div>
+      <div class="season-award-card"><div class="season-award-label">Scoring Leader</div><div class="season-award-winner">${saFull.scoring || '—'}</div></div>
+      <div class="season-award-card"><div class="season-award-label">Playoffs MVP</div><div class="season-award-winner">${playoffsMvp}</div></div>
+      <div class="season-award-card"><div class="season-award-label">Defensive Player of the Year</div><div class="season-award-winner">${dpoy}</div></div>
+    `;
+    seasonAwardsWrap.style.display = 'block';
+  } else if (seasonAwardsWrap) {
+    seasonAwardsWrap.style.display = 'none';
   }
 }
 
