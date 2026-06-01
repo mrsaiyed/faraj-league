@@ -266,11 +266,11 @@ export function renderHome() {
     const playoffsMvp = config.DB.contentBlocks?.playoffs_mvp || '—';
     const dpoy = config.DB.contentBlocks?.dpoy || '—';
     seasonAwardsGrid.innerHTML = `
-      <div class="season-award-card"><div class="season-award-label">Championship</div><div class="season-award-winner"><span class="sa-champ-name">${saFull.champ}</span>${rosterHtml}</div></div>
-      <div class="season-award-card"><div class="season-award-label">MVP</div><div class="season-award-winner">${saFull.mvp || '—'}</div></div>
-      <div class="season-award-card"><div class="season-award-label">Scoring Leader</div><div class="season-award-winner">${saFull.scoring || '—'}</div></div>
-      <div class="season-award-card"><div class="season-award-label">Playoffs MVP</div><div class="season-award-winner">${playoffsMvp}</div></div>
-      <div class="season-award-card"><div class="season-award-label">Defensive Player of the Year</div><div class="season-award-winner">${dpoy}</div></div>
+      <div class="season-award-card"><div class="season-award-icon">🏆</div><div class="season-award-title">Championship</div><div class="season-award-holder"><span class="sa-champ-name">${saFull.champ}</span>${rosterHtml}</div></div>
+      <div class="season-award-card"><div class="season-award-icon">⭐</div><div class="season-award-title">Most Valuable Player</div><div class="season-award-holder">${saFull.mvp || '—'}</div></div>
+      <div class="season-award-card"><div class="season-award-icon">📊</div><div class="season-award-title">Scoring Leader</div><div class="season-award-holder">${saFull.scoring || '—'}</div></div>
+      <div class="season-award-card"><div class="season-award-icon">🏀</div><div class="season-award-title">Playoffs MVP</div><div class="season-award-holder">${playoffsMvp}</div></div>
+      <div class="season-award-card"><div class="season-award-icon">🛡️</div><div class="season-award-title">Defensive Player of the Year</div><div class="season-award-holder">${dpoy}</div></div>
     `;
     seasonAwardsWrap.style.display = 'block';
   } else if (seasonAwardsWrap) {
