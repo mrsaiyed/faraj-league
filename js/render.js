@@ -504,6 +504,49 @@ function scheduleWeekTitle(w) {
   return (c != null && String(c).trim() !== '') ? String(c).trim() : `Week ${w}`;
 }
 
+function renderPlayoffBracket(w) {
+  const allGames = (config.DB.scores || []).filter(g => g.week === w);
+  const g1 = allGames.find(g => g.game === 1);
+  const g2 = allGames.find(g => g.game === 2);
+  const g3 = allGames.find(g => g.game === 3);
+
+  const weekDate = allGames.find(g => g.scheduled_at)?.scheduled_at;
+  const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
+  const title = scheduleWeekTitle(w);
+
+  const placeholder = (label) =>
+    `<div class="matchup-card" style="padding:1.4rem;text-align:center;color:#555;font-size:0.82rem;display:flex;align-items:center;justify-content:center;">${label}</div>`;
+
+  const card1 = g1 ? buildMatchupCard(g1, g1.gameId || '') : placeholder('TBD');
+  const card2 = g2 ? buildMatchupCard(g2, g2.gameId || '') : placeholder('TBD');
+  const card3 = g3 ? buildMatchupCard(g3, g3.gameId || '') : placeholder('TBD');
+
+  return `<div class="playoff-bracket-wrap" data-week="${w}">
+    <div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.9rem;">${title}${weekDateStr}</div>
+    <div class="playoff-bracket-scroll">
+      <div class="playoff-bracket">
+        <div class="playoff-bracket-col playoff-bracket-semis">
+          <div class="playoff-round-label">Conference Finals</div>
+          <div class="playoff-bracket-cards">
+            ${card1}
+            ${card2}
+          </div>
+        </div>
+        <div class="playoff-bracket-connector" aria-hidden="true">
+          <div class="playoff-conn-pad"></div>
+          <div class="playoff-conn-lines"></div>
+        </div>
+        <div class="playoff-bracket-col playoff-bracket-final">
+          <div class="playoff-round-label">Championship</div>
+          <div class="playoff-bracket-cards playoff-bracket-final-cards">
+            ${card3}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 export function renderSchedule(focusWeek, teamFilter) {
   const allEl = document.getElementById('schedule-all-content');
   const prevEl = document.getElementById('schedule-prev');
@@ -532,6 +575,9 @@ export function renderSchedule(focusWeek, teamFilter) {
     return `<div data-week="${w}" style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">${label}${weekDateStr}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
   };
 
+  const renderWeekContent = (w, label) =>
+    (config.DB.playoffWeeks?.[String(w)]) ? renderPlayoffBracket(w) : renderWeekBlock(w, label);
+
   const sectionHeader = (label, isCurrent) =>
     `<div class="schedule-section-header${isCurrent ? ' schedule-section-header-current' : ''}"><span>${label}</span></div>`;
 
@@ -549,16 +595,16 @@ export function renderSchedule(focusWeek, teamFilter) {
     if (cur > 1) {
       html += `<div class="schedule-section-header schedule-section-header-toggle" id="schedule-past-toggle"><span class="schedule-past-arrow">▸</span><span>Past</span></div>`;
       html += `<div id="schedule-past-body" style="display:none;">`;
-      for (let w = 1; w < cur; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
+      for (let w = 1; w < cur; w++) html += renderWeekContent(w, scheduleWeekTitle(w));
       html += `</div>`;
     }
     // Current
     html += sectionHeader('Current Week', true);
-    html += renderWeekBlock(cur, scheduleWeekTitle(cur));
+    html += renderWeekContent(cur, scheduleWeekTitle(cur));
     // Upcoming
     if (cur < total) {
       html += sectionHeader('Upcoming', false);
-      for (let w = cur + 1; w <= total; w++) html += renderWeekBlock(w, scheduleWeekTitle(w));
+      for (let w = cur + 1; w <= total; w++) html += renderWeekContent(w, scheduleWeekTitle(w));
     }
     allEl.innerHTML = html;
     // Wire Past toggle
@@ -579,7 +625,7 @@ export function renderSchedule(focusWeek, teamFilter) {
     if (nextEl) nextEl.style.display = 'none';
     if (!focusEl) return;
     focusEl.style.display = '';
-    focusEl.innerHTML = renderWeekBlock(focusWeek, `${scheduleWeekTitle(focusWeek)}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
+    focusEl.innerHTML = renderWeekContent(focusWeek, `${scheduleWeekTitle(focusWeek)}${focusWeek === config.CURRENT_WEEK ? ' — Current' : ''}`);
   }
 }
 

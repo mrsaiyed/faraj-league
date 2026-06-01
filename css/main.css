@@ -141,6 +141,19 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .schedule-past-arrow{font-size:0.8rem;opacity:0.7;transition:transform 0.15s;}
 .schedule-section-header-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:0.5rem;}
 .matchups-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;}
+/* ── Playoff bracket ───────────────────────────────────────────── */
+.playoff-bracket-wrap{margin-bottom:1.1rem;}
+.playoff-bracket-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.playoff-bracket{display:flex;align-items:stretch;min-width:540px;padding-bottom:0.5rem;}
+.playoff-bracket-col{display:flex;flex-direction:column;flex:1;min-width:200px;max-width:340px;}
+.playoff-round-label{height:2rem;line-height:2rem;font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:#9ab8c8;text-align:center;flex-shrink:0;}
+.playoff-bracket-cards{display:flex;flex-direction:column;gap:1.1rem;}
+.playoff-bracket-final-cards{flex:1;display:flex;flex-direction:column;justify-content:center;}
+.playoff-bracket-connector{display:flex;flex-direction:column;width:44px;flex-shrink:0;}
+.playoff-conn-pad{height:2rem;flex-shrink:0;}
+.playoff-conn-lines{flex:1;position:relative;}
+.playoff-conn-lines::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(200,168,75,0.45);border-radius:1px;}
+.playoff-conn-lines::after{content:'';position:absolute;left:0;top:50%;width:100%;height:2px;background:rgba(200,168,75,0.45);border-radius:1px;transform:translateY(-50%);}
 .matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;overflow:hidden;}
 /* mc-* = matchup card internals */
 .mc-header{display:flex;align-items:center;justify-content:space-between;padding:0.48rem 0.9rem;background:#091c2b;border-bottom:1px solid rgba(200,168,75,0.18);font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:#c8a84b;}
