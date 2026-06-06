@@ -43,8 +43,8 @@ describe('aggregateStats', () => {
     expect(stats).toHaveLength(2);
     const p1 = stats.find((s) => s.name === 'Player One');
     const p2 = stats.find((s) => s.name === 'Player Two');
-    expect(p1).toEqual({ name: 'Player One', team: 'Team Alpha', gp: 2, total: 22 });
-    expect(p2).toEqual({ name: 'Player Two', team: 'Team Alpha', gp: 1, total: 8 });
+    expect(p1).toEqual({ name: 'Player One', team: 'Team Alpha', gp: 2, regGp: 2, total: 22, statValues: { pt1: 22 } });
+    expect(p2).toEqual({ name: 'Player Two', team: 'Team Alpha', gp: 1, regGp: 1, total: 8, statValues: { pt1: 8 } });
   });
 
   it('falls back to player_stat_values when no game stats', () => {
@@ -68,7 +68,7 @@ describe('aggregateStats', () => {
     });
 
     expect(stats).toHaveLength(1);
-    expect(stats[0]).toEqual({ name: 'Solo', team: 'Team X', gp: 0, total: 100 });
+    expect(stats[0]).toEqual({ name: 'Solo', team: 'Team X', gp: 0, regGp: 0, total: 100, statValues: { pt1: 100 } });
   });
 
   it('excludes stats when player team not in game', () => {
