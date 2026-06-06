@@ -671,8 +671,11 @@ export function renderScores(week) {
     if (!played.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
     const weekDate = games.find(g => g.scheduled_at)?.scheduled_at;
     const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
-    const cards = played.map(g => buildMatchupCard(g, g.gameId || ''));
-    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}${weekDateStr}</div><div class="matchups-grid">${cards.join('')}</div></div>`;
+    const isPlayoff = config.DB.playoffWeeks?.[String(w)];
+    const gamesHtml = isPlayoff
+      ? renderPlayoffBracket(w)
+      : `<div class="matchups-grid">${played.map(g => buildMatchupCard(g, g.gameId || '')).join('')}</div>`;
+    return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}${weekDateStr}</div>${gamesHtml}</div>`;
   };
   const playedWeeks = [...new Set((config.DB.scores || []).filter(g => g.s1 !== '' && g.s2 !== '').map(g => g.week))].sort((a, b) => a - b);
   el.innerHTML = week === 'all'
