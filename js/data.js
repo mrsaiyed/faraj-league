@@ -88,19 +88,14 @@ function transformSeasonData(raw) {
     playerToTeamId[r.player_id] = r.team_id;
   });
 
-  // Exclude playoff games from stats aggregation
-  const playoffGameIds = new Set(
-    (games || []).filter(g => playoffWeeks[String(g.week)]).map(g => g.id)
-  );
-  const regularGames = (games || []).filter(g => !playoffGameIds.has(g.id));
-  const regularGameStatValues = (game_stat_values || []).filter(gsv => !playoffGameIds.has(gsv.game_id));
-
+  // Playoff stats count towards individual player stats but not standings/records.
+  // Standings filtering is handled separately in render.js via regularSeasonScores().
   const stats = aggregateStats({
-    game_stat_values: regularGameStatValues,
+    game_stat_values,
     player_stat_values,
     stat_definitions,
     rosters,
-    games: regularGames,
+    games,
     players,
     rosterToTeam,
     playerToTeamId,
