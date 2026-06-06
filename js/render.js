@@ -775,18 +775,31 @@ export function renderStats(teamFilter) {
   const pointsDef = defs.find(d => d.slug === 'points');
   const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
   const totalRegGames = config.DB.totalRegGames || 0;
-  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
+  const standingsRec = calcStandings();
+
+  // Cross-conference team comparison: wins → point differential → points for.
+  // Treats all teams as one pool so conference seed numbers don't distort the tiebreaker.
+  const teamRank = (teamName) => {
+    const s = standingsRec[teamName] || { w: 0, pf: 0, pa: 0 };
+    return { w: s.w, pd: s.pf - s.pa, pf: s.pf };
+  };
+  const compareTeams = (nameA, nameB) => {
+    const a = teamRank(nameA), b = teamRank(nameB);
+    if (b.w !== a.w) return b.w - a.w;
+    if (b.pd !== a.pd) return b.pd - a.pd;
+    return b.pf - a.pf;
+  };
 
   const filteredStats = (config.DB.stats || [])
     .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0));
 
-  // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: team seed);
+  // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: cross-conf team rank);
   // players who missed ≥2 reg season games → by total points, shown below.
   const withMissed = filteredStats.map(r => ({ ...r, missed: totalRegGames - (r.regGp || 0) }));
   const groupA = withMissed.filter(r => r.missed <= 1).sort((a, b) => {
     const diff = calcPpg(b) - calcPpg(a);
     if (diff !== 0) return diff;
-    return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
+    return compareTeams(a.team, b.team);
   });
   const groupB = withMissed.filter(r => r.missed > 1).sort((a, b) => b.total - a.total);
   const allRows = totalRegGames > 0 ? [...groupA, ...groupB] : filteredStats.sort((a, b) => b.total - a.total);
@@ -797,11 +810,10 @@ export function renderStats(teamFilter) {
     wrap.innerHTML = `<div style="padding:1.8rem;text-align:center;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stat types defined — add them in the admin Stats tab.</div>`;
     return;
   }
-  const standings = calcStandings();
-  const teamRec = name => { const s = standings[name]; return s ? ` (${s.w}-${s.l})` : ''; };
+  const teamRec = name => { const s = standingsRec[name]; return s ? ` (${s.w}-${s.l})` : ''; };
   if (filterWrap) {
     const teams = [...new Set(allRows.map(r => r.team).filter(Boolean))].sort();
-    const rec = teamFilter ? standings[teamFilter] : null;
+    const rec = teamFilter ? standingsRec[teamFilter] : null;
     const recSpan = rec ? `<span style="flex:1;text-align:center;color:#c8a84b;font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.06em;">${escapeHtmlAttr(teamFilter)} &middot; ${rec.w}-${rec.l}</span>` : '';
     filterWrap.innerHTML = `<div class="week-dropdown-wrap"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select>${recSpan}</div>`;
     const sel = document.getElementById('stats-team-filter');
