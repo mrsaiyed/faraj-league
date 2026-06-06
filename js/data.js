@@ -90,6 +90,15 @@ function transformSeasonData(raw) {
 
   // Playoff stats count towards individual player stats but not standings/records.
   // Standings filtering is handled separately in render.js via regularSeasonScores().
+  const playoffGameIds = new Set(
+    (games || []).filter(g => playoffWeeks[String(g.week)]).map(g => g.id)
+  );
+
+  // Total distinct regular season games that have any stat data (used for "missed games" sorting).
+  const totalRegGames = new Set(
+    (game_stat_values || []).filter(gsv => !playoffGameIds.has(gsv.game_id)).map(gsv => gsv.game_id)
+  ).size;
+
   const stats = aggregateStats({
     game_stat_values,
     player_stat_values,
@@ -99,6 +108,7 @@ function transformSeasonData(raw) {
     players,
     rosterToTeam,
     playerToTeamId,
+    playoffGameIds,
   });
 
   const sponsorOverrides = {};
@@ -175,6 +185,7 @@ function transformSeasonData(raw) {
     draftTeamOrder,
     scheduleWeekLabels,
     playoffWeeks,
+    totalRegGames,
   };
 }
 

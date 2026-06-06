@@ -772,9 +772,25 @@ export function renderStats(teamFilter) {
   const defs = config.DB.statDefinitions || [];
   const sub = document.getElementById('stats-section-sub');
   if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
-  const allRows = (config.DB.stats || [])
-    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0))
-    .sort((a, b) => b.total - a.total);
+  const pointsDef = defs.find(d => d.slug === 'points');
+  const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
+  const totalRegGames = config.DB.totalRegGames || 0;
+  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
+
+  const filteredStats = (config.DB.stats || [])
+    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0));
+
+  // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: team seed);
+  // players who missed ≥2 reg season games → by total points, shown below.
+  const withMissed = filteredStats.map(r => ({ ...r, missed: totalRegGames - (r.regGp || 0) }));
+  const groupA = withMissed.filter(r => r.missed <= 1).sort((a, b) => {
+    const diff = calcPpg(b) - calcPpg(a);
+    if (diff !== 0) return diff;
+    return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
+  });
+  const groupB = withMissed.filter(r => r.missed > 1).sort((a, b) => b.total - a.total);
+  const allRows = totalRegGames > 0 ? [...groupA, ...groupB] : filteredStats.sort((a, b) => b.total - a.total);
+
   if (!defs.length) {
     if (leadersWrap) leadersWrap.innerHTML = '';
     if (filterWrap) filterWrap.innerHTML = '';
@@ -792,8 +808,6 @@ export function renderStats(teamFilter) {
     if (sel) sel.value = teamFilter;
   }
   const rows = (teamFilter ? allRows.filter(r => r.team === teamFilter) : allRows).slice(0, 15);
-  const pointsDef = defs.find(d => d.slug === 'points');
-  const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
   if (leadersWrap) {
     const ranked = rows.filter(r => r.gp > 0)
       .map(r => ({ ...r, ppg: calcPpg(r) }))
