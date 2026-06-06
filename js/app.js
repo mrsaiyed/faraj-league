@@ -101,8 +101,8 @@ async function changeSeason(val) {
     showError('Could not load season data. Please refresh.');
     return;
   }
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks: playoffWeeksCS } = dataRes.data;
-  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeksCS || {} };
+  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks: playoffWeeksCS, totalRegGames: totalRegGamesCS } = dataRes.data;
+  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeksCS || {}, totalRegGames: totalRegGamesCS || 0 };
   applySponsorOverrides(sponsorOverrides);
   const derived = deriveWeeks(scores);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
@@ -131,7 +131,7 @@ async function loadAll() {
   const seasonsRes = await fetchSeasons();
   if (seasonsRes.error) {
     console.warn('fetchSeasons failed', seasonsRes.error);
-    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {} };
+    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {}, totalRegGames: 0 };
     showError('Could not load seasons. Please refresh.');
     renderAll();
     return;
@@ -139,7 +139,7 @@ async function loadAll() {
   const seasons = seasonsRes.data || [];
   const defaultSlug = seasons.find(s => s.is_current)?.slug || seasons[0]?.slug;
   if (!defaultSlug) {
-    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {} };
+    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {}, totalRegGames: 0 };
     showError('Could not load seasons. Please refresh.');
     renderAll();
     return;
@@ -148,15 +148,15 @@ async function loadAll() {
   const dataRes = await fetchSeasonData(defaultSlug);
   if (dataRes.error) {
     console.warn('fetchSeasonData failed', dataRes.error);
-    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {} };
+    config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {}, totalRegGames: 0 };
     showError('Could not load season data. Please refresh.');
     populateSeasonDropdown(seasons, defaultSlug);
     renderAll();
     return;
   }
 
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks } = dataRes.data;
-  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeks || {} };
+  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks, totalRegGames } = dataRes.data;
+  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeks || {}, totalRegGames: totalRegGames || 0 };
   applySponsorOverrides(sponsorOverrides);
   const derived = deriveWeeks(scores);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;

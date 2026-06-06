@@ -16,7 +16,7 @@ export async function loadAdminSeasonData(slug) {
   const dataRes = await fetchSeasonData(slug);
   if (dataRes.error || !dataRes.data) return null;
 
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, scheduleWeekLabels, playoffWeeks } = dataRes.data;
+  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, scheduleWeekLabels, playoffWeeks, totalRegGames } = dataRes.data;
 
   config.DB = {
     teams,
@@ -30,6 +30,7 @@ export async function loadAdminSeasonData(slug) {
     contentBlocks: contentBlocks || {},
     scheduleWeekLabels: scheduleWeekLabels || {},
     playoffWeeks: playoffWeeks || {},
+    totalRegGames: totalRegGames || 0,
   };
 
   applySponsorOverrides(sponsorOverrides);
