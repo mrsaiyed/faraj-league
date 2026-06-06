@@ -94,9 +94,15 @@ function transformSeasonData(raw) {
     (games || []).filter(g => playoffWeeks[String(g.week)]).map(g => g.id)
   );
 
-  // Total distinct regular season games that have any stat data (used for "missed games" sorting).
+  // Total distinct regular season WEEKS that have stat data.
+  // Players play one game per week, so this equals the max games any player could have played.
+  const gameWeekMap = {};
+  (games || []).forEach(g => { gameWeekMap[g.id] = g.week; });
   const totalRegGames = new Set(
-    (game_stat_values || []).filter(gsv => !playoffGameIds.has(gsv.game_id)).map(gsv => gsv.game_id)
+    (game_stat_values || [])
+      .filter(gsv => !playoffGameIds.has(gsv.game_id))
+      .map(gsv => gameWeekMap[gsv.game_id])
+      .filter(w => w != null)
   ).size;
 
   const stats = aggregateStats({
