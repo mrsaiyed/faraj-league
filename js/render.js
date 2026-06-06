@@ -796,8 +796,9 @@ export function renderStats(teamFilter) {
   // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: cross-conf team rank);
   // players who missed ≥2 reg season games → by total points, shown below.
   const withMissed = filteredStats.map(r => ({ ...r, missed: totalRegGames - (r.regGp || 0) }));
+  const roundPpg = r => Math.round(calcPpg(r) * 10) / 10;
   const groupA = withMissed.filter(r => r.missed <= 1).sort((a, b) => {
-    const diff = calcPpg(b) - calcPpg(a);
+    const diff = roundPpg(b) - roundPpg(a);
     if (diff !== 0) return diff;
     return compareTeams(a.team, b.team);
   });
