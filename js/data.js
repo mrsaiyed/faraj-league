@@ -207,12 +207,24 @@ export async function fetchSeasonData(slug) {
   return { data: transformSeasonData(raw), error: null };
 }
 
+/**
+ * Derive week counts for a season.
+ * `seasons.total_weeks` wins when set, but never below the highest week that
+ * already has a game — otherwise scheduled (or playoff) weeks would vanish from
+ * the schedule. With no setting, the season runs to at least 8 weeks.
+ *
+ * @param {Array<{week:number,s1:string,s2:string}>} scores
+ * @param {{ total_weeks?: number|null }} [season]
+ * @returns {{ TOTAL_WEEKS: number, CURRENT_WEEK: number }}
+ */
 export function deriveWeeks(scores, season) {
   const played = (scores || []).filter(g => g.s1 !== '' && g.s2 !== '');
   const latestPlayed = played.length ? Math.max(...played.map(g => g.week)) : 1;
   const maxGameWeek = (scores || []).length ? Math.max(...scores.map(g => g.week)) : 0;
   const derived = Math.max(8, maxGameWeek);
-  const totalWeeks = (season?.total_weeks != null && season.total_weeks > 0) ? season.total_weeks : derived;
+  const totalWeeks = (season?.total_weeks != null && season.total_weeks > 0)
+    ? Math.max(season.total_weeks, maxGameWeek)
+    : derived;
   return { TOTAL_WEEKS: totalWeeks, CURRENT_WEEK: latestPlayed || 1 };
 }
 

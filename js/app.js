@@ -4,6 +4,7 @@
 
 import { config } from './config.js';
 import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from './data.js';
+import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
 import {
   renderAll,
   renderSchedule,
@@ -28,16 +29,37 @@ function clearError() {
   if (el) el.style.display = 'none';
 }
 
+/**
+ * Fill every season picker: the active season first, past seasons grouped below it.
+ * @param {Array<object>} seasons - rows from the seasons table
+ * @param {string} defaultSlug - slug to preselect
+ */
 function populateSeasonDropdown(seasons, defaultSlug) {
+  const ordered = sortSeasons(seasons);
+  const current = ordered.filter(s => s.is_current);
+  const past = ordered.filter(s => !s.is_current);
+  const makeOption = (s) => {
+    const opt = document.createElement('option');
+    opt.value = s.slug;
+    opt.textContent = s.label + (s.is_current ? ' · Current' : '');
+    return opt;
+  };
   document.querySelectorAll('.nav-season-select').forEach(sel => {
     sel.innerHTML = '';
-    (seasons || []).forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.slug;
-      opt.textContent = s.label + (s.is_current ? ' · Current' : '');
-      sel.appendChild(opt);
-    });
-    sel.value = defaultSlug || (seasons?.[0]?.slug);
+    // Only group once there is something to contrast the active season with.
+    if (current.length && past.length) {
+      const curGroup = document.createElement('optgroup');
+      curGroup.label = 'Current Season';
+      current.forEach(s => curGroup.appendChild(makeOption(s)));
+      sel.appendChild(curGroup);
+      const pastGroup = document.createElement('optgroup');
+      pastGroup.label = 'Past Seasons';
+      past.forEach(s => pastGroup.appendChild(makeOption(s)));
+      sel.appendChild(pastGroup);
+    } else {
+      ordered.forEach(s => sel.appendChild(makeOption(s)));
+    }
+    sel.value = defaultSlug || ordered[0]?.slug || '';
   });
 }
 
@@ -104,22 +126,28 @@ async function changeSeason(val) {
   const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks: playoffWeeksCS, totalRegGames: totalRegGamesCS } = dataRes.data;
   config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeksCS || {}, totalRegGames: totalRegGamesCS || 0 };
   applySponsorOverrides(sponsorOverrides);
-  const derived = deriveWeeks(scores);
+  const derived = deriveWeeks(scores, season);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
   config.CURRENT_WEEK = (season?.current_week != null ? season.current_week : derived.CURRENT_WEEK);
   config.currentSeasonLabel = season?.label || 'Spring 2026';
   config.currentSeasonIsCurrent = season?.is_current ?? true;
   config.currentSeasonSlug = season?.slug || val;
+  // Keep the desktop nav picker and the mobile drawer picker in step.
+  document.querySelectorAll('.nav-season-select').forEach(sel => { sel.value = config.currentSeasonSlug; });
   const sa = awards?.find(a => a.champ);
   const isPlaceholder = (v) => !v || /^—\s*$|^season in progress$/i.test(String(v).trim()) || /—\s*in progress$/i.test(String(v).trim());
   const isSeasonComplete = (a) => a && !isPlaceholder(a.champ);
   const showHistoric = !config.currentSeasonIsCurrent || isSeasonComplete(sa);
   const hb = document.getElementById('historic-banner');
   if (hb) hb.style.display = showHistoric ? 'block' : 'none';
-  if (showHistoric && sa) {
-    document.getElementById('hb-champ').textContent = sa.champ || '—';
-    document.getElementById('hb-mvp').textContent = sa.mvp || '—';
-    document.getElementById('hb-scoring').textContent = sa.scoring || '—';
+  if (showHistoric) {
+    // The banner only carries the champion on the public page; the other fields
+    // are optional, so never assume they are in the DOM. Always rewrite so a
+    // season with no champion recorded does not keep the previous one's.
+    const setBanner = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+    setBanner('hb-champ', sa?.champ);
+    setBanner('hb-mvp', sa?.mvp);
+    setBanner('hb-scoring', sa?.scoring);
   }
   renderAll();
 }
@@ -137,7 +165,7 @@ async function loadAll() {
     return;
   }
   const seasons = seasonsRes.data || [];
-  const defaultSlug = seasons.find(s => s.is_current)?.slug || seasons[0]?.slug;
+  const defaultSlug = activeSeasonSlug(seasons);
   if (!defaultSlug) {
     config.DB = { teams: [...config.DEFAULT_TEAMS], scores: [], awards: [], stats: [], gameStatValues: {}, statDefinitions: [], mediaItems: [], mediaSlots: {}, contentBlocks: {}, draftBank: [], draftTeamOrder: [], scheduleWeekLabels: {}, playoffWeeks: {}, totalRegGames: 0 };
     showError('Could not load seasons. Please refresh.');
@@ -158,7 +186,7 @@ async function loadAll() {
   const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks, totalRegGames } = dataRes.data;
   config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeks || {}, totalRegGames: totalRegGames || 0 };
   applySponsorOverrides(sponsorOverrides);
-  const derived = deriveWeeks(scores);
+  const derived = deriveWeeks(scores, season);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
   config.CURRENT_WEEK = (season?.current_week != null ? season.current_week : derived.CURRENT_WEEK);
   config.currentSeasonLabel = season?.label || 'Spring 2026';

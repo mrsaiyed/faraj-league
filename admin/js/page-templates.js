@@ -23,9 +23,9 @@ export const HOME_TEMPLATE = `
     </div>
   </div>
   <div class="quick-stats">
-    <div class="qs-item"><div class="qs-num">6</div><div class="qs-label">Teams</div></div>
-    <div class="qs-item"><div class="qs-num">42</div><div class="qs-label">Players</div></div>
-    <div class="qs-item"><div class="qs-num">2</div><div class="qs-label">Conferences</div></div>
+    <div class="qs-item"><div class="qs-num" id="qs-teams">6</div><div class="qs-label">Teams</div></div>
+    <div class="qs-item"><div class="qs-num" id="qs-players">42</div><div class="qs-label">Players</div></div>
+    <div class="qs-item"><div class="qs-num" id="qs-conferences">2</div><div class="qs-label">Conferences</div></div>
     <div class="qs-item"><div class="qs-num" id="weeks-played">0</div><div class="qs-label">Weeks Played</div></div>
   </div>
   <div class="section">

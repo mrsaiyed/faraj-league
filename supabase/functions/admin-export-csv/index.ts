@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
     const [
       teamsRes,
       playersRes,
-      rostersRes,
       gamesRes,
       awardsRes,
       statDefsRes,
@@ -59,7 +58,6 @@ Deno.serve(async (req) => {
     ] = await Promise.all([
       supabase.from('teams').select('*').eq('season_id', seasonId).order('sort_order'),
       supabase.from('players').select('*').eq('season_id', seasonId),
-      supabase.from('rosters').select('*').order('sort_order', { ascending: true }),
       supabase.from('games').select('*').eq('season_id', seasonId).order('week').order('game_index'),
       supabase.from('awards').select('*').eq('season_id', seasonId).order('week'),
       supabase.from('stat_definitions').select('*').order('sort_order'),
@@ -71,10 +69,17 @@ Deno.serve(async (req) => {
 
     const teams = teamsRes.data || [];
     const players = playersRes.data || [];
-    const rosters = rostersRes.data || [];
     const games = gamesRes.data || [];
+    const teamIds = teams.map((t: { id: string }) => t.id);
     const playerIds = players.map((p: { id: string }) => p.id);
     const gameIds = games.map((g: { id: string }) => g.id);
+
+    // rosters has no season_id — scope it to this season's teams.
+    let rosters: { player_id: string; team_id: string; sort_order?: number }[] = [];
+    if (teamIds.length > 0) {
+      const r = await supabase.from('rosters').select('*').in('team_id', teamIds).order('sort_order', { ascending: true });
+      rosters = r.data || [];
+    }
 
     let playerStats: unknown[] = [];
     let gameStats: unknown[] = [];
@@ -92,7 +97,7 @@ Deno.serve(async (req) => {
     const playerMap: Record<string, { name: string }> = {};
     players.forEach((p: { id: string; name: string }) => { playerMap[p.id] = { name: p.name }; });
 
-    const rosterRows = rosters.map((r: { player_id: string; team_id: string; sort_order?: number }) => ({
+    const rosterRows = rosters.map((r) => ({
       player_id: r.player_id,
       team_id: r.team_id,
       sort_order: r.sort_order ?? 0,

@@ -6,6 +6,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { config } from '../../js/config.js';
 import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from '../../js/data.js';
+import { sortSeasons, activeSeasonSlug } from '../../lib/seasons.js';
 import {
   renderAll,
   renderSchedule,
@@ -194,26 +195,26 @@ async function loadAdminSeason(slug) {
   const hb = document.getElementById('historic-banner');
   if (hb) {
     hb.style.display = showHistoric ? 'block' : 'none';
-    if (showHistoric && sa) {
-      const hbChamp = document.getElementById('hb-champ');
-      const hbMvp = document.getElementById('hb-mvp');
-      const hbScoring = document.getElementById('hb-scoring');
-      if (hbChamp) hbChamp.textContent = sa.champ || '—';
-      if (hbMvp) hbMvp.textContent = sa.mvp || '—';
-      if (hbScoring) hbScoring.textContent = sa.scoring || '—';
+    if (showHistoric) {
+      // Always rewrite so a season with no champion recorded does not keep the
+      // previously loaded season's winner on screen.
+      const setBanner = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+      setBanner('hb-champ', sa?.champ);
+      setBanner('hb-mvp', sa?.mvp);
+      setBanner('hb-scoring', sa?.scoring);
     }
   }
   return true;
 }
 
-function adminChangeSeason(slug) {
-  if (!slug) return;
-  loadAdminSeason(slug).then(ok => {
-    if (ok) {
-      renderAll(true);
-      initAdminOverlays();
-    }
-  });
+async function adminChangeSeason(slug) {
+  if (!slug) return false;
+  const ok = await loadAdminSeason(slug);
+  if (ok) {
+    renderAll(true);
+    initAdminOverlays();
+  }
+  return ok;
 }
 
 function openDrawer() {
@@ -231,7 +232,44 @@ async function renderSeasonSettingsInDrawer() {
   const content = document.getElementById('admin-season-settings-content');
   if (!content) return;
   const sections = await import('./sections.js');
-  await sections.renderSeasons(content, { adminFetch, supabase, getToken });
+  await sections.renderSeasons(content, {
+    adminFetch,
+    supabase,
+    getToken,
+    onSeasonCreated: async (slug, label) => {
+      await populateAdminSeasonSelect(slug);
+      await adminChangeSeason(slug);
+      // Re-render the drawer against the season we just switched to, then
+      // restate the result — the re-render replaces the form that showed it.
+      await renderSeasonSettingsInDrawer();
+      const msg = document.getElementById('seasons-msg');
+      if (msg) {
+        msg.textContent = '';
+        const p = document.createElement('p');
+        p.className = 'msg success';
+        p.textContent = `Created ${label || slug}. Now editing this season.`;
+        msg.appendChild(p);
+      }
+    },
+  });
+}
+
+/**
+ * Fill the nav season dropdown from the seasons table.
+ * @param {string} [selectedSlug] - slug to select; defaults to the active season.
+ * @returns {Promise<string>} the slug that ended up selected
+ */
+async function populateAdminSeasonSelect(selectedSlug) {
+  const sel = document.getElementById('admin-season-select');
+  const seasonsRes = await fetchSeasons();
+  const seasons = sortSeasons(seasonsRes.data || []);
+  const slug = selectedSlug || activeSeasonSlug(seasons) || 'spring2026';
+  if (!sel) return slug;
+  sel.innerHTML = seasons.length
+    ? seasons.map(s => `<option value="${s.slug}" ${s.slug === slug ? 'selected' : ''}>${s.label}${s.is_current ? ' · Current' : ''}</option>`).join('')
+    : '<option value="spring2026">Spring 2026</option>';
+  sel.value = slug;
+  return slug;
 }
 
 async function initAdminOverlays() {
@@ -712,14 +750,10 @@ async function initAdminOverlays() {
 }
 
 async function setupDashboard() {
-  const seasonsRes = await fetchSeasons();
-  const seasons = (seasonsRes.data || []).length ? (seasonsRes.data || []) : [];
-  const defaultSlug = seasons.find(s => s.is_current)?.slug || seasons[0]?.slug || 'spring2026';
+  const defaultSlug = await populateAdminSeasonSelect();
 
   const sel = document.getElementById('admin-season-select');
-  sel.innerHTML = seasons.length ? seasons.map(s => `<option value="${s.slug}" ${s.slug === defaultSlug ? 'selected' : ''}>${s.label}${s.is_current ? ' · Current' : ''}</option>`).join('') : '<option value="spring2026">Spring 2026</option>';
-
-  sel.onchange = () => adminChangeSeason(sel.value);
+  if (sel) sel.onchange = () => adminChangeSeason(sel.value);
 
   document.getElementById('admin-float-btn').onclick = openDrawer;
   document.getElementById('admin-drawer-backdrop').onclick = closeDrawer;

@@ -145,9 +145,13 @@ export function renderAll(adminMode = false) {
   const showHistoric = !config.currentSeasonIsCurrent || isSeasonComplete(sa);
   const hb = document.getElementById('historic-banner');
   if (hb) hb.style.display = showHistoric ? 'block' : 'none';
-  if (showHistoric && sa) {
-    const hbChamp = document.getElementById('hb-champ');
-    if (hbChamp) hbChamp.textContent = sa.champ || '—';
+  if (showHistoric) {
+    // Always rewrite: a past season with no champion recorded must not keep
+    // showing the previously selected season's winner.
+    const setBanner = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+    setBanner('hb-champ', sa?.champ);
+    setBanner('hb-mvp', sa?.mvp);
+    setBanner('hb-scoring', sa?.scoring);
   }
 
   buildScoresWeekDropdown();
@@ -208,6 +212,14 @@ export function renderHome() {
   const wp = getWeeksPlayed();
   const weeksPlayedEl = document.getElementById('weeks-played');
   if (weeksPlayedEl) weeksPlayedEl.textContent = wp;
+  // Quick-stat tiles count this season's data, so they follow the season picker.
+  const confList = getConferences();
+  const confIdSet = new Set(confList.map(c => c.id || c.name));
+  const seasonTeams = (config.DB.teams || []).filter(t => confIdSet.has(t.conf));
+  const setQs = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  setQs('qs-teams', seasonTeams.length);
+  setQs('qs-players', (config.DB.teams || []).reduce((n, t) => n + (t.roster?.length || 0), 0));
+  setQs('qs-conferences', confList.length);
   // Week 0 = show week 1 as upcoming; show current week if stats exist, otherwise fall back to previous week
   const upcoming = config.CURRENT_WEEK === 0;
   const displayWeek = upcoming ? 1 : getDisplayWeek();
@@ -1248,7 +1260,8 @@ export function renderDraft(adminMode = false) {
     </div>`;
   }).join('');
 
-  boardWrap.innerHTML = `<div class="draft-board">${teamCardsHtml}</div>`;
+  // The draft board only exists on the admin mirror; the public page has no target.
+  if (boardWrap) boardWrap.innerHTML = `<div class="draft-board">${teamCardsHtml}</div>`;
 
   if (adminMode) {
     let bankHtml = '<div class="draft-bank"><div class="draft-bank-label">Player Bank</div><div class="draft-bank-chips">';

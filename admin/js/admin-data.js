@@ -49,13 +49,13 @@ export async function loadAdminSeasonData(slug) {
   const hb = document.getElementById('historic-banner');
   if (hb) {
     hb.style.display = showHistoric ? 'block' : 'none';
-    if (showHistoric && sa) {
-      const hbChamp = document.getElementById('hb-champ');
-      const hbMvp = document.getElementById('hb-mvp');
-      const hbScoring = document.getElementById('hb-scoring');
-      if (hbChamp) hbChamp.textContent = sa.champ || '—';
-      if (hbMvp) hbMvp.textContent = sa.mvp || '—';
-      if (hbScoring) hbScoring.textContent = sa.scoring || '—';
+    if (showHistoric) {
+      // Always rewrite so a season with no champion recorded does not keep the
+      // previously loaded season's winner on screen.
+      const setBanner = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+      setBanner('hb-champ', sa?.champ);
+      setBanner('hb-mvp', sa?.mvp);
+      setBanner('hb-scoring', sa?.scoring);
     }
   }
 

@@ -37,7 +37,7 @@ function scheduledAtInputToIso(value) {
 }
 
 export async function renderSeasons(content, ctx) {
-  const { adminFetch, supabase } = ctx;
+  const { adminFetch, supabase, onSeasonCreated } = ctx;
   const seasonId = window.adminSeasonId;
   if (!seasonId) {
     content.innerHTML = '<p>Select a season first.</p>';
@@ -65,6 +65,7 @@ export async function renderSeasons(content, ctx) {
     ? Number(season.current_week) : '';
   const totalWeeksVal = season.total_weeks != null && Number.isFinite(Number(season.total_weeks))
     ? Number(season.total_weeks) : '';
+  const srcLabel = escapeHtml(season.label || 'this season');
   content.innerHTML = `
     <div id="seasons-msg"></div>
     <form id="seasons-form" class="admin-drawer-form">
@@ -82,6 +83,38 @@ export async function renderSeasons(content, ctx) {
       </div>
       <div class="admin-drawer-form-actions">
         <button type="submit">Save</button>
+      </div>
+    </form>
+
+    <div class="admin-drawer-divider"></div>
+    <button type="button" class="secondary" id="seasons-new-toggle">+ New season</button>
+    <form id="seasons-new-form" class="admin-drawer-form" style="display:none;margin-top:0.9rem;">
+      <div id="seasons-new-msg"></div>
+      <div class="admin-drawer-form-stack">
+        <label class="admin-drawer-form-label" for="seasons-new-label">Season name</label>
+        <input type="text" id="seasons-new-label" class="admin-drawer-form-input-wide" placeholder="Fall 2026" autocomplete="off" required>
+      </div>
+      <div class="admin-drawer-form-stack">
+        <label class="admin-drawer-form-label" for="seasons-new-slug">URL slug</label>
+        <input type="text" id="seasons-new-slug" class="admin-drawer-form-input-wide" placeholder="fall2026" autocomplete="off">
+      </div>
+      <div class="admin-drawer-form-row">
+        <span class="admin-drawer-form-label">Total weeks</span>
+        <input type="number" id="seasons-new-total-weeks" min="1" class="admin-drawer-form-input" placeholder="8">
+      </div>
+      <div class="admin-drawer-form-row">
+        <input type="checkbox" id="seasons-new-active" checked>
+        <span class="admin-drawer-form-label">Set as active season</span>
+      </div>
+      <div class="admin-drawer-form-stack">
+        <span class="admin-drawer-form-label">Carry over from ${srcLabel}</span>
+        <label class="admin-drawer-form-row"><input type="checkbox" id="seasons-copy-settings" checked><span class="admin-drawer-form-label">Setup (conferences, about, media)</span></label>
+        <label class="admin-drawer-form-row"><input type="checkbox" id="seasons-copy-teams"><span class="admin-drawer-form-label">Teams (names only, no players)</span></label>
+        <label class="admin-drawer-form-row"><input type="checkbox" id="seasons-copy-sponsors"><span class="admin-drawer-form-label">Sponsors</span></label>
+      </div>
+      <div class="admin-drawer-form-actions">
+        <button type="submit" id="seasons-new-submit">Create season</button>
+        <button type="button" class="secondary" id="seasons-new-cancel">Cancel</button>
       </div>
     </form>
   `;
@@ -102,7 +135,93 @@ export async function renderSeasons(content, ctx) {
       msg.innerHTML = '<p class="msg success">Saved.</p>';
       msg.style.display = 'block';
     } catch (err) {
-      msg.innerHTML = `<p class="msg error">${err.message}</p>`;
+      msg.innerHTML = `<p class="msg error">${escapeHtml(err.message)}</p>`;
+    }
+  });
+
+  wireNewSeasonForm(content, { adminFetch, onSeasonCreated, sourceSeasonId: seasonId });
+}
+
+/**
+ * Wires the "New season" form: slug auto-fill, create call, and handing the new
+ * slug back to admin.js so the season dropdown refreshes and switches to it.
+ */
+function wireNewSeasonForm(content, { adminFetch, onSeasonCreated, sourceSeasonId }) {
+  const toggle = content.querySelector('#seasons-new-toggle');
+  const form = content.querySelector('#seasons-new-form');
+  const cancel = content.querySelector('#seasons-new-cancel');
+  const labelInput = content.querySelector('#seasons-new-label');
+  const slugInput = content.querySelector('#seasons-new-slug');
+  const submitBtn = content.querySelector('#seasons-new-submit');
+  const msg = content.querySelector('#seasons-new-msg');
+  if (!toggle || !form) return;
+
+  toggle.onclick = () => {
+    const open = form.style.display !== 'none';
+    form.style.display = open ? 'none' : '';
+    toggle.textContent = open ? '+ New season' : '− New season';
+    if (!open) labelInput?.focus();
+  };
+  if (cancel) cancel.onclick = () => {
+    form.style.display = 'none';
+    toggle.textContent = '+ New season';
+  };
+
+  // Slug tracks the name until the admin types their own.
+  if (labelInput && slugInput) {
+    labelInput.addEventListener('input', async () => {
+      if (slugInput.dataset.touched === '1') return;
+      const { slugifySeasonLabel } = await import(new URL('../../lib/seasons.js', import.meta.url).href);
+      slugInput.value = slugifySeasonLabel(labelInput.value);
+    });
+    slugInput.addEventListener('input', () => { slugInput.dataset.touched = '1'; });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!msg) return;
+    const { slugifySeasonLabel, isValidSeasonSlug } = await import(new URL('../../lib/seasons.js', import.meta.url).href);
+    const label = (labelInput?.value || '').trim();
+    const slug = ((slugInput?.value || '').trim() || slugifySeasonLabel(label)).toLowerCase();
+    if (!label) {
+      msg.innerHTML = '<p class="msg error">Season name is required.</p>';
+      return;
+    }
+    if (!isValidSeasonSlug(slug)) {
+      msg.innerHTML = '<p class="msg error">Slug must be lowercase letters, numbers and hyphens (e.g. fall2026).</p>';
+      return;
+    }
+    const totalWeeks = content.querySelector('#seasons-new-total-weeks')?.value || '';
+    const setActive = !!content.querySelector('#seasons-new-active')?.checked;
+    const copy = {
+      settings: !!content.querySelector('#seasons-copy-settings')?.checked,
+      teams: !!content.querySelector('#seasons-copy-teams')?.checked,
+      sponsors: !!content.querySelector('#seasons-copy-sponsors')?.checked,
+    };
+    if (setActive && !confirm(`Make "${label}" the active season? The site will load it by default for everyone.`)) return;
+
+    if (submitBtn) submitBtn.disabled = true;
+    msg.innerHTML = '<p class="msg">Creating…</p>';
+    try {
+      const res = await adminFetch('admin-seasons', {
+        method: 'POST',
+        body: JSON.stringify({
+          create: true,
+          label,
+          slug,
+          is_current: setActive,
+          total_weeks: totalWeeks !== '' ? parseInt(totalWeeks, 10) : null,
+          copy_from_season_id: (copy.settings || copy.teams || copy.sponsors) ? sourceSeasonId : null,
+          copy,
+        }),
+      });
+      msg.innerHTML = `<p class="msg success">Created ${escapeHtml(label)}.</p>`;
+      // Re-renders this drawer, so hand the label over for the post-render notice.
+      if (typeof onSeasonCreated === 'function') await onSeasonCreated(res?.slug || slug, label);
+    } catch (err) {
+      msg.innerHTML = `<p class="msg error">${escapeHtml(err.message)}</p>`;
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   });
 }
@@ -326,11 +445,15 @@ export async function renderPlayers(content, ctx) {
     content.innerHTML = '<p>Select a season first.</p>';
     return;
   }
-  const [{ data: players }, { data: teams }, { data: rosters }] = await Promise.all([
+  const [{ data: players }, { data: teams }] = await Promise.all([
     supabase.from('players').select('*').eq('season_id', seasonId),
     supabase.from('teams').select('*').eq('season_id', seasonId),
-    supabase.from('rosters').select('*'),
   ]);
+  // rosters has no season_id — scope it to this season's teams.
+  const seasonTeamIds = (teams || []).map(t => t.id);
+  const { data: rosters } = seasonTeamIds.length
+    ? await supabase.from('rosters').select('*').in('team_id', seasonTeamIds)
+    : { data: [] };
   const rosterMap = {};
   (rosters || []).forEach(r => { rosterMap[r.player_id] = r.team_id; });
   const teamMap = {};
