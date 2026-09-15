@@ -10,6 +10,10 @@ npx vitest run tests/standings.test.js  # Run a single test file (also: tests/st
 
 npm run seed      # Seed database with placeholder data
 
+# Import a season's player names (idempotent; --sql prints SQL for the Dashboard instead)
+node scripts/import-roster.js scripts/rosters/fall2026.json
+node scripts/import-roster.js scripts/rosters/fall2026.json --sql > supabase/seed_fall2026_players.sql
+
 # Deploy all Edge Functions at once
 npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
 
@@ -67,6 +71,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 | `js/config.js` | Supabase URL, anon key, sponsor/conference constants; `config.CURRENT_WEEK` and `config.TOTAL_WEEKS` runtime state; `getConferences()` reads dynamic conference list from `content_blocks.conferences_layout` (falls back to Mecca/Medina); `confShortLabel()` returns abbreviated conference name; `motmLabel(game)`, `akhlaqLabel(week)`, `statsTitle()` are sponsor-branded label helpers that read from `config.SP2A`/`SP2B` |
 | `js/data.js` | `fetchSeasons`, `fetchSeasonData`, `transformSeasonData`; `deriveWeeks(scores, season)` derives `TOTAL_WEEKS`/`CURRENT_WEEK` — `seasons.total_weeks` wins when set but is floored at the highest week that has a game (so a stale setting can never hide scheduled or playoff weeks); with no setting the season runs to at least 8 weeks; `applySponsorOverrides(overrides)` mutates `config` SP1/SP2A/SP2B from sponsor rows |
 | `js/render.js` | All DOM updates: `renderAll`, `renderHome`, `renderStandings`, `renderSchedule`, `renderScores`, `renderStats`, `renderAwards`, etc. `buildMatchupCard()` is the shared helper for home/schedule/scores cards. `TEAM_LOGOS` map + `teamLogoUrl()` serve team logos from `images/teams/` (keyed by lowercase name slug) |
+| `scripts/rosters/*.json` | Per-season player lists — the source of truth for an import. Edit the JSON, then regenerate the SQL; never hand-edit `supabase/seed_*.sql` |
+| `scripts/import-roster.js` | Imports a roster JSON into one season. Writes via the service role, or `--sql` emits SQL for the Dashboard. Idempotent: skips names already in that season (case-insensitive), so re-running adds nothing |
 | `lib/seasons.js` | Pure season helpers: `slugifySeasonLabel('Fall 2026')` → `'fall2026'`, `isValidSeasonSlug()`, `sortSeasons()` (active season first, then newest-first), `activeSeasonSlug()`. `SEASON_SLUG_RE` is mirrored server-side in `admin-seasons` |
 | `lib/standings.js` | Pure functions: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both); `calcSeeds(teams, scores)` → per-conf seed numbers with tiebreakers (conf record → H2H → PD → PF); returns `'TBD'` for all when no scored games |
 | `lib/stats.js` | Pure function: `aggregateStats()` → player stat aggregation; prefers `game_stat_values` (per-game sheet), falls back to `player_stat_values` (manual season totals) when no game stats exist |
@@ -79,6 +85,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 **Seasons**: `seasons.is_current` marks the active season — the public site loads it by default (`activeSeasonSlug()` falls back to the newest season if none is flagged). Migration 010 adds a partial unique index so only one season can be current; `admin-seasons` therefore always clears the flag on every other season *before* setting it, never the other way round.
 
 **Creating a season**: the admin drawer's "New season" form posts `{ create: true, label, slug, is_current, total_weeks, copy_from_season_id, copy: { settings, teams, sponsors } }` to `admin-seasons`. The copy options carry `content_blocks` structure keys, team rows (names/conferences/captains, no players or rosters) and sponsor rows across from an existing season, so a new season starts with the same categories rather than blank. Per-season results (schedule, playoffs, draft, power rankings, awards, hero/season tag copy) are never copied.
+
+**Roster imports are season-scoped by construction**: the generated SQL `CROSS JOIN`s the VALUES list against `seasons` filtered by slug, so a wrong or missing slug inserts zero rows rather than writing players into another season. The duplicate check is `season_id` + `lower(name)`, so the same person can appear in several seasons (they get one `players` row per season) while a re-run never doubles up within one.
 
 **Season scoping**: `rosters`, `player_stat_values`, `game_stat_values` and `game_dnp` have no `season_id` — they are reached through `team_id`/`player_id`/`game_id`. `getSeasonData` therefore runs in two passes: season-scoped tables first, then those tables filtered by the ids it just fetched. Anything querying them must do the same or it will read across seasons (and eventually hit PostgREST's 1000-row cap). `stat_definitions` is deliberately global — every season shares the same stat categories.
 
