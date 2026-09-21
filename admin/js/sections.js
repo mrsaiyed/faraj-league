@@ -1312,7 +1312,7 @@ export async function attachTeamsAdminOverlays(ctx) {
 
   await (async () => {
     const { config } = await importRootJs('config.js');
-    const { confLabel, confLabelRaw, confShortLabel, getConferences } = await importRootJs('config.js');
+    const { confLabel, confLabelRaw, confShortLabel, getConferences, getBasePath } = await importRootJs('config.js');
     const renderMod = await importRootJs('render.js');
     const { attachEditOverlay } = await import('./edit-overlays.js');
 
@@ -1382,6 +1382,15 @@ export async function attachTeamsAdminOverlays(ctx) {
         });
         card.querySelectorAll('.admin-edit-btn').forEach(btn => btn.addEventListener('click', e => e.stopPropagation()));
       }
+
+      // Logo lives on the team row, so it is per-season like the name above it.
+      const logoBtn = document.createElement('button');
+      logoBtn.type = 'button';
+      logoBtn.textContent = t.logo_url ? 'Change logo' : 'Set logo';
+      logoBtn.className = 'admin-edit-btn';
+      logoBtn.style.cssText = 'margin-top:0.4rem;margin-right:0.35rem;font-size:0.75rem;padding:0.2rem 0.5rem;background:transparent;color:#c8a84b;border:1px solid #c8a84b;border-radius:4px;cursor:pointer;';
+      logoBtn.onclick = (e) => { e.stopPropagation(); openTeamLogoModal(t); };
+      card.appendChild(logoBtn);
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -1548,6 +1557,86 @@ export async function attachTeamsAdminOverlays(ctx) {
           },
         });
       });
+    }
+
+    /**
+     * Edit one team's logo for the season being viewed. Mirrors the sponsor
+     * logo field: paste a URL, or a repo-relative path like
+     * images/teams/raad.jpg. Blank removes it and the card falls back to
+     * initials (or a built-in logo, if the name still matches one).
+     */
+    function openTeamLogoModal(team) {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'admin-modal-backdrop';
+      const inputCss = 'padding:0.4rem;width:100%;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;';
+      backdrop.innerHTML = `
+        <div class="admin-modal" style="max-width:440px;">
+          <h4>Logo — ${escapeHtml(team.name)}</h4>
+          <p style="font-size:0.8rem;color:#c8c0b0;margin:0 0 0.75rem;">Applies to ${escapeHtml(config.currentSeasonLabel || 'this season')} only.</p>
+          <form id="team-logo-form">
+            <label style="display:block;margin:0.5rem 0;">Logo URL
+              <input type="text" id="tl-url" placeholder="https://… or images/teams/raad.jpg" style="${inputCss}">
+            </label>
+            <label style="display:block;margin:0.5rem 0;">Zoom <span style="color:#8a8580;font-size:0.78rem;">(blank = default; raise it if the logo looks too small in the circle)</span>
+              <input type="number" id="tl-scale" step="0.05" min="0.1" max="10" placeholder="1.15" style="${inputCss}">
+            </label>
+            <div id="tl-preview" style="margin:0.75rem 0;min-height:64px;display:flex;align-items:center;gap:0.75rem;"></div>
+            <div style="margin-top:1rem;">
+              <button type="submit" class="btn-primary">Save</button>
+              <button type="button" class="btn-secondary" id="tl-cancel">Cancel</button>
+              ${team.logo_url ? '<button type="button" class="btn-secondary" id="tl-remove" style="color:#c87070;border-color:#c87070;">Remove logo</button>' : ''}
+            </div>
+          </form>
+          <div id="tl-msg" style="margin-top:0.5rem;color:#f87171;"></div>
+        </div>`;
+      document.body.appendChild(backdrop);
+
+      const urlInput = backdrop.querySelector('#tl-url');
+      const scaleInput = backdrop.querySelector('#tl-scale');
+      urlInput.value = team.logo_url || '';
+      scaleInput.value = team.logo_scale ?? '';
+
+      const preview = backdrop.querySelector('#tl-preview');
+      const drawPreview = () => {
+        const raw = urlInput.value.trim();
+        if (!raw) { preview.innerHTML = '<span style="color:#8a8580;font-size:0.8rem;">No logo — the card shows initials.</span>'; return; }
+        const scale = parseFloat(scaleInput.value) || 1.15;
+        const src = raw.startsWith('http') ? raw : `${getBasePath()}/${raw.replace(/^\//, '')}`;
+        preview.innerHTML = `<div class="team-emblem" style="flex:0 0 auto;"><img src="${escapeHtmlAttr(src)}" class="mc-logo-img" style="transform:scale(${scale})" onerror="this.style.display='none';this.parentElement.nextElementSibling.textContent='Could not load that image.'"></div><span style="color:#8a8580;font-size:0.8rem;"></span>`;
+      };
+      drawPreview();
+      urlInput.addEventListener('input', drawPreview);
+      scaleInput.addEventListener('input', drawPreview);
+
+      const close = () => backdrop.remove();
+      backdrop.querySelector('#tl-cancel').onclick = close;
+      backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+
+      const save = async (logo_url, logo_scale) => {
+        try {
+          await adminFetch('admin-teams', {
+            method: 'POST',
+            body: JSON.stringify({ id: team.id, logo_url, logo_scale }),
+          });
+          close();
+          refresh();
+        } catch (err) { backdrop.querySelector('#tl-msg').textContent = err.message; }
+      };
+
+      const removeBtn = backdrop.querySelector('#tl-remove');
+      if (removeBtn) removeBtn.onclick = () => save(null, null);
+
+      backdrop.querySelector('#team-logo-form').onsubmit = (e) => {
+        e.preventDefault();
+        const url = urlInput.value.trim();
+        const rawScale = scaleInput.value.trim();
+        const scale = rawScale === '' ? null : Number(rawScale);
+        if (scale != null && (!Number.isFinite(scale) || scale <= 0 || scale > 10)) {
+          backdrop.querySelector('#tl-msg').textContent = 'Zoom must be a number above 0 and at most 10.';
+          return;
+        }
+        save(url || null, scale);
+      };
     }
 
     function openAddTeamModal() {

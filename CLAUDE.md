@@ -17,11 +17,11 @@ node scripts/import-roster.js scripts/rosters/fall2026.json --sql > supabase/see
 # Deploy all Edge Functions at once
 npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
 
-# Push DB migrations (apply in order: 001–010)
+# Push DB migrations (apply in order: 001–011)
 npx supabase db push
 ```
 
-Tests cover `lib/standings.js` (`calcStandings`, `calcSeeds`), `lib/stats.js` (`aggregateStats`) and `lib/seasons.js` (slug/ordering helpers) — pure functions only, no DB. `tests/api.test.js` covers `getSeasonData`'s season scoping against a stub Supabase client.
+Tests cover `lib/standings.js` (`calcStandings`, `calcSeeds`), `lib/stats.js` (`aggregateStats`), `lib/seasons.js` (slug/ordering helpers), `lib/team-logos.js` (logo resolution) and `lib/draft-bank.js` (player-bank search) — pure functions only, no DB. `tests/api.test.js` covers `getSeasonData`'s season scoping against a stub Supabase client.
 
 No build step — this is a static site with ES modules served directly.
 
@@ -73,6 +73,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 | `js/render.js` | All DOM updates: `renderAll`, `renderHome`, `renderStandings`, `renderSchedule`, `renderScores`, `renderStats`, `renderAwards`, etc. `buildMatchupCard()` is the shared helper for home/schedule/scores cards. `TEAM_LOGOS` map + `teamLogoUrl()` serve team logos from `images/teams/` (keyed by lowercase name slug) |
 | `scripts/rosters/*.json` | Per-season player lists — the source of truth for an import. Edit the JSON, then regenerate the SQL; never hand-edit `supabase/seed_*.sql` |
 | `scripts/import-roster.js` | Imports a roster JSON into one season. Writes via the service role, or `--sql` emits SQL for the Dashboard. Idempotent: skips names already in that season (case-insensitive), so re-running adds nothing |
+| `lib/team-logos.js` | Pure logo resolution: `resolveTeamLogo(team, name)` prefers that season's `teams.logo_url`, else falls back to the files committed in `images/teams/` matched loosely by name. `logoScaleCss()` renders the per-logo zoom (some are `[x, y]`) |
+| `lib/draft-bank.js` | Pure `filterBankPlayers(players, query)` for the admin draft search — prefix match on the whole name or any word in it, original order preserved |
 | `lib/seasons.js` | Pure season helpers: `slugifySeasonLabel('Fall 2026')` → `'fall2026'`, `isValidSeasonSlug()`, `sortSeasons()` (active season first, then newest-first), `activeSeasonSlug()`. `SEASON_SLUG_RE` is mirrored server-side in `admin-seasons` |
 | `lib/standings.js` | Pure functions: `calcStandings(teams, scores)` → W/L/PF/PA (ties = loss for both); `calcSeeds(teams, scores)` → per-conf seed numbers with tiebreakers (conf record → H2H → PD → PF); returns `'TBD'` for all when no scored games |
 | `lib/stats.js` | Pure function: `aggregateStats()` → player stat aggregation; prefers `game_stat_values` (per-game sheet), falls back to `player_stat_values` (manual season totals) when no game stats exist |
@@ -87,6 +89,8 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 **Creating a season**: the admin drawer's "New season" form posts `{ create: true, label, slug, is_current, total_weeks, copy_from_season_id, copy: { settings, teams, sponsors } }` to `admin-seasons`. The copy options carry `content_blocks` structure keys, team rows (names/conferences/captains, no players or rosters) and sponsor rows across from an existing season, so a new season starts with the same categories rather than blank. Per-season results (schedule, playoffs, draft, power rankings, awards, hero/season tag copy) are never copied.
 
 **Roster imports are season-scoped by construction**: the generated SQL `CROSS JOIN`s the VALUES list against `seasons` filtered by slug, so a wrong or missing slug inserts zero rows rather than writing players into another season. The duplicate check is `season_id` + `lower(name)`, so the same person can appear in several seasons (they get one `players` row per season) while a re-run never doubles up within one.
+
+**Team logos are per-season**: `teams.logo_url` (migration 011) holds the logo for that season's team row, so renaming a team keeps its logo and two seasons can show different logos for the same club. `teams.logo_scale` is the zoom inside the circular crop (default 1.15) — custom logos usually need one. When `logo_url` is empty, `resolveTeamLogo()` falls back to matching the name against `images/teams/`, which is what pre-011 seasons rely on; that fuzzy match is intentionally unchanged, so setting `logo_url` is how you override a wrong match. Admin: the Teams page team cards each get a "Set logo" button.
 
 **Season scoping**: `rosters`, `player_stat_values`, `game_stat_values` and `game_dnp` have no `season_id` — they are reached through `team_id`/`player_id`/`game_id`. `getSeasonData` therefore runs in two passes: season-scoped tables first, then those tables filtered by the ids it just fetched. Anything querying them must do the same or it will read across seasons (and eventually hit PostgREST's 1000-row cap). `stat_definitions` is deliberately global — every season shares the same stat categories.
 
@@ -129,6 +133,6 @@ Copy `.env.example` to `.env` for local development. The seed script and Edge Fu
 
 ### Deploy Flow
 
-**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–010).
+**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–011).
 
 `js/config.js` has Supabase URL and anon key baked in — dev and prod share the same Supabase project, so no config change is needed when syncing to the fork.

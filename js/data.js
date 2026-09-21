@@ -22,7 +22,7 @@ function transformSeasonData(raw) {
     rosterRows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const roster = rosterRows.map(r => ({ id: r.id, name: r.name, jersey_number: playerMap[r.player_id]?.jersey_number }));
     const playersList = roster.map(r => r.name);
-    return { id: t.id, name: t.name, conf: t.conference || t.conf, captain: t.captain || '', players: playersList, roster, sort_order: t.sort_order ?? 0 };
+    return { id: t.id, name: t.name, conf: t.conference || t.conf, captain: t.captain || '', players: playersList, roster, sort_order: t.sort_order ?? 0, logo_url: t.logo_url || null, logo_scale: t.logo_scale != null ? Number(t.logo_scale) : null };
   });
 
   const scores = (games || []).map(g => ({

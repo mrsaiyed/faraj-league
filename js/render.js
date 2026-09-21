@@ -5,11 +5,23 @@
 import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
 import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure } from '../lib/standings.js';
+import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
+import { filterBankPlayers } from '../lib/draft-bank.js';
 
 let activeTeam = null;
 
 function escapeHtmlAttr(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Resolve an asset reference for the current host: absolute URLs pass through,
+ * repo-relative paths get the GitHub Pages base path prepended.
+ */
+function toAssetPath(url) {
+  if (!url || url.startsWith('http')) return url;
+  const path = url.startsWith('/') ? url : '/' + url.replace(/^\//, '');
+  return getBasePath() + path;
 }
 
 function initials(n) { return n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
@@ -96,11 +108,6 @@ export function renderAll(adminMode = false) {
     }
   }
 
-  const toAssetPath = (url) => {
-    if (!url || url.startsWith('http')) return url;
-    const path = url.startsWith('/') ? url : '/' + url.replace(/^\//, '');
-    return getBasePath() + path;
-  };
   const banner = document.getElementById('title-sponsor-banner');
   if (banner) {
     const titleName = config.SP1 && config.SP1 !== '[SPONSOR 1 NAME AND LOGO]' ? config.SP1 : 'Zabiha Family Ranch';
@@ -339,57 +346,40 @@ function formatGameDate(scheduledAt) {
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const TEAM_LOGOS = {
-  ansar: 'ansar.png',
-  dukhaan: 'dukhaan.jpg',
-  jaysh: 'jaysh.png',
-  mujahideen: 'mujahideen.png',
-  noor: 'noor.png',
-  raad: 'raad.jpg',
-};
+/**
+ * Team row for `name` in the season currently loaded — the logo lives on it,
+ * so the same club can carry a different logo in a different season.
+ */
+function teamByName(name) {
+  const key = String(name || '').trim().toLowerCase();
+  if (!key) return null;
+  return (config.DB.teams || []).find(t => String(t.name || '').trim().toLowerCase() === key) || null;
+}
 
-// Per-team scale factors. Keys must match TEAM_LOGOS keys exactly.
-// transform: translate(-50%,-50%) scale(S) on an absolutely-centred img
-// inside an overflow:hidden crop div — adjust ±0.05 if edges clip.
-const LOGO_SCALE = {
-  jaysh: 2.75,
-  noor: 2.40,
-  dukhaan: 2.50,
-  ansar: 1.725,
-  mujahideen: [1.85, 2.45],
-  raad: 2.30,
-};
-const DEFAULT_LOGO_SCALE = 1.15;
-
-function teamLogoKey(name) {
-  const slug = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  return Object.keys(TEAM_LOGOS).find(k => slug.includes(k) || k.includes(slug)) ?? null;
+/** Resolved logo for a team name, with the site base path already applied. */
+function teamLogo(name) {
+  const hit = resolveTeamLogo(teamByName(name), name);
+  if (!hit) return null;
+  return { src: toAssetPath(hit.path), scale: hit.scale };
 }
 
 function teamLogoUrl(name) {
-  const key = teamLogoKey(name);
-  return key ? `${getBasePath()}/images/teams/${TEAM_LOGOS[key]}` : null;
+  return teamLogo(name)?.src ?? null;
 }
 
 function teamEmblemHtml(name) {
-  const teamKey = teamLogoKey(name);
-  const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
-  if (url) {
-    const s = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
-    const scaleVal = Array.isArray(s) ? `${s[0]}, ${s[1]}` : s;
-    return `<div class="team-emblem"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span></div>`;
+  const logo = teamLogo(name);
+  if (logo) {
+    return `<div class="team-emblem"><img src="${escapeHtmlAttr(logo.src)}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${logoScaleCss(logo.scale)})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span></div>`;
   }
   return `<div class="team-emblem">${initials(name)}</div>`;
 }
 
 function teamLogoHtml(name, side) {
-  const teamKey = teamLogoKey(name);
-  const url = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
+  const logo = teamLogo(name);
   const cls = `mc-logo mc-logo-${side}`;
-  if (url) {
-    const s = LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE;
-    const scaleVal = Array.isArray(s) ? `${s[0]}, ${s[1]}` : s;
-    return `<div class="${cls}"><img src="${url}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
+  if (logo) {
+    return `<div class="${cls}"><img src="${escapeHtmlAttr(logo.src)}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${logoScaleCss(logo.scale)})" onerror="this.closest('.mc-logo').style.display='none';this.closest('.mc-logo').nextElementSibling.style.display='flex'"></div><div class="${cls}" style="display:none">${initials(name || '?')}</div>`;
   }
   return `<div class="${cls}">${initials(name || '?')}</div>`;
 }
@@ -1010,12 +1000,10 @@ export function renderPowerRankings(week) {
   const rows = weekData.map((entry, i) => {
     const team = teamMap[entry.teamId];
     const name = team?.name || '—';
-    const teamKey = teamLogoKey(name);
-    const logoUrl = teamKey ? `${getBasePath()}/images/teams/${TEAM_LOGOS[teamKey]}` : null;
-    const s = logoUrl ? (LOGO_SCALE[teamKey] ?? DEFAULT_LOGO_SCALE) : null;
-    const scaleVal = s != null ? (Array.isArray(s) ? `${s[0]}, ${s[1]}` : s) : null;
-    const logoInner = logoUrl
-      ? `<img src="${logoUrl}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${scaleVal})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
+    // The team row is already in hand here, so resolve straight from it.
+    const logo = resolveTeamLogo(team, name);
+    const logoInner = logo
+      ? `<img src="${escapeHtmlAttr(toAssetPath(logo.path))}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${logoScaleCss(logo.scale)})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
       : initials(name);
     const noteHtml = entry.note ? `<div class="pr-note">${entry.note}</div>` : '';
     const prevRank = prevRankMap[entry.teamId];
@@ -1199,6 +1187,27 @@ export function renderAbout() {
   confInfoCard.insertAdjacentHTML('beforeend', accordionsHtml);
 }
 
+/**
+ * Paint the player-bank chips for the current search query.
+ * @param {HTMLElement} bankEl the #draft-bank container
+ * @param {Array<object>} draftBank every unrostered player in the season
+ * @param {string} query current search text
+ */
+function renderBankChips(bankEl, draftBank, query) {
+  const chips = bankEl.querySelector('.draft-bank-chips');
+  if (!chips) return;
+  if (!draftBank.length) return;
+  const matches = filterBankPlayers(draftBank, query);
+  if (!matches.length) {
+    chips.innerHTML = `<span class="box-score-empty">No players match &ldquo;${escapeHtmlAttr(query)}&rdquo;.</span>`;
+    return;
+  }
+  chips.innerHTML = matches.map(p => {
+    const j = p.jersey_number != null ? ` #${p.jersey_number}` : '';
+    return `<span class="draft-player-chip" draggable="true" data-player-id="${escapeHtmlAttr(p.id)}" data-source="bank">${escapeHtmlAttr(p.name)}${escapeHtmlAttr(j)}</span>`;
+  }).join('');
+}
+
 export function renderDraft(adminMode = false) {
   const blocks = config.DB.contentBlocks || {};
   const teams = config.DB.teams || [];
@@ -1264,21 +1273,35 @@ export function renderDraft(adminMode = false) {
   if (boardWrap) boardWrap.innerHTML = `<div class="draft-board">${teamCardsHtml}</div>`;
 
   if (adminMode) {
-    let bankHtml = '<div class="draft-bank"><div class="draft-bank-label">Player Bank</div><div class="draft-bank-chips">';
-    if (draftBank.length === 0) {
-      bankHtml += '<span class="box-score-empty">All players assigned</span>';
-    } else {
-      draftBank.forEach(p => {
-        const j = p.jersey_number != null ? ` #${p.jersey_number}` : '';
-        bankHtml += `<span class="draft-player-chip" draggable="true" data-player-id="${escapeHtmlAttr(p.id)}" data-source="bank">${escapeHtmlAttr(p.name)}${escapeHtmlAttr(j)}</span>`;
-      });
-    }
-    bankHtml += '</div></div>';
+    // Survives the re-render that follows every draft pick.
+    const prevQuery = document.getElementById('draft-bank-search')?.value || '';
+    const searchHtml = draftBank.length
+      ? `<input type="search" id="draft-bank-search" class="draft-bank-search" placeholder="Search players…" autocomplete="off" aria-label="Search player bank" value="${escapeHtmlAttr(prevQuery)}">`
+      : '';
+    const bankHtml =
+      '<div class="draft-bank"><div class="draft-bank-label">Player Bank</div>' +
+      searchHtml +
+      '<div class="draft-bank-chips">' +
+      (draftBank.length === 0 ? '<span class="box-score-empty">All players assigned</span>' : '') +
+      '</div></div>';
 
     if (bankEl) {
       bankEl.innerHTML = bankHtml;
       bankEl.style.display = 'block';
       bankEl.dataset.dropZone = 'bank';
+      renderBankChips(bankEl, draftBank, prevQuery);
+
+      const search = bankEl.querySelector('#draft-bank-search');
+      if (search) {
+        // Rebuilt rather than hidden: the chip separators are nth-child based,
+        // so hiding would leave gaps. Drag handlers are delegated to the bank
+        // container, so new chips stay draggable.
+        search.addEventListener('input', () => renderBankChips(bankEl, draftBank, search.value));
+        if (prevQuery) {
+          search.focus();
+          search.setSelectionRange(prevQuery.length, prevQuery.length);
+        }
+      }
     }
   } else if (bankEl) {
     bankEl.style.display = 'none';
