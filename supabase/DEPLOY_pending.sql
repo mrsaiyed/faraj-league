@@ -110,10 +110,11 @@ WHERE season.slug = 'fall2026'
 
 
 -- ============================================================
--- 4. Sponsors — clear Fall 2026, pin Spring 2026's into its own rows
+-- 4. Sponsors — Fall keeps its title sponsor, loses the conference ones;
+--    Spring's are pinned into its own rows
 -- ============================================================
--- Remove the conference/title sponsors from Fall 2026, and pin Spring 2026's
--- sponsors into its own data so it is unaffected.
+-- Remove the CONFERENCE sponsors from Fall 2026 (keeping its title sponsor),
+-- and pin Spring 2026's sponsors into its own data so it is unaffected.
 --
 -- Background: the site used to fall back to hard-coded sponsor names and logos
 -- whenever a season had none, which is why clearing them in admin appeared to
@@ -153,18 +154,48 @@ WHERE sp.season_id = s.id
   AND sp.type = v.type
   AND (sp.name IS NULL OR sp.name = '' OR sp.logo_url IS NULL OR sp.logo_url = '');
 
--- 2. Fall 2026 loses its sponsor rows entirely.
+-- 2. Fall 2026 keeps its title sponsor but loses the conference ones.
+--    The conference sponsors are where the Akhlaq award label and the
+--    conference headings get their branding.
 DELETE FROM sponsors
-WHERE season_id = (SELECT id FROM seasons WHERE slug = 'fall2026');
+WHERE season_id = (SELECT id FROM seasons WHERE slug = 'fall2026')
+  AND type IN ('conference_mecca', 'conference_medina');
 
 -- 3. ...and any community-partner blocks carried over with them.
 DELETE FROM content_blocks
 WHERE season_id = (SELECT id FROM seasons WHERE slug = 'fall2026')
   AND key LIKE 'sponsor_community_%';
 
+-- 4. Make sure Fall still has a title sponsor, matching Spring's. Reaches this
+--    state from any starting point, including an earlier over-broad cleanup
+--    that removed it.
+INSERT INTO sponsors (season_id, type, name, logo_url, label)
+SELECT f.id, 'title',
+       COALESCE(sp.name, 'Zabiha Family Ranch'),
+       COALESCE(sp.logo_url, 'images/zabiha-logo.png'),
+       sp.label
+FROM seasons f
+LEFT JOIN seasons s ON s.slug = 'spring2026'
+LEFT JOIN sponsors sp ON sp.season_id = s.id AND sp.type = 'title'
+WHERE f.slug = 'fall2026'
+  AND NOT EXISTS (
+    SELECT 1 FROM sponsors x WHERE x.season_id = f.id AND x.type = 'title'
+  );
+
+UPDATE sponsors t
+SET name = COALESCE(NULLIF(t.name, ''), sp.name, 'Zabiha Family Ranch'),
+    logo_url = COALESCE(NULLIF(t.logo_url, ''), sp.logo_url, 'images/zabiha-logo.png')
+FROM seasons f
+LEFT JOIN seasons s ON s.slug = 'spring2026'
+LEFT JOIN sponsors sp ON sp.season_id = s.id AND sp.type = 'title'
+WHERE t.season_id = f.id
+  AND f.slug = 'fall2026'
+  AND t.type = 'title'
+  AND (t.name IS NULL OR t.name = '' OR t.logo_url IS NULL OR t.logo_url = '');
+
 
 -- ============================================================
--- Confirmation: expect 42 Fall players, 3 Spring sponsors, 0 Fall sponsors
+-- Confirmation: 42 Fall players, 3 Spring sponsors, 1 Fall sponsor (title)
 -- ============================================================
 SELECT s.slug,
        (SELECT count(*) FROM players  p WHERE p.season_id  = s.id) AS players,
