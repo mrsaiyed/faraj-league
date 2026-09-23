@@ -24,6 +24,10 @@
 .lt-btn-stop{background:#8a3030;border-color:#c87070;}
 .lt-btn-save{background:#c8a84b;color:#0a1f2e;font-weight:700;border-color:#c8a84b;}
 
+.lt-sync{width:100%;text-align:center;margin-top:0.45rem;font-size:0.78rem;letter-spacing:0.04em;color:#8a8580;}
+.lt-sync-saving{color:#c8a84b;}
+.lt-sync-saved{color:#2fa89a;}
+.lt-sync-error{color:#e06a6a;}
 .lt-armed{margin:0.6rem 0;padding:0.5rem 0.75rem;border-radius:6px;background:rgba(47,168,154,0.18);
   border:1px solid #2fa89a;font-size:0.95rem;text-align:center;}
 

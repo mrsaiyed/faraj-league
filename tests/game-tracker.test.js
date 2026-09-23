@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../lib/game-tracker.js';
 
@@ -277,5 +277,68 @@ describe('minutes played', () => {
     const s = all([start, score('a', 2)]);
     const rows = toStatValues(s.players, [{ id: 'd-pts', slug: 'points' }, { id: 'd-min', slug: 'minutes' }]);
     expect(rows.some(r => r.stat_definition_id === 'd-min')).toBe(false);
+  });
+});
+
+describe('hasRecordedStats', () => {
+  const five = ['a', 'b', 'c', 'd', 'e'];
+
+  it('is false for an untouched game', () => {
+    expect(hasRecordedStats(all([]).players)).toBe(false);
+  });
+
+  it('is false after only setting lineups', () => {
+    expect(hasRecordedStats(all([lineup('H', five)]).players)).toBe(false);
+  });
+
+  it('is false after substitutions with no stats — court time is not a stat', () => {
+    const s = all([
+      { ...lineup('H', five), elapsed: 0 },
+      { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 },
+    ]);
+    expect(s.players.c.secondsPlayed).toBe(300);
+    expect(hasRecordedStats(s.players)).toBe(false);
+  });
+
+  it('is true once anything is scored or recorded', () => {
+    expect(hasRecordedStats(all([score('p1', 2)]).players)).toBe(true);
+    expect(hasRecordedStats(all([{ type: 'foul', playerId: 'p1', teamId: 'H' }]).players)).toBe(true);
+    expect(hasRecordedStats(all([{ type: 'stat', playerId: 'p1', stat: 'reb' }]).players)).toBe(true);
+  });
+
+  it('goes back to false when the only basket is undone', () => {
+    const events = [score('p1', 2)];
+    expect(hasRecordedStats(deriveState(events, 0, CFG).players)).toBe(false);
+  });
+
+  it('survives missing input', () => {
+    expect(hasRecordedStats(null)).toBe(false);
+    expect(hasRecordedStats({})).toBe(false);
+  });
+});
+
+describe('toStatValues zero-fill', () => {
+  const defs = [{ id: 'd-pts', slug: 'points' }, { id: 'd-foul', slug: 'fouls' }];
+
+  it('emits rows for roster players with nothing recorded', () => {
+    const rows = toStatValues(all([score('p1', 2)]).players, defs, ['p1', 'p2']);
+    expect(rows).toContainEqual({ player_id: 'p2', stat_definition_id: 'd-pts', value: 0 });
+  });
+
+  it('clears a stale total after an undo', () => {
+    // p1 scored, then it was undone — without zero-fill no row would be sent
+    // and the old value would survive on the server.
+    const undone = deriveState([score('p1', 2)], 0, CFG);
+    const rows = toStatValues(undone.players, defs, ['p1']);
+    expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-pts', value: 0 });
+  });
+
+  it('does not overwrite a real total with zero', () => {
+    const rows = toStatValues(all([score('p1', 3)]).players, defs, ['p1', 'p2']);
+    expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-pts', value: 3 });
+  });
+
+  it('behaves as before when no roster is passed', () => {
+    expect(toStatValues(all([score('p1', 2)]).players, defs)).toHaveLength(2);
   });
 });

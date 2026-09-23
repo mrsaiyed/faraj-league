@@ -20,11 +20,14 @@
 
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
   STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
 
 const storageKey = (gameId) => `faraj_live_tracker_${gameId}`;
+
+/** How long to wait after the last tap before pushing totals to the server. */
+const AUTO_SYNC_MS = 4000;
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -48,7 +51,7 @@ const TOKENS = [
  * @param {{ adminFetch: Function, config: object, onSaved?: Function }} ctx
  */
 export function openLiveTracker(game, ctx) {
-  const { adminFetch, config } = ctx;
+  const { adminFetch, config, autoSync } = ctx;
   const teams = config.DB.teams || [];
   const homeTeam = teams.find(t => t.id === game.t1Id);
   const awayTeam = teams.find(t => t.id === game.t2Id);
@@ -111,6 +114,7 @@ export function openLiveTracker(game, ctx) {
           <button type="button" id="lt-save" class="lt-btn lt-btn-save">Save stats</button>
           <button type="button" id="lt-close" class="lt-btn">Close</button>
         </div>
+        <div class="lt-sync" id="lt-sync">Live · not yet saved</div>
       </div>
 
       <div class="lt-armed" id="lt-armed" hidden></div>
@@ -163,6 +167,63 @@ export function openLiveTracker(game, ctx) {
     session.cursor = next.cursor;
     persist();
     render();
+    queueAutoSync();
+  }
+
+  // ---- live sync ---------------------------------------------------------
+  // The public site polls for score and stat changes, so totals are pushed as
+  // the game is scored rather than only when Save is pressed. Debounced: a
+  // flurry of taps during a scoring run becomes one write.
+  let syncTimer = null;
+  let syncing = false;
+  let syncPending = false;
+
+  function queueAutoSync() {
+    if (autoSync === false) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(runAutoSync, AUTO_SYNC_MS);
+  }
+
+  async function runAutoSync() {
+    if (autoSync === false) return;
+    if (syncing) { syncPending = true; return; }       // fold into the next run
+    const defs = config.DB.statDefinitions || [];
+    if (!defs.length) return;
+
+    const derived = state();
+    // Never push an untouched game: zero-filled rows would set it to 0-0,
+    // which the site reads as played.
+    if (!hasRecordedStats(derived.players)) return;
+    const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
+    // Zero-fill every roster player: without it an undone basket leaves the
+    // old total sitting in the database.
+    const values = toStatValues(derived.players, defs, rosterIds);
+
+    syncing = true;
+    setSyncState('saving');
+    try {
+      // No DNP list mid-game — players simply may not have come on yet.
+      await adminFetch('admin-game-stats', {
+        method: 'POST',
+        body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: [] }),
+      });
+      setSyncState('saved');
+    } catch (err) {
+      // Keep scoring; the next event retries and Save is still the backstop.
+      setSyncState('error', err.message);
+    } finally {
+      syncing = false;
+      if (syncPending) { syncPending = false; queueAutoSync(); }
+    }
+  }
+
+  function setSyncState(kind, detail) {
+    const el = $('lt-sync');
+    if (!el) return;
+    el.className = `lt-sync lt-sync-${kind}`;
+    el.textContent = kind === 'saving' ? 'Saving…'
+      : kind === 'saved' ? `Live · updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+      : `Not saved — ${detail || 'will retry'}`;
   }
 
   // ---- rendering ---------------------------------------------------------
@@ -422,8 +483,8 @@ export function openLiveTracker(game, ctx) {
   };
 
   // ---- undo / redo / save ------------------------------------------------
-  $('lt-undo').onclick = () => { session.cursor = undo(session.cursor); persist(); render(); };
-  $('lt-redo').onclick = () => { session.cursor = redo(session.events, session.cursor); persist(); render(); };
+  $('lt-undo').onclick = () => { session.cursor = undo(session.cursor); persist(); render(); queueAutoSync(); };
+  $('lt-redo').onclick = () => { session.cursor = redo(session.events, session.cursor); persist(); render(); queueAutoSync(); };
 
   $('lt-close').onclick = () => {
     stopClock();
@@ -436,8 +497,8 @@ export function openLiveTracker(game, ctx) {
     const derived = state();
     const defs = config.DB.statDefinitions || [];
     const missing = missingStatSlugs(defs);
-    const values = toStatValues(derived.players, defs);
     const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
+    const values = toStatValues(derived.players, defs, rosterIds);
 
     if (!defs.length) {
       flash('No stat columns are defined yet — add at least "points" on the Stats tab.');
@@ -448,7 +509,7 @@ export function openLiveTracker(game, ctx) {
     // thing to save: it is how you take a game back to "not played". Saving
     // empty stats alone would leave the score at 0–0, which still reads as
     // played everywhere, so clear the score too.
-    if (!values.length) {
+    if (!hasRecordedStats(derived.players)) {
       if (!confirm('Nothing is recorded for this game.\n\nClear its stats and mark it as NOT played?')) return;
       $('lt-save').disabled = true;
       flash('Clearing…');

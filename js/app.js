@@ -5,6 +5,7 @@
 import { config } from './config.js';
 import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from './data.js';
 import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
+import { liveFingerprint, shouldRepaint, POLL_INTERVAL_MS } from '../lib/live-sync.js';
 import {
   renderAll,
   renderSchedule,
@@ -115,6 +116,77 @@ document.addEventListener('click', e => {
   if (e.target.closest('#home-awards')) showPage('awards');
 });
 
+/**
+ * Push a `fetchSeasonData` result into `config.DB` and the derived runtime
+ * state. Shared by the initial load, the season picker and the live poll so
+ * they cannot drift apart.
+ */
+function applySeasonData(data, slug) {
+  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides,
+    mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels,
+    playoffWeeks, totalRegGames } = data;
+  config.DB = {
+    teams, scores, awards, stats,
+    gameStatValues: gameStatValues || {},
+    statDefinitions: statDefinitions || [],
+    mediaItems: mediaItems || [],
+    mediaSlots: mediaSlots || {},
+    contentBlocks: contentBlocks || {},
+    draftBank: draftBank || [],
+    draftTeamOrder: draftTeamOrder || [],
+    scheduleWeekLabels: scheduleWeekLabels || {},
+    playoffWeeks: playoffWeeks || {},
+    totalRegGames: totalRegGames || 0,
+  };
+  applySponsorOverrides(sponsorOverrides);
+  const derived = deriveWeeks(scores, season);
+  config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
+  config.CURRENT_WEEK = (season?.current_week != null ? season.current_week : derived.CURRENT_WEEK);
+  config.currentSeasonLabel = season?.label || 'Spring 2026';
+  config.currentSeasonIsCurrent = season?.is_current ?? true;
+  config.currentSeasonSlug = season?.slug || slug;
+}
+
+// ---- Live refresh -------------------------------------------------------
+// Stats are written by the admin tracker while a game is being played, so the
+// page re-reads the season on a timer and repaints only when something moved.
+let liveSignature = '';
+let liveTimer = null;
+
+/** True while the visitor has something open that a repaint would disturb. */
+function pageIsBusy() {
+  const overlay = document.getElementById('box-score-fullscreen');
+  if (overlay && overlay.style.display === 'flex') return true;
+  if (document.getElementById('nav-drawer')?.classList.contains('open')) return true;
+  return false;
+}
+
+async function pollLive() {
+  const slug = config.currentSeasonSlug;
+  if (!slug || document.hidden) return;
+  const res = await fetchSeasonData(slug);
+  if (res.error || !res.data) return;
+  // The visitor may have switched seasons while this was in flight.
+  if (config.currentSeasonSlug !== slug) return;
+
+  const next = liveFingerprint(res.data);
+  if (!shouldRepaint({ previous: liveSignature, next, busy: pageIsBusy() })) {
+    if (liveSignature === '') liveSignature = next;
+    return;
+  }
+  liveSignature = next;
+  applySeasonData(res.data, slug);
+  renderAll();
+}
+
+function startLiveRefresh() {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = setInterval(pollLive, POLL_INTERVAL_MS);
+  // Coming back to the tab should feel instant rather than waiting a full tick.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
+  window.addEventListener('focus', pollLive);
+}
+
 async function changeSeason(val) {
   if (!val || val === config.currentSeasonSlug) return;
   clearError();
@@ -123,15 +195,11 @@ async function changeSeason(val) {
     showError('Could not load season data. Please refresh.');
     return;
   }
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks: playoffWeeksCS, totalRegGames: totalRegGamesCS } = dataRes.data;
-  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeksCS || {}, totalRegGames: totalRegGamesCS || 0 };
-  applySponsorOverrides(sponsorOverrides);
-  const derived = deriveWeeks(scores, season);
-  config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
-  config.CURRENT_WEEK = (season?.current_week != null ? season.current_week : derived.CURRENT_WEEK);
-  config.currentSeasonLabel = season?.label || 'Spring 2026';
-  config.currentSeasonIsCurrent = season?.is_current ?? true;
-  config.currentSeasonSlug = season?.slug || val;
+  applySeasonData(dataRes.data, val);
+  // New season, new baseline — otherwise the first poll sees a wholesale
+  // "change" and repaints for no reason.
+  liveSignature = liveFingerprint(dataRes.data);
+  const { season, awards } = dataRes.data;
   // Keep the desktop nav picker and the mobile drawer picker in step.
   document.querySelectorAll('.nav-season-select').forEach(sel => { sel.value = config.currentSeasonSlug; });
   const sa = awards?.find(a => a.champ);
@@ -183,18 +251,12 @@ async function loadAll() {
     return;
   }
 
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks, totalRegGames } = dataRes.data;
-  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeks || {}, totalRegGames: totalRegGames || 0 };
-  applySponsorOverrides(sponsorOverrides);
-  const derived = deriveWeeks(scores, season);
-  config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
-  config.CURRENT_WEEK = (season?.current_week != null ? season.current_week : derived.CURRENT_WEEK);
-  config.currentSeasonLabel = season?.label || 'Spring 2026';
-  config.currentSeasonIsCurrent = season?.is_current ?? true;
-  config.currentSeasonSlug = season?.slug || defaultSlug;
+  applySeasonData(dataRes.data, defaultSlug);
+  liveSignature = liveFingerprint(dataRes.data);
 
   populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
+  startLiveRefresh();
 }
 
 window.showPage = showPage;
