@@ -1,0 +1,86 @@
+/* Live stat tracker — admin only. Never linked from the public index.html. */
+
+.lt-backdrop{position:fixed;inset:0;z-index:900;background:#04101a;overflow-y:auto;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;}
+.lt-panel{max-width:1400px;margin:0 auto;padding:0.75rem 1rem 2rem;color:#f5f0e8;font-family:'Lato',sans-serif;}
+
+/* Header / scoreboard */
+.lt-header{position:sticky;top:0;z-index:2;background:#04101a;padding:0.5rem 0 0.75rem;
+  border-bottom:1px solid rgba(200,168,75,0.3);}
+.lt-scoreboard{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.lt-team-score{display:flex;flex-direction:column;align-items:center;min-width:6rem;flex:1;}
+.lt-team-name{font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8a84b;text-align:center;}
+.lt-score{font-size:3rem;font-weight:700;line-height:1;}
+.lt-clock-wrap{display:flex;flex-direction:column;align-items:center;gap:0.4rem;}
+.lt-clock{font-size:2.4rem;font-weight:700;font-variant-numeric:tabular-nums;background:none;border:none;
+  color:#2fa89a;cursor:pointer;padding:0 0.5rem;line-height:1;}
+.lt-clock-controls{display:flex;gap:0.4rem;}
+
+.lt-actions{display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.6rem;}
+.lt-btn{min-height:44px;padding:0.5rem 1rem;font-size:0.95rem;border-radius:6px;cursor:pointer;
+  background:#0e2535;color:#f5f0e8;border:1px solid rgba(200,168,75,0.35);}
+.lt-btn:disabled{opacity:0.35;cursor:default;}
+.lt-btn-go{background:#1d6f45;border-color:#2fa89a;}
+.lt-btn-stop{background:#8a3030;border-color:#c87070;}
+.lt-btn-save{background:#c8a84b;color:#0a1f2e;font-weight:700;border-color:#c8a84b;}
+
+.lt-armed{margin:0.6rem 0;padding:0.5rem 0.75rem;border-radius:6px;background:rgba(47,168,154,0.18);
+  border:1px solid #2fa89a;font-size:0.95rem;text-align:center;}
+
+/* Courts */
+.lt-courts{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.9rem;}
+.lt-court{background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);border-radius:8px;padding:0.75rem;}
+.lt-court-title{font-family:'Cinzel',serif;font-size:0.85rem;letter-spacing:0.12em;text-transform:uppercase;
+  color:#c8a84b;margin-bottom:0.6rem;display:flex;justify-content:space-between;gap:0.5rem;}
+.lt-team-fouls{color:#c87070;font-size:0.78rem;letter-spacing:0.05em;text-transform:none;}
+.lt-floor{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:0.5rem;min-height:84px;}
+.lt-bench-title{margin:0.8rem 0 0.4rem;font-size:0.75rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8580;}
+.lt-bench{display:flex;flex-wrap:wrap;gap:0.4rem;}
+
+/* Player tiles — 44px+ touch targets throughout */
+.lt-player{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.15rem;
+  min-height:60px;padding:0.5rem 0.6rem;border-radius:8px;cursor:pointer;text-align:center;
+  background:#12303f;color:#f5f0e8;border:2px solid transparent;font-family:inherit;}
+.lt-player.lt-on-court{background:#14415a;border-color:rgba(47,168,154,0.5);}
+.lt-player.lt-bench-chip{min-height:44px;flex-direction:row;gap:0.4rem;font-size:0.85rem;background:#0e2535;}
+.lt-player-name{font-size:0.95rem;font-weight:600;line-height:1.15;}
+.lt-player-stats{font-size:0.78rem;color:#c8c0b0;}
+.lt-player.lt-drop-target{border-color:#c8a84b;background:#1d5470;transform:scale(1.04);}
+.lt-player.lt-armed-el{border-color:#2fa89a;box-shadow:0 0 0 2px rgba(47,168,154,0.4);}
+.lt-player.lt-picked{border-color:#c8a84b;}
+.lt-player.lt-fouled-out{opacity:0.55;border-color:#c87070;}
+.lt-pick-five{grid-column:1/-1;padding:1rem;text-align:center;color:#8a8580;font-style:italic;}
+.lt-empty{color:#8a8580;font-size:0.85rem;font-style:italic;}
+
+/* Token strip */
+.lt-tokens{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;
+  margin-top:1rem;padding:0.7rem 0.5rem;background:#04101a;border-top:1px solid rgba(200,168,75,0.3);}
+.lt-token{min-width:64px;min-height:56px;padding:0.5rem 0.9rem;border-radius:8px;cursor:pointer;
+  font-size:1.05rem;font-weight:700;font-family:inherit;border:2px solid transparent;color:#f5f0e8;}
+.lt-token-score{background:#1d6f45;border-color:#2fa89a;}
+.lt-token-foul{background:#8a3030;border-color:#c87070;}
+.lt-token-stat{background:#0e2535;border-color:rgba(200,168,75,0.35);font-size:0.95rem;}
+.lt-token.lt-armed-el{outline:3px solid #c8a84b;outline-offset:2px;}
+.lt-hint{text-align:center;color:#8a8580;font-size:0.82rem;margin:0.5rem 0 0;}
+
+/* Drag ghost follows the pointer */
+.lt-ghost{position:fixed;z-index:1000;pointer-events:none;transform:translate(-50%,-50%);
+  padding:0.45rem 0.8rem;border-radius:8px;background:#c8a84b;color:#0a1f2e;font-weight:700;
+  box-shadow:0 6px 18px rgba(0,0,0,0.5);}
+
+/* Play log */
+.lt-log-wrap{margin-top:1rem;}
+.lt-log-title{font-size:0.75rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8580;margin-bottom:0.4rem;}
+.lt-log{max-height:180px;overflow-y:auto;background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);
+  border-radius:6px;padding:0.5rem 0.7rem;font-size:0.88rem;}
+.lt-log-row{padding:0.2rem 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.lt-log-clock{display:inline-block;min-width:5.5rem;color:#2fa89a;font-variant-numeric:tabular-nums;}
+.lt-msg{margin-top:0.6rem;min-height:1.2rem;text-align:center;color:#c8a84b;font-size:0.9rem;}
+
+/* Tablet portrait and phones: stack the two courts */
+@media (max-width:880px){
+  .lt-courts{grid-template-columns:1fr;}
+  .lt-score{font-size:2.2rem;}
+  .lt-clock{font-size:1.9rem;}
+  .lt-panel{padding:0.5rem 0.6rem 2rem;}
+}

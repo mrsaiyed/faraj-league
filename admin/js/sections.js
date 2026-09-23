@@ -666,6 +666,13 @@ export async function renderSchedule(content, ctx) {
     statBtn.style.position = 'relative';
     statBtn.onclick = () => openStatSheet(game, content, ctx);
     btn.parentNode.insertBefore(statBtn, btn);
+    const liveBtn = document.createElement('button');
+    liveBtn.type = 'button';
+    liveBtn.className = 'admin-edit-btn';
+    liveBtn.textContent = 'Live stats';
+    liveBtn.style.position = 'relative';
+    liveBtn.onclick = () => openLiveStats(game, ctx);
+    btn.parentNode.insertBefore(liveBtn, btn);
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'admin-edit-btn';
@@ -1933,6 +1940,13 @@ export async function attachScheduleAdminOverlays(ctx) {
     statBtn.style.cssText = 'position:relative;margin-right:0.5rem;';
     statBtn.onclick = () => openStatSheet(game, pageSchedule, ctx, onScheduleSaved);
     btn.parentNode.insertBefore(statBtn, btn);
+    const liveBtn = document.createElement('button');
+    liveBtn.type = 'button';
+    liveBtn.className = 'admin-edit-btn';
+    liveBtn.textContent = 'Live stats';
+    liveBtn.style.cssText = 'position:relative;margin-right:0.5rem;background:rgba(47,168,154,0.85);';
+    liveBtn.onclick = () => openLiveStats(game, ctx, onScheduleSaved);
+    btn.parentNode.insertBefore(liveBtn, btn);
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'admin-edit-btn';
@@ -1969,6 +1983,16 @@ export async function attachScheduleAdminOverlays(ctx) {
     fullSchedBtn.onclick = () => renderFullScheduleEditor(pageSchedule, ctx);
     section.appendChild(fullSchedBtn);
   }
+}
+
+/**
+ * Open the live stat tracker for a game. Admin-only: the module lives under
+ * admin/js/ and is imported on demand, so the public bundle never loads it.
+ */
+async function openLiveStats(game, ctx, onSaved) {
+  const { config } = await importRootJs('config.js');
+  const { openLiveTracker } = await import('./live-tracker.js');
+  openLiveTracker(game, { adminFetch: ctx.adminFetch, config, onSaved });
 }
 
 async function openStatSheet(game, content, ctx, onSaved) {
