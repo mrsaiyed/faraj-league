@@ -7,6 +7,7 @@ import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhl
 import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure } from '../lib/standings.js';
 import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
+import { orderRosterForDisplay } from '../lib/roster.js';
 
 let activeTeam = null;
 
@@ -740,11 +741,9 @@ export function toggleRoster(id) {
   const roster = t.roster || [];
   const captainMatch = roster.find(p => (t.captain || '').trim() && String(p.name || '').trim().toLowerCase() === (t.captain || '').trim().toLowerCase());
   const captain = captainMatch ? captainMatch.name : '';
-  const captainNorm = captain.toLowerCase();
-  const others = (t.players || []).filter(p => String(p).trim().toLowerCase() !== captainNorm).sort((a, b) => a.localeCompare(b));
-  const rosterList = captain ? [captain, ...others] : others;
+  const rosterList = orderRosterForDisplay(t.players, captain);
   const capDisplay = captain || '—';
-  if (rosterContent) rosterContent.innerHTML = `<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${confLabel(t.conf)}</div></div>${rosterList.map((p, i) => '<div class="roster-player"><span class="roster-num">' + (i + 1) + '</span>' + p + '</div>').join('')}`;
+  if (rosterContent) rosterContent.innerHTML = `<div style="margin-bottom:0.9rem;"><div style="font-family:'Cinzel',serif;font-size:1rem;color:#c8a84b">${t.name}</div><div style="font-size:0.8rem;color:#2fa89a;letter-spacing:0.1em;text-transform:uppercase;margin-top:0.12rem">${confLabel(t.conf)}</div></div>${rosterList.map((p, i) => '<div class="roster-player"><span class="roster-num">' + (i + 1) + '</span>' + escapeHtmlAttr(p) + '</div>').join('')}`;
   if (window.innerWidth <= 768 && tc) {
     tc.insertAdjacentElement('afterend', panel);
   }
@@ -1196,6 +1195,7 @@ export function renderAbout() {
 function renderBankChips(bankEl, draftBank, query) {
   const chips = bankEl.querySelector('.draft-bank-chips');
   if (!chips) return;
+  // Empty bank: leave the message renderDraft already wrote in place.
   if (!draftBank.length) return;
   const matches = filterBankPlayers(draftBank, query);
   if (!matches.length) {
@@ -1275,15 +1275,22 @@ export function renderDraft(adminMode = false) {
   if (adminMode) {
     // Survives the re-render that follows every draft pick.
     const prevQuery = document.getElementById('draft-bank-search')?.value || '';
-    const searchHtml = draftBank.length
-      ? `<input type="search" id="draft-bank-search" class="draft-bank-search" placeholder="Search players…" autocomplete="off" aria-label="Search player bank" value="${escapeHtmlAttr(prevQuery)}">`
-      : '';
+    // Rendered even with an empty bank: a control that disappears exactly when
+    // someone goes looking for it is impossible to tell apart from a failed
+    // deploy. Disabled instead, with the empty state saying which case it is.
+    const searchHtml =
+      `<input type="search" id="draft-bank-search" class="draft-bank-search" placeholder="Search players…" autocomplete="off" aria-label="Search player bank"${draftBank.length ? '' : ' disabled'} value="${escapeHtmlAttr(prevQuery)}">`;
+    // A season with no players at all is not the same as a fully drafted one.
+    const rosteredCount = confTeams.reduce((n, t) => n + (t.roster?.length || 0), 0);
+    const emptyMsg = draftBank.length
+      ? ''
+      : (rosteredCount === 0
+        ? '<span class="box-score-empty">No players in this season yet — add them on the Players tab.</span>'
+        : '<span class="box-score-empty">All players assigned</span>');
     const bankHtml =
       '<div class="draft-bank"><div class="draft-bank-label">Player Bank</div>' +
       searchHtml +
-      '<div class="draft-bank-chips">' +
-      (draftBank.length === 0 ? '<span class="box-score-empty">All players assigned</span>' : '') +
-      '</div></div>';
+      '<div class="draft-bank-chips">' + emptyMsg + '</div></div>';
 
     if (bankEl) {
       bankEl.innerHTML = bankHtml;

@@ -1315,6 +1315,7 @@ export async function attachTeamsAdminOverlays(ctx) {
     const { confLabel, confLabelRaw, confShortLabel, getConferences, getBasePath } = await importRootJs('config.js');
     const renderMod = await importRootJs('render.js');
     const { attachEditOverlay } = await import('./edit-overlays.js');
+    const { orderRosterForDisplay } = await import(new URL('../../lib/roster.js', import.meta.url).href);
 
     const teams = config.DB.teams || [];
     const rec = renderMod.calcStandings ? renderMod.calcStandings() : {};
@@ -1707,12 +1708,10 @@ export async function attachTeamsAdminOverlays(ctx) {
       const tc = document.getElementById('tc-' + id);
       if (tc) tc.classList.add('selected');
 
-      const rosterOrdered = [...(t.roster || [])];
+      // Captain first, then alphabetical — same helper the public panel uses.
+      const rosterOrdered = orderRosterForDisplay(t.roster, t.captain);
       const captainNorm = (t.captain || '').trim().toLowerCase();
       const captainInRoster = captainNorm && rosterOrdered.some(r => String(r.name || '').trim().toLowerCase() === captainNorm);
-      if (captainInRoster) {
-        rosterOrdered.sort((a, b) => (String(a.name || '').trim().toLowerCase() === captainNorm ? -1 : String(b.name || '').trim().toLowerCase() === captainNorm ? 1 : 0));
-      }
       const capDisplay = captainInRoster ? (rosterOrdered.find(r => String(r.name || '').trim().toLowerCase() === captainNorm)?.name || '—') : '—';
 
       rosterContent.innerHTML = `
