@@ -108,3 +108,57 @@
   .lt-clock{font-size:1.9rem;}
   .lt-panel{padding:0.5rem 0.6rem 2rem;}
 }
+
+/* Phone in landscape while tracking a game: plenty of width, very little
+   height (phones are ~360-430px tall lying down). The panel becomes a
+   fixed-height flex column — header and tokens stay put, each court scrolls
+   internally — so the two teams sit side by side in one screen instead of a
+   tall page you scroll through. This overrides the width-based stacking
+   rule above on purpose: a narrow phone (e.g. 667px wide lying down) would
+   otherwise still stack the courts, which is the opposite of what landscape
+   is for. Placed last so it wins on source order against that rule. Taps
+   work everywhere drags do (see live-tracker.js), so nothing about the
+   interaction itself needs to change here — only the layout. */
+@media (orientation:landscape) and (max-height:500px){
+  .lt-backdrop{overflow-y:hidden;}
+  .lt-panel{height:100vh;height:100dvh;max-width:none;margin:0;
+    padding:0.3rem max(0.5rem,env(safe-area-inset-right)) 0.3rem max(0.5rem,env(safe-area-inset-left));
+    display:flex;flex-direction:column;gap:0.25rem;}
+
+  .lt-header{position:static;padding:0.15rem 0 0.25rem;flex:none;}
+  .lt-scoreboard{gap:0.5rem;}
+  .lt-team-name{font-size:0.6rem;}
+  .lt-score{font-size:1.5rem;}
+  .lt-clock-wrap{gap:0.2rem;}
+  .lt-clock{font-size:1.2rem;padding:0 0.3rem;}
+  .lt-clock-controls{gap:0.3rem;}
+  .lt-clock-controls .lt-btn{min-height:30px;padding:0.2rem 0.5rem;font-size:0.72rem;}
+  .lt-actions{margin-top:0.25rem;gap:0.3rem;}
+  .lt-actions .lt-btn{min-height:30px;padding:0.25rem 0.55rem;font-size:0.72rem;}
+  .lt-sync{margin-top:0.15rem;font-size:0.65rem;}
+
+  .lt-armed{margin:0.25rem 0;padding:0.25rem 0.5rem;font-size:0.78rem;flex:none;}
+
+  .lt-courts{flex:1;min-height:0;grid-template-columns:1fr 1fr;gap:0.35rem;margin-top:0.25rem;}
+  .lt-court{overflow-y:auto;padding:0.35rem;min-height:0;}
+  .lt-court-title{font-size:0.66rem;margin-bottom:0.25rem;min-height:auto;}
+  .lt-floor{grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:0.25rem;min-height:auto;}
+  .lt-bench-title{margin:0.35rem 0 0.2rem;font-size:0.58rem;}
+  .lt-bench{gap:0.22rem;}
+  .lt-pick-five{padding:0.5rem;font-size:0.8rem;}
+
+  .lt-player{min-height:38px;padding:0.28rem 0.3rem;gap:0.05rem;}
+  .lt-player.lt-bench-chip{min-height:32px;font-size:0.68rem;}
+  .lt-player-name{font-size:0.7rem;}
+  .lt-player-stats{font-size:0.64rem;gap:0.3rem;}
+  .lt-player-mins{font-size:0.56rem;}
+
+  .lt-tokens{position:static;margin-top:0.25rem;padding:0.3rem 0.3rem;gap:0.3rem;flex:none;}
+  .lt-token{min-width:42px;min-height:36px;padding:0.25rem 0.5rem;font-size:0.82rem;}
+  .lt-token-stat{font-size:0.7rem;}
+
+  /* Secondary once you know the game: reclaim their space so the courts and
+     tokens — what you are actually looking at mid-game — get the room. */
+  .lt-hint,.lt-log-wrap{display:none;}
+  .lt-msg{margin-top:0.15rem;min-height:0.9rem;font-size:0.7rem;flex:none;}
+}
