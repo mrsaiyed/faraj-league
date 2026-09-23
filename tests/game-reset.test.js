@@ -22,7 +22,7 @@ describe('clearGame', () => {
     expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-game-stats', 'admin-games']);
     expect(calls[0].body).toMatchObject({ game_id: 'G1', values: [], dnp_player_ids: ['p1', 'p2'] });
     expect(calls[1].body).toMatchObject({ game_id: 'G1', values: [], dnp_player_ids: [] });
-    expect(calls[2].body).toEqual({ id: 'G1', home_score: null, away_score: null });
+    expect(calls[2].body).toMatchObject({ id: 'G1', home_score: null, away_score: null, status: 'scheduled' });
   });
 
   it('nulls the score rather than zeroing it — 0 still reads as played', async () => {
@@ -32,6 +32,12 @@ describe('clearGame', () => {
     expect(scoreCall.body.home_score).toBeNull();
     expect(scoreCall.body.away_score).toBeNull();
     expect(scoreCall.body.home_score).not.toBe(0);
+  });
+
+  it('resets the live clock too, so a cleared game stops showing one', async () => {
+    const { calls, adminFetch } = stub();
+    await clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: ['p1'] });
+    expect(calls.at(-1).body).toMatchObject({ status: 'scheduled', clock_running: false, clock_seconds: null, period: null });
   });
 
   it('clears any forfeit along the way', async () => {
@@ -45,7 +51,7 @@ describe('clearGame', () => {
     const { calls, adminFetch } = stub();
     await clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: [] });
     expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-games']);
-    expect(calls.at(-1).body).toEqual({ id: 'G1', home_score: null, away_score: null });
+    expect(calls.at(-1).body).toMatchObject({ id: 'G1', home_score: null, away_score: null, status: 'scheduled' });
   });
 
   it('de-duplicates and drops blank player ids', async () => {

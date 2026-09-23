@@ -17,11 +17,11 @@ node scripts/import-roster.js scripts/rosters/fall2026.json --sql > supabase/see
 # Deploy all Edge Functions at once
 npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
 
-# Push DB migrations (apply in order: 001–011)
+# Push DB migrations (apply in order: 001–012)
 npx supabase db push
 ```
 
-Tests cover `lib/standings.js` (`calcStandings`, `calcSeeds`), `lib/stats.js` (`aggregateStats`), `lib/seasons.js` (slug/ordering helpers), `lib/team-logos.js` (logo resolution), `lib/draft-bank.js` (player-bank search), `lib/roster.js` (display ordering), `lib/game-tracker.js` (live stat engine), `lib/sponsors.js` (sponsor slots) and `lib/live-sync.js` (public live refresh) — pure functions only, no DB. `tests/api.test.js` covers `getSeasonData`'s season scoping against a stub Supabase client.
+Tests cover `lib/standings.js` (`calcStandings`, `calcSeeds`), `lib/stats.js` (`aggregateStats`), `lib/seasons.js` (slug/ordering helpers), `lib/team-logos.js` (logo resolution), `lib/draft-bank.js` (player-bank search), `lib/roster.js` (display ordering), `lib/game-tracker.js` (live stat engine), `lib/sponsors.js` (sponsor slots), `lib/live-sync.js` (public live refresh) and `lib/game-clock.js` (game status + clock) — pure functions only, no DB. `tests/api.test.js` covers `getSeasonData`'s season scoping against a stub Supabase client.
 
 No build step — this is a static site with ES modules served directly.
 
@@ -74,6 +74,7 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 | `scripts/rosters/*.json` | Per-season player lists — the source of truth for an import. Edit the JSON, then regenerate the SQL; never hand-edit `supabase/seed_*.sql` |
 | `scripts/import-roster.js` | Imports a roster JSON into one season. Writes via the service role, or `--sql` emits SQL for the Dashboard. Idempotent: skips names already in that season (case-insensitive), so re-running adds nothing |
 | `lib/game-tracker.js` | Pure live-tracker engine: `deriveState(events, cursor, config)` derives box score, team score, fouls and on-court lineups from an append-only event log; `appendEvent`/`undo`/`redo` move a cursor rather than editing totals; `toStatValues()` maps totals onto `game_stat_values` rows; `livePlayerSeconds()` adds the stint in progress to banked court time |
+| `lib/game-clock.js` | Pure game status and clock: `gameStatus()` (NULL status + scores = final, so pre-012 seasons are unaffected), `displayClockSeconds()` extrapolates a running clock from its stored anchor, `statusLine()` renders `H1 12:34` / `Half time` |
 | `lib/live-sync.js` | Pure `liveFingerprint(data)` (scores + every stat value, order-independent) and `shouldRepaint()` for the public site's live poll |
 | `admin/js/game-reset.js` | `clearGame()` returns a game to "not played": deletes its stat rows, empties DNP, then **nulls** the score. Zeroing is not enough — every "played" check is `score !== ''`, which `'0'` passes |
 | `admin/js/live-tracker.js` | The live tracker UI. **Admin only** — imported on demand from `sections.js`, styled by `admin/css/live-tracker.css`; the public site references neither |
@@ -96,6 +97,10 @@ Public reads use the Supabase anon key directly from `lib/api.js`.
 **Roster imports are season-scoped by construction**: the generated SQL `CROSS JOIN`s the VALUES list against `seasons` filtered by slug, so a wrong or missing slug inserts zero rows rather than writing players into another season. The duplicate check is `season_id` + `lower(name)`, so the same person can appear in several seasons (they get one `players` row per season) while a re-run never doubles up within one.
 
 **Live stat tracker (admin only)**: the "Live stats" button on a game opens `admin/js/live-tracker.js`. It records an append-only event log (score / foul / stat / sub / lineup / period) and derives everything from it, so undo and redo are just a cursor and can never drift from the totals. The log is held in `localStorage` per game (`faraj_live_tracker_<gameId>`), so a refresh or a locked tablet mid-game loses nothing. Saving derives totals and posts them through the **existing** `admin-game-stats` function, which already recomputes the final score — so the tracker needs no new table, Edge Function or migration. Only stats with a matching `stat_definitions.slug` are saved; the rest are named in a warning. Roster players who never appeared are sent as `dnp_player_ids`. Input works by dragging a token onto a player *or* tapping the token then the player — Pointer Events, not HTML5 drag-and-drop, because iOS Safari does not fire the latter.
+
+**A game is only "won" when it is final**: `games.status` (migration 012) distinguishes scheduled / live / halftime / final. Before it, a card showed a winner the moment either team scored, so a live game read as finished as soon as one side led. `gameStatus()` treats a NULL status with scores as final, so everything recorded before 012 still shows its result. While live, the winner tag's slot carries the period and clock instead; `js/app.js` ticks those once a second from `displayClockSeconds()`, which extrapolates from `clock_updated_at`, so the tracker writes the clock only on start/pause/period/end rather than every second. The tracker marks a game live on its first recorded event, halftime at the first-half buzzer, and final via its **End game** button; `clearGame()` resets the status too, or a cleared game would keep showing a running clock.
+
+**The two fingerprints must agree**: `scoresFingerprint()` decides whether the probe re-reads, `liveFingerprint()` decides whether to repaint. `liveFingerprint` is built on top of `scoresFingerprint` for exactly this reason — when they diverged, a game going live, a period ending or the final whistle was fetched and then silently dropped, because the score itself had not moved. A test pins them to the same set of changes.
 
 **Live scores on the public site**: the tracker pushes to `admin-game-stats` ~0.9s after the last tap (and on undo/redo), sending **only the rows that changed** since its last successful write — the function upserts sequentially, one round-trip per row, so resending the whole zero-filled roster every tap would take seconds. The public site runs a cheap probe (`getGameScores`, one small query) every `SCORE_POLL_MS` while the tab is visible, and re-reads the whole season only when `scoresFingerprint()` moves; a slower `FULL_POLL_MS` sweep catches changes the probe cannot see (rebounds, a corrected box score). Measured end to end at about 4s from tap to a viewer's screen. It holds off while a box score or the nav drawer is open. Neither side needs a new Edge Function or migration.
 
@@ -154,6 +159,6 @@ Copy `.env.example` to `.env` for local development. The seed script and Edge Fu
 
 ### Deploy Flow
 
-**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–011).
+**Two-repo model**: develop and test in this dev repo, then sync/PR into the production fork. GitHub Pages serves the fork's `main` branch at `farajleague.org`. Edge Functions deploy separately to Supabase (not via GitHub Pages). Migrations run via Supabase dashboard or `npx supabase db push` (apply in order 001–012).
 
 `js/config.js` has Supabase URL and anon key baked in — dev and prod share the same Supabase project, so no config change is needed when syncing to the fork.

@@ -143,3 +143,50 @@ describe('scoresFingerprint — shape tolerance', () => {
     expect(scoresFingerprint(raw)).toBe(scoresFingerprint(transformed));
   });
 });
+
+describe('liveFingerprint covers everything the probe covers', () => {
+  // The probe decides whether to re-read; liveFingerprint decides whether to
+  // repaint. If the second is blind to something the first sees, the change is
+  // fetched and then silently dropped — which is exactly what happened to
+  // going live, ending a period, and the final whistle.
+  const base = {
+    scores: [{ gameId: 'g1', s1: '2', s2: '3', forfeitTeamId: null, status: 'live', period: 1, clock_seconds: 600, clock_running: true, clock_updated_at: '2026-09-24T18:00:00Z' }],
+    gameStatValues: { g1: { p1: { d1: 2 } } },
+  };
+  const withScore = (over) => ({ ...base, scores: [{ ...base.scores[0], ...over }] });
+
+  it('moves when a game goes live', () => {
+    expect(liveFingerprint(withScore({ status: 'live' })))
+      .not.toBe(liveFingerprint(withScore({ status: 'scheduled' })));
+  });
+
+  it('moves when a period changes', () => {
+    expect(liveFingerprint(withScore({ period: 2 }))).not.toBe(liveFingerprint(base));
+  });
+
+  it('moves at half time', () => {
+    expect(liveFingerprint(withScore({ status: 'halftime' }))).not.toBe(liveFingerprint(base));
+  });
+
+  it('moves on the final whistle, even with the score unchanged', () => {
+    expect(liveFingerprint(withScore({ status: 'final', clock_running: false })))
+      .not.toBe(liveFingerprint(base));
+  });
+
+  it('moves when the clock is paused or re-anchored', () => {
+    expect(liveFingerprint(withScore({ clock_running: false }))).not.toBe(liveFingerprint(base));
+    expect(liveFingerprint(withScore({ clock_updated_at: '2026-09-24T18:05:00Z' }))).not.toBe(liveFingerprint(base));
+  });
+
+  it('agrees with the probe: anything scoresFingerprint sees, this sees too', () => {
+    const variants = [
+      { status: 'halftime' }, { period: 3 }, { clock_seconds: 1 },
+      { clock_running: false }, { s1: '9' }, { forfeitTeamId: 't1' },
+    ];
+    variants.forEach(v => {
+      const probeMoved = scoresFingerprint(withScore(v).scores) !== scoresFingerprint(base.scores);
+      const repaintMoved = liveFingerprint(withScore(v)) !== liveFingerprint(base);
+      expect(repaintMoved).toBe(probeMoved);
+    });
+  });
+});

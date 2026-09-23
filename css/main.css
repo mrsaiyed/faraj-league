@@ -352,6 +352,16 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .tier-title{background:rgba(200,168,75,0.12);color:#c8a84b;}
 .tier-conf{background:rgba(47,168,154,0.1);color:#2fa89a;}
 .tier-community{background:rgba(245,240,228,0.05);color:#c8c0b0;}
+/* Live game state, shown where the winner tag goes once the game is final. */
+.mc-live-tag{display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.5rem;
+  font-family:'Lato',sans-serif;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;
+  color:#2fa89a;font-variant-numeric:tabular-nums;}
+.mc-live-tag.mc-live-half{color:#c8a84b;}
+.mc-live-dot{width:7px;height:7px;border-radius:50%;background:#2fa89a;flex:0 0 auto;
+  animation:mc-live-pulse 1.6s ease-in-out infinite;}
+.mc-live-half .mc-live-dot{background:#c8a84b;animation:none;}
+@keyframes mc-live-pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
+@media (prefers-reduced-motion:reduce){.mc-live-dot{animation:none;}}
 .sponsor-logo-placeholder{font-size:0.82rem;color:rgba(200,168,75,0.5);font-style:italic;}
 .sponsor-details{font-size:0.9rem;color:#c8c0b0;line-height:1.6;white-space:pre-line;}
 /* Sponsor name highlights, keyed by slot rather than by brand, so a season's

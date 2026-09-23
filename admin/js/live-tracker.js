@@ -78,6 +78,8 @@ export function openLiveTracker(game, ctx) {
     clock: DEFAULT_PERIOD_SECONDS,
     period: 1,
     running: false,
+    /** Mirrors games.status so a reopened tracker knows where it left off. */
+    status: null,
     // Cumulative seconds the clock has actually run, across periods. Minutes
     // played are derived from this rather than from the countdown, so setting
     // the clock by hand never rewrites anyone's minutes.
@@ -115,6 +117,7 @@ export function openLiveTracker(game, ctx) {
         <div class="lt-actions">
           <button type="button" id="lt-undo" class="lt-btn">↶ Undo</button>
           <button type="button" id="lt-redo" class="lt-btn">↷ Redo</button>
+          <button type="button" id="lt-end" class="lt-btn">End game</button>
           <button type="button" id="lt-save" class="lt-btn lt-btn-save">Save stats</button>
           <button type="button" id="lt-close" class="lt-btn">Close</button>
         </div>
@@ -172,6 +175,8 @@ export function openLiveTracker(game, ctx) {
     persist();
     render();
     queueAutoSync();
+    // The first thing recorded is what makes a game live for viewers.
+    if (!session.status || session.status === 'scheduled') pushGameState('live');
   }
 
   // ---- live sync ---------------------------------------------------------
@@ -224,6 +229,34 @@ export function openLiveTracker(game, ctx) {
     } finally {
       syncing = false;
       if (syncPending) { syncPending = false; queueAutoSync(); }
+    }
+  }
+
+  /**
+   * Publish the clock and status so viewers see a live game as live.
+   *
+   * Written only when the state actually changes — start, pause, period, end —
+   * never per second: viewers extrapolate from the stored anchor instead.
+   *
+   * @param {string} status one of scheduled | live | halftime | final
+   */
+  async function pushGameState(status) {
+    try {
+      await adminFetch('admin-games', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: game.gameId,
+          status,
+          period: session.period,
+          clock_seconds: Math.max(0, Math.round(session.clock)),
+          clock_running: status === 'live' ? !!session.running : false,
+        }),
+      });
+      session.status = status;
+      persist();
+    } catch (err) {
+      // Scoring continues regardless; the next change retries.
+      setSyncState('error', err.message);
     }
   }
 
@@ -468,11 +501,22 @@ export function openLiveTracker(game, ctx) {
       session.elapsed += 1;
       $('lt-clock').textContent = formatClock(session.clock);
       paintMinutes();
-      if (session.clock === 0) { stopClock(); persist(); render(); flash('Period over.'); }
+      if (session.clock === 0) {
+        stopClock(); persist(); render();
+        // End of the first half is the break; later periods wait for the
+        // scorekeeper to call the game.
+        const atBreak = session.period < 2;
+        pushGameState(atBreak ? 'halftime' : 'live');
+        flash(atBreak ? 'Half time.' : 'Period over.');
+      }
     }, 1000);
   }
 
-  $('lt-startstop').onclick = () => { session.running ? stopClock() : startClock(); persist(); render(); };
+  $('lt-startstop').onclick = () => {
+    session.running ? stopClock() : startClock();
+    persist(); render();
+    pushGameState('live');
+  };
   $('lt-clock').onclick = () => {
     stopClock();
     const entry = prompt('Set the clock (minutes, or mm:ss):', formatClock(session.clock));
@@ -484,17 +528,28 @@ export function openLiveTracker(game, ctx) {
     // A fresh setting also becomes the period length, so minutes played stay right.
     if (secs > session.periodSeconds) session.periodSeconds = secs;
     persist(); render();
+    if (session.status && session.status !== 'scheduled') pushGameState(session.status);
   };
   $('lt-period').onclick = () => {
     stopClock();
     session.period += 1;
     session.clock = session.periodSeconds;
     record({ type: 'period', period: session.period });
+    pushGameState('live');
   };
 
   // ---- undo / redo / save ------------------------------------------------
   $('lt-undo').onclick = () => { session.cursor = undo(session.cursor); persist(); render(); queueAutoSync(); };
   $('lt-redo').onclick = () => { session.cursor = redo(session.events, session.cursor); persist(); render(); queueAutoSync(); };
+
+  $('lt-end').onclick = async () => {
+    if (!confirm('End this game?\n\nViewers will see the final score and the winner instead of a running clock.')) return;
+    stopClock();
+    render();
+    await runAutoSync();          // make sure the last baskets are in
+    await pushGameState('final');
+    flash('Game ended — viewers now see the final score.');
+  };
 
   $('lt-close').onclick = () => {
     stopClock();

@@ -42,6 +42,13 @@ function transformSeasonData(raw) {
       ? (g.forfeit_team_id === g.home_team_id ? 't1' : 't2')
       : null,
     forfeitTeamId: g.forfeit_team_id || null,
+    // Live status and clock (migration 012). NULL on anything recorded before
+    // it, which gameStatus() reads as final when the game has scores.
+    status: g.status || null,
+    period: g.period ?? null,
+    clock_seconds: g.clock_seconds ?? null,
+    clock_running: !!g.clock_running,
+    clock_updated_at: g.clock_updated_at || null,
   }));
 
   // gameStatValues: { [gameId]: { [playerId]: { [statDefId]: value } } }

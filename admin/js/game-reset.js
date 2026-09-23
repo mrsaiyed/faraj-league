@@ -45,6 +45,10 @@ export async function clearGame({ adminFetch, gameId, rosterPlayerIds }) {
   // 3. Null the score. Steps 1–2 leave it at 0–0, which still reads as played.
   await adminFetch('admin-games', {
     method: 'POST',
-    body: JSON.stringify({ id: gameId, home_score: null, away_score: null }),
+    body: JSON.stringify({
+      id: gameId, home_score: null, away_score: null,
+      // Reset the live state too, or the game keeps showing a running clock.
+      status: 'scheduled', period: null, clock_seconds: null, clock_running: false,
+    }),
   });
 }

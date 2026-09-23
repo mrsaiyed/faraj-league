@@ -1,6 +1,6 @@
 -- Faraj League — all pending database changes, in order.
 -- Run once in Supabase Dashboard → SQL Editor. Safe to re-run.
--- Generated from: migrations 010, 011 + seed_fall2026_players.sql + sponsors_fall2026_cleanup.sql
+-- Generated from: migrations 010, 011, 012 + seed_fall2026_players.sql + sponsors_fall2026_cleanup.sql
 
 -- ============================================================
 -- 1. Migration 010 — one active season at a time
@@ -44,7 +44,34 @@ ALTER TABLE teams ADD CONSTRAINT teams_logo_scale_range
   CHECK (logo_scale IS NULL OR (logo_scale > 0 AND logo_scale <= 10));
 
 -- ============================================================
--- 3. Fall 2026 roster — 42 players
+-- 3. Migration 012 — live game status and clock
+-- ============================================================
+-- Faraj League: live game status and clock
+-- Run after 011_team_logo.sql
+
+-- Before this, a game showed a winner the moment it had any score — so a game
+-- in progress read as finished as soon as one team led. These columns let the
+-- public site tell "in progress" from "final".
+--
+-- status: NULL for everything recorded before this migration. A NULL status on
+-- a game that has scores is treated as final, so past seasons are unaffected.
+ALTER TABLE games ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS period INT;
+
+-- The clock is stored as "this many seconds remained, as of this instant".
+-- Viewers extrapolate from clock_updated_at while clock_running is true, so a
+-- running clock ticks smoothly on a phone without the tracker writing a row
+-- every second.
+ALTER TABLE games ADD COLUMN IF NOT EXISTS clock_seconds INT;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS clock_running BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS clock_updated_at TIMESTAMPTZ;
+
+ALTER TABLE games DROP CONSTRAINT IF EXISTS games_status_values;
+ALTER TABLE games ADD CONSTRAINT games_status_values
+  CHECK (status IS NULL OR status IN ('scheduled', 'live', 'halftime', 'final'));
+
+-- ============================================================
+-- 4. Fall 2026 roster — 42 players
 -- ============================================================
 -- Fall 2026 roster — 42 players
 -- Source: Season 2 · Fall draft board
@@ -110,7 +137,7 @@ WHERE season.slug = 'fall2026'
 
 
 -- ============================================================
--- 4. Sponsors — Fall keeps its title sponsor, loses the conference ones;
+-- 5. Sponsors — Fall keeps its title sponsor, loses the conference ones;
 --    Spring's are pinned into its own rows
 -- ============================================================
 -- Remove the CONFERENCE sponsors from Fall 2026 (keeping its title sponsor),

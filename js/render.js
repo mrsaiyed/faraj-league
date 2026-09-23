@@ -9,6 +9,7 @@ import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
 import { orderRosterForDisplay } from '../lib/roster.js';
 import { sponsorName } from '../lib/sponsors.js';
+import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.js';
 
 let activeTeam = null;
 
@@ -402,29 +403,39 @@ function buildMatchupCard(g, gameId) {
   const played = g.s1 !== '' && g.s2 !== '';
   const s1 = parseInt(g.s1 || 0), s2 = parseInt(g.s2 || 0);
 
-  // Forfeit overrides winner regardless of score
+  const status = gameStatus(g);
+  const live = status === GAME_STATUS.LIVE || status === GAME_STATUS.HALFTIME;
+  const decided = isFinal(g);
+
+  // Forfeit overrides winner regardless of score. A winner is only named once
+  // the game is final — while it is being played the leader is just leading.
   const forfeit = g.forfeit || null; // 't1' or 't2' or null
-  const w1 = forfeit ? forfeit === 't2' : (played && s1 > s2);
-  const w2 = forfeit ? forfeit === 't1' : (played && s2 > s1);
-  const isDecided = forfeit || played;
+  const w1 = decided && (forfeit ? forfeit === 't2' : (played && s1 > s2));
+  const w2 = decided && (forfeit ? forfeit === 't1' : (played && s2 > s1));
+  const isDecided = decided;
 
   // Header band: Game N (left) | time (center) | ghost spacer (right to balance)
-  const timeStr = isDecided ? '' : formatGameTime(g.scheduled_at, g.game || 1);
+  const timeStr = (isDecided || live) ? '' : formatGameTime(g.scheduled_at, g.game || 1);
   const header = `<div class="mc-header">
     <span class="mc-meta-game">Game ${g.game || 1}</span>
     <span class="mc-meta-time">${timeStr}</span>
     <span class="mc-meta-game" aria-hidden="true" style="visibility:hidden">Game ${g.game || 1}</span>
   </div>`;
 
-  const mid = played
-    ? `<div class="mc-mid"><div class="mc-score-row"><span class="mc-score${w2 ? ' winner' : ''}">${g.s2}</span><span class="mc-dash">—</span><span class="mc-score${w1 ? ' winner' : ''}">${g.s1}</span></div></div>`
+  const showScore = played || live;
+  const mid = showScore
+    ? `<div class="mc-mid"><div class="mc-score-row"><span class="mc-score${w2 ? ' winner' : ''}">${g.s2 || 0}</span><span class="mc-dash">—</span><span class="mc-score${w1 ? ' winner' : ''}">${g.s1 || 0}</span></div></div>`
     : isDecided
       ? `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs">W</span></div></div>`
       : `<div class="mc-mid"><div class="mc-vs-wrap"><span class="mc-vs-deco">VS</span><span class="mc-vs">VS</span></div></div>`;
 
+  // While live, the winner tag's slot carries the period and clock instead.
+  // `data-live-clock` lets app.js tick it each second between polls.
   const winnerLine = isDecided
     ? `<div class="mc-winner-tag">${w1 ? escapeHtmlAttr(g.t1) : escapeHtmlAttr(g.t2)} Win</div>`
-    : '';
+    : live
+      ? `<div class="mc-live-tag${status === GAME_STATUS.HALFTIME ? ' mc-live-half' : ''}"><span class="mc-live-dot" aria-hidden="true"></span><span data-live-clock="${escapeHtmlAttr(g.gameId || '')}">${escapeHtmlAttr(statusLine(g))}</span></div>`
+      : '';
 
   const viewBoxBtn = gameId
     ? `<button type="button" class="schedule-expand-btn mc-box-btn" data-game-id="${gameId}">View box score</button>`

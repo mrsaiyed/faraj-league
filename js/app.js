@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides } from './data.js';
 import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
 import { liveFingerprint, scoresFingerprint, shouldRepaint, SCORE_POLL_MS, FULL_POLL_MS } from '../lib/live-sync.js';
+import { statusLine, isInProgress } from '../lib/game-clock.js';
 import {
   renderAll,
   renderSchedule,
@@ -155,6 +156,7 @@ let liveSignature = '';
 let scoreSignature = '';
 let scoreTimer = null;
 let fullTimer = null;
+let clockTimer = null;
 let polling = false;
 
 /** True while the visitor has something open that a repaint would disturb. */
@@ -185,6 +187,7 @@ async function refreshSeason() {
     applySeasonData(res.data, slug);
     scoreSignature = scoresFingerprint(res.data.scores);
     renderAll();
+    tickLiveClocks();
   } finally {
     polling = false;
   }
@@ -216,14 +219,42 @@ async function fullRefresh() {
   scoreSignature = scoresFingerprint(config.DB.scores);
 }
 
+/**
+ * Advance the clock on any live game, once a second.
+ *
+ * Purely local: each card's clock is extrapolated from the anchor the tracker
+ * stored, so it ticks smoothly between polls instead of freezing until the
+ * next one. No network, no re-render.
+ */
+function tickLiveClocks() {
+  const nodes = document.querySelectorAll('[data-live-clock]');
+  if (!nodes.length) return;
+  const byId = {};
+  (config.DB.scores || []).forEach(g => { if (g.gameId) byId[g.gameId] = g; });
+  const now = Date.now();
+  nodes.forEach(el => {
+    const g = byId[el.dataset.liveClock];
+    if (!g || !isInProgress(g)) return;
+    const text = statusLine(g, now);
+    if (text && el.textContent !== text) el.textContent = text;
+  });
+}
+
 function startLiveRefresh() {
   clearInterval(scoreTimer);
   clearInterval(fullTimer);
+  clearInterval(clockTimer);
   scoreTimer = setInterval(probeScores, SCORE_POLL_MS);
   fullTimer = setInterval(fullRefresh, FULL_POLL_MS);
-  // Coming back to the tab should feel instant rather than waiting a tick.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) probeScores(); });
-  window.addEventListener('focus', probeScores);
+  clockTimer = setInterval(tickLiveClocks, 1000);
+
+  // Every way a phone comes back to this page. Mobile browsers suspend timers
+  // in the background, and iOS restores from the back-forward cache without
+  // firing visibilitychange — so pageshow matters as much as the other two.
+  const wake = () => { if (!document.hidden) { tickLiveClocks(); probeScores(); } };
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('focus', wake);
+  window.addEventListener('pageshow', wake);
 }
 
 async function changeSeason(val) {
