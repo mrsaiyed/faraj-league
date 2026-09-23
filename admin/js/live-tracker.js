@@ -20,7 +20,7 @@
 
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds,
   STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
 
@@ -71,6 +71,10 @@ export function openLiveTracker(game, ctx) {
     clock: DEFAULT_PERIOD_SECONDS,
     period: 1,
     running: false,
+    // Cumulative seconds the clock has actually run, across periods. Minutes
+    // played are derived from this rather than from the countdown, so setting
+    // the clock by hand never rewrites anyone's minutes.
+    elapsed: 0,
   };
   let session = blank;
   try {
@@ -152,7 +156,8 @@ export function openLiveTracker(game, ctx) {
 
   function record(event) {
     const next = appendEvent(session.events, session.cursor, {
-      ...event, period: session.period, clock: session.clock, at: Date.now(),
+      ...event, period: session.period, clock: session.clock,
+      elapsed: session.elapsed, at: Date.now(),
     });
     session.events = next.events;
     session.cursor = next.cursor;
@@ -164,10 +169,12 @@ export function openLiveTracker(game, ctx) {
   function playerTile(p, derived, { onCourt }) {
     const s = derived.players[p.id] || {};
     const fouls = s.foul || 0;
+    const mins = formatClock(livePlayerSeconds(derived, p.id, session.elapsed));
     return `<button type="button" class="lt-player${onCourt ? ' lt-on-court' : ' lt-bench-chip'}${fouls >= 5 ? ' lt-fouled-out' : ''}"
       data-player="${esc(p.id)}" data-team="${esc(p.teamId)}" data-oncourt="${onCourt ? '1' : '0'}">
       <span class="lt-player-name">${esc(p.name)}</span>
-      <span class="lt-player-stats"><b>${s.pts || 0}</b> pts${fouls ? ` · ${fouls}f` : ''}</span>
+      <span class="lt-player-stats"><span class="lt-fouls">${fouls}F</span><span class="lt-pts">${s.pts || 0} pts</span></span>
+      <span class="lt-player-mins" data-mins-for="${esc(p.id)}">${mins}</span>
     </button>`;
   }
 
@@ -219,6 +226,14 @@ export function openLiveTracker(game, ctx) {
     renderArmed();
   }
 
+  /** Repaint just the minutes, so the per-second tick never rebuilds the tiles. */
+  function paintMinutes() {
+    const derived = state();
+    wrap.querySelectorAll('.lt-player-mins[data-mins-for]').forEach(el => {
+      el.textContent = formatClock(livePlayerSeconds(derived, el.dataset.minsFor, session.elapsed));
+    });
+  }
+
   // ---- arm / drag --------------------------------------------------------
   /** { kind:'token', token } | { kind:'sub', playerId, teamId } | null */
   let armed = null;
@@ -230,7 +245,7 @@ export function openLiveTracker(game, ctx) {
     bar.hidden = false;
     if (armed.kind === 'token') {
       const t = TOKENS.find(x => x.key === armed.token);
-      bar.textContent = `${t.label} armed — tap a player. (Tap again to cancel.)`;
+      bar.textContent = `${t.label} — tap the player it belongs to. (Tap ${t.label} again to cancel.)`;
       wrap.querySelector(`.lt-token[data-token="${armed.token}"]`)?.classList.add('lt-armed-el');
     } else {
       bar.textContent = `${nameOf(armed.playerId)} coming in — tap the player coming off.`;
@@ -252,14 +267,17 @@ export function openLiveTracker(game, ctx) {
     const onCourt = lineupFor(teamId, derived);
 
     if (armed?.kind === 'token') {
-      applyToken(armed.token, playerId, teamId);
+      const token = armed.token;
+      // Disarm after one use: leaving it armed means the next tap anywhere
+      // silently records another basket or foul.
+      armed = null;
+      applyToken(token, playerId, teamId);
       return;
     }
     if (armed?.kind === 'sub') {
       if (armed.teamId !== teamId) { flash('Substitutions have to stay within one team.'); armed = null; renderArmed(); return; }
       if (!isOnCourt) { flash('Tap the player coming off the floor.'); return; }
-      const secs = session.periodSeconds - session.clock;
-      record({ type: 'sub', teamId, playerInId: armed.playerId, playerOutId: playerId, secondsPlayed: Math.max(0, secs) });
+      record({ type: 'sub', teamId, playerInId: armed.playerId, playerOutId: playerId });
       armed = null;
       return;
     }
@@ -359,11 +377,7 @@ export function openLiveTracker(game, ctx) {
       flash('Drag a bench player onto someone on the floor.');
       return;
     }
-    record({
-      type: 'sub', teamId: targetTeam,
-      playerInId: src.dataset.player, playerOutId: targetId,
-      secondsPlayed: Math.max(0, session.periodSeconds - session.clock),
-    });
+    record({ type: 'sub', teamId: targetTeam, playerInId: src.dataset.player, playerOutId: targetId });
   });
 
   wrap.addEventListener('pointercancel', () => { drag?.ghost?.remove(); drag = null; });
@@ -378,8 +392,11 @@ export function openLiveTracker(game, ctx) {
     if (session.running) return;
     session.running = true;
     ticker = setInterval(() => {
-      session.clock = Math.max(0, session.clock - 1);
+      if (session.clock <= 0) { stopClock(); persist(); render(); flash('Period over.'); return; }
+      session.clock -= 1;
+      session.elapsed += 1;
       $('lt-clock').textContent = formatClock(session.clock);
+      paintMinutes();
       if (session.clock === 0) { stopClock(); persist(); render(); flash('Period over.'); }
     }, 1000);
   }
@@ -420,11 +437,34 @@ export function openLiveTracker(game, ctx) {
     const defs = config.DB.statDefinitions || [];
     const missing = missingStatSlugs(defs);
     const values = toStatValues(derived.players, defs);
+    const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
 
-    if (!values.length) {
+    if (!defs.length) {
       flash('No stat columns are defined yet — add at least "points" on the Stats tab.');
       return;
     }
+
+    // Nothing recorded (a fresh sheet, or everything undone) is a legitimate
+    // thing to save: it is how you take a game back to "not played". Saving
+    // empty stats alone would leave the score at 0–0, which still reads as
+    // played everywhere, so clear the score too.
+    if (!values.length) {
+      if (!confirm('Nothing is recorded for this game.\n\nClear its stats and mark it as NOT played?')) return;
+      $('lt-save').disabled = true;
+      flash('Clearing…');
+      try {
+        const { clearGame } = await import('./game-reset.js');
+        await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
+        flash('Cleared. This game is back to not played.');
+        if (ctx.onSaved) await ctx.onSaved();
+      } catch (err) {
+        flash(`Clear failed: ${err.message}`);
+      } finally {
+        $('lt-save').disabled = false;
+      }
+      return;
+    }
+
     if (!confirm('Save these stats? This replaces whatever is currently recorded for this game.')) return;
 
     // Anyone on the roster who never appeared is a DNP for this game.
@@ -433,8 +473,7 @@ export function openLiveTracker(game, ctx) {
       if (e.type === 'lineup') (e.playerIds || []).forEach(id => appeared.add(id));
       if (e.type === 'sub') { appeared.add(e.playerInId); appeared.add(e.playerOutId); }
     });
-    const dnp = [...rosterOf(homeTeam), ...rosterOf(awayTeam)]
-      .map(p => p.id).filter(id => !appeared.has(id));
+    const dnp = rosterIds.filter(id => !appeared.has(id));
 
     $('lt-save').disabled = true;
     flash('Saving…');

@@ -2012,6 +2012,7 @@ async function openStatSheet(game, content, ctx, onSaved) {
       <div id="stat-sheet-content"></div>
       <div style="margin-top:1rem;">
         <button id="stat-sheet-save" style="padding:0.5rem 1rem;background:#c8a84b;color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;">Save</button>
+        <button id="stat-sheet-clear" style="padding:0.5rem 1rem;background:transparent;border:1px solid #c87070;color:#c87070;border-radius:4px;cursor:pointer;margin-left:0.5rem;">Clear game</button>
         <button id="stat-sheet-close" style="padding:0.5rem 1rem;background:#444;color:#e8e4e0;border:none;border-radius:4px;cursor:pointer;margin-left:0.5rem;">Close</button>
       </div>
       <div id="stat-sheet-msg" style="margin-top:0.5rem;"></div>
@@ -2100,6 +2101,29 @@ async function openStatSheet(game, content, ctx, onSaved) {
   });
 
   wrap.querySelector('#stat-sheet-close').onclick = () => wrap.remove();
+  // Emptying the inputs and saving is not enough to undo a game: the score is
+  // recomputed from the remaining totals, so it lands on 0–0 and still counts
+  // as played. This wipes the stats and nulls the score.
+  wrap.querySelector('#stat-sheet-clear').onclick = async () => {
+    const msgEl = wrap.querySelector('#stat-sheet-msg');
+    if (!confirm('Clear all recorded stats for this game and mark it as NOT played?\n\nThis cannot be undone.')) return;
+    const rosterPlayerIds = [...homeRoster, ...awayRoster].map(p => p.id).filter(Boolean);
+    try {
+      msgEl.innerHTML = '<p class="msg">Clearing…</p>';
+      const { clearGame } = await import('./game-reset.js');
+      await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds });
+      msgEl.innerHTML = '<p class="msg success">Cleared — this game is back to not played.</p>';
+      wrap.querySelector('#stat-sheet-scores').textContent = 'Score: ? – ?';
+      if (onSaved) await onSaved();
+      else if (content) {
+        const sections = await import('./sections.js');
+        await sections.renderSchedule(content, ctx);
+      }
+    } catch (e) {
+      msgEl.innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`;
+    }
+  };
+
   wrap.querySelector('#stat-sheet-save').onclick = async () => {
     const dnpPlayerIds = [];
     wrap.querySelectorAll('input.dnp-check:checked').forEach(cb => {

@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../lib/game-tracker.js';
 
@@ -88,8 +88,11 @@ describe('deriveState — lineups and substitutions', () => {
     expect(s.warnings[0]).toMatch(/already on court/);
   });
 
-  it('credits court time to the player coming off', () => {
-    const s = all([lineup('H', five), { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', secondsPlayed: 300 }]);
+  it('credits the outgoing player for their actual stint', () => {
+    const s = all([
+      { ...lineup('H', five), elapsed: 0 },
+      { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 },
+    ]);
     expect(s.players.c.secondsPlayed).toBe(300);
   });
 
@@ -209,5 +212,70 @@ describe('formatClock', () => {
     expect(formatClock(65)).toBe('1:05');
     expect(formatClock(0)).toBe('0:00');
     expect(formatClock(-5)).toBe('0:00');
+  });
+});
+
+describe('minutes played', () => {
+  const five = ['a', 'b', 'c', 'd', 'e'];
+  const start = { ...lineup('H', five), elapsed: 0 };
+
+  it('counts a starter who has never been subbed, live', () => {
+    const s = all([start]);
+    // Nothing banked yet, but they have been on the floor the whole time.
+    expect(s.players.a?.secondsPlayed ?? 0).toBe(0);
+    expect(livePlayerSeconds(s, 'a', 600)).toBe(600);
+  });
+
+  it('keeps climbing as the clock runs', () => {
+    const s = all([start]);
+    expect(livePlayerSeconds(s, 'a', 60)).toBe(60);
+    expect(livePlayerSeconds(s, 'a', 61)).toBe(61);
+  });
+
+  it('stops climbing once a player is subbed out', () => {
+    const s = all([start, { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 }]);
+    expect(livePlayerSeconds(s, 'c', 900)).toBe(300);
+  });
+
+  it('does not credit a substitute for time before they came on', () => {
+    const s = all([start, { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 }]);
+    expect(livePlayerSeconds(s, 'z', 500)).toBe(200);
+  });
+
+  it('adds up across several stints', () => {
+    const s = all([
+      start,
+      { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'a', elapsed: 200 },
+      { type: 'sub', teamId: 'H', playerInId: 'a', playerOutId: 'z', elapsed: 500 },
+    ]);
+    expect(livePlayerSeconds(s, 'a', 600)).toBe(300);
+    expect(livePlayerSeconds(s, 'z', 600)).toBe(300);
+  });
+
+  it('gives a player who never took the floor zero', () => {
+    expect(livePlayerSeconds(all([start]), 'nobody', 900)).toBe(0);
+  });
+
+  it('is unwound by undo along with everything else', () => {
+    const events = [start, { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 }];
+    const afterUndo = deriveState(events, 1, CFG);
+    expect(livePlayerSeconds(afterUndo, 'c', 900)).toBe(900);
+    expect(livePlayerSeconds(afterUndo, 'z', 900)).toBe(0);
+  });
+
+  it('never returns negative time if the clock was wound back', () => {
+    const s = all([{ ...lineup('H', five), elapsed: 300 }]);
+    expect(livePlayerSeconds(s, 'a', 100)).toBe(0);
+  });
+
+  it('treats events with no elapsed stamp as zero rather than NaN', () => {
+    const s = all([lineup('H', five), { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c' }]);
+    expect(Number.isFinite(livePlayerSeconds(s, 'c', 100))).toBe(true);
+  });
+
+  it('is not written into the saved stat values', () => {
+    const s = all([start, score('a', 2)]);
+    const rows = toStatValues(s.players, [{ id: 'd-pts', slug: 'points' }, { id: 'd-min', slug: 'minutes' }]);
+    expect(rows.some(r => r.stat_definition_id === 'd-min')).toBe(false);
   });
 });

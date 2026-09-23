@@ -42,9 +42,15 @@
   min-height:60px;padding:0.5rem 0.6rem;border-radius:8px;cursor:pointer;text-align:center;
   background:#12303f;color:#f5f0e8;border:2px solid transparent;font-family:inherit;}
 .lt-player.lt-on-court{background:#14415a;border-color:rgba(47,168,154,0.5);}
-.lt-player.lt-bench-chip{min-height:44px;flex-direction:row;gap:0.4rem;font-size:0.85rem;background:#0e2535;}
+.lt-player.lt-bench-chip{min-height:44px;flex-direction:column;gap:0.15rem;font-size:0.85rem;background:#0e2535;}
 .lt-player-name{font-size:0.95rem;font-weight:600;line-height:1.15;}
-.lt-player-stats{font-size:0.78rem;color:#c8c0b0;}
+/* Fouls first and in red, then points; minutes on their own line beneath. */
+.lt-player-stats{display:flex;align-items:baseline;justify-content:center;gap:0.45rem;font-size:0.82rem;color:#c8c0b0;}
+.lt-fouls{color:#e06a6a;font-weight:700;}
+.lt-pts{font-weight:700;color:#f5f0e8;}
+.lt-player-mins{font-size:0.7rem;color:#8a8580;font-variant-numeric:tabular-nums;line-height:1;}
+.lt-bench-chip .lt-player-stats{gap:0.35rem;}
+.lt-bench-chip .lt-player-mins{font-size:0.68rem;}
 .lt-player.lt-drop-target{border-color:#c8a84b;background:#1d5470;transform:scale(1.04);}
 .lt-player.lt-armed-el{border-color:#2fa89a;box-shadow:0 0 0 2px rgba(47,168,154,0.4);}
 .lt-player.lt-picked{border-color:#c8a84b;}
