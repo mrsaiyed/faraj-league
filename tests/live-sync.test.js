@@ -2,7 +2,7 @@
  * Unit tests for public-site live refresh helpers (lib/live-sync.js)
  */
 import { describe, it, expect } from 'vitest';
-import { liveFingerprint, shouldRepaint, POLL_INTERVAL_MS } from '../lib/live-sync.js';
+import { liveFingerprint, scoresFingerprint, shouldRepaint, SCORE_POLL_MS, FULL_POLL_MS } from '../lib/live-sync.js';
 
 const data = (over = {}) => ({
   scores: [{ gameId: 'g1', s1: '10', s2: '8', forfeitTeamId: null }],
@@ -69,9 +69,77 @@ describe('shouldRepaint', () => {
   });
 });
 
-describe('POLL_INTERVAL_MS', () => {
-  it('is frequent enough to feel live but not a hammer', () => {
-    expect(POLL_INTERVAL_MS).toBeGreaterThanOrEqual(5000);
-    expect(POLL_INTERVAL_MS).toBeLessThanOrEqual(30000);
+describe('scoresFingerprint', () => {
+  const rows = [{ id: 'g1', home_score: 10, away_score: 8, forfeit_team_id: null }];
+
+  it('is stable for unchanged scores', () => {
+    expect(scoresFingerprint(rows)).toBe(scoresFingerprint([...rows]));
+  });
+
+  it('moves when a score changes', () => {
+    expect(scoresFingerprint([{ ...rows[0], home_score: 12 }])).not.toBe(scoresFingerprint(rows));
+  });
+
+  it('distinguishes an unplayed game from 0-0', () => {
+    const unplayed = scoresFingerprint([{ id: 'g1', home_score: null, away_score: null }]);
+    const nilNil = scoresFingerprint([{ id: 'g1', home_score: 0, away_score: 0 }]);
+    expect(unplayed).not.toBe(nilNil);
+  });
+
+  it('moves when a forfeit is set', () => {
+    expect(scoresFingerprint([{ ...rows[0], forfeit_team_id: 't1' }])).not.toBe(scoresFingerprint(rows));
+  });
+
+  it('ignores row order', () => {
+    const a = [{ id: 'g1', home_score: 1, away_score: 2 }, { id: 'g2', home_score: 3, away_score: 4 }];
+    expect(scoresFingerprint(a)).toBe(scoresFingerprint([...a].reverse()));
+  });
+
+  it('handles empty and missing input', () => {
+    expect(scoresFingerprint([])).toBe('');
+    expect(scoresFingerprint(null)).toBe('');
+  });
+});
+
+describe('poll intervals', () => {
+  it('probes scores often enough to feel live', () => {
+    expect(SCORE_POLL_MS).toBeGreaterThanOrEqual(2000);
+    expect(SCORE_POLL_MS).toBeLessThanOrEqual(10000);
+  });
+
+  it('re-reads everything far less often, since it is the expensive one', () => {
+    expect(FULL_POLL_MS).toBeGreaterThan(SCORE_POLL_MS * 4);
+  });
+});
+
+describe('scoresFingerprint — shape tolerance', () => {
+  // The baseline is seeded from transformed config.DB.scores, while the probe
+  // reads raw games rows. If the two shapes disagreed, every probe would read
+  // as a change (constant repainting) or the baseline would swallow the first
+  // real one.
+  it('matches between a raw games row and its transformed form', () => {
+    const raw = [{ id: 'g1', home_score: 3, away_score: 2, forfeit_team_id: null }];
+    const transformed = [{ gameId: 'g1', s1: '3', s2: '2', forfeitTeamId: null }];
+    expect(scoresFingerprint(raw)).toBe(scoresFingerprint(transformed));
+  });
+
+  it('matches for an unplayed game in either shape', () => {
+    const raw = [{ id: 'g1', home_score: null, away_score: null, forfeit_team_id: null }];
+    const transformed = [{ gameId: 'g1', s1: '', s2: '', forfeitTeamId: null }];
+    expect(scoresFingerprint(raw)).toBe(scoresFingerprint(transformed));
+  });
+
+  it('matches for a genuine 0-0, and differs from unplayed', () => {
+    const rawZero = [{ id: 'g1', home_score: 0, away_score: 0, forfeit_team_id: null }];
+    const transformedZero = [{ gameId: 'g1', s1: '0', s2: '0', forfeitTeamId: null }];
+    const unplayed = [{ gameId: 'g1', s1: '', s2: '', forfeitTeamId: null }];
+    expect(scoresFingerprint(rawZero)).toBe(scoresFingerprint(transformedZero));
+    expect(scoresFingerprint(rawZero)).not.toBe(scoresFingerprint(unplayed));
+  });
+
+  it('matches on a forfeit in either shape', () => {
+    const raw = [{ id: 'g1', home_score: 2, away_score: 0, forfeit_team_id: 't1' }];
+    const transformed = [{ gameId: 'g1', s1: '2', s2: '0', forfeitTeamId: 't1' }];
+    expect(scoresFingerprint(raw)).toBe(scoresFingerprint(transformed));
   });
 });

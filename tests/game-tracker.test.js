@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
+  changedStatValues,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../lib/game-tracker.js';
 
@@ -340,5 +341,48 @@ describe('toStatValues zero-fill', () => {
 
   it('behaves as before when no roster is passed', () => {
     expect(toStatValues(all([score('p1', 2)]).players, defs)).toHaveLength(2);
+  });
+});
+
+describe('changedStatValues', () => {
+  const rows = [
+    { player_id: 'p1', stat_definition_id: 'd1', value: 3 },
+    { player_id: 'p2', stat_definition_id: 'd1', value: 0 },
+  ];
+
+  it('sends everything when nothing has been written yet', () => {
+    expect(changedStatValues(rows, null)).toEqual(rows);
+    expect(changedStatValues(rows, new Map())).toEqual(rows);
+  });
+
+  it('sends only what moved', () => {
+    const sent = new Map([['p1:d1', 3], ['p2:d1', 0]]);
+    const after = [{ ...rows[0], value: 5 }, rows[1]];
+    expect(changedStatValues(after, sent)).toEqual([{ player_id: 'p1', stat_definition_id: 'd1', value: 5 }]);
+  });
+
+  it('sends nothing when nothing moved', () => {
+    expect(changedStatValues(rows, new Map([['p1:d1', 3], ['p2:d1', 0]]))).toEqual([]);
+  });
+
+  it('resends a value that went back to zero after an undo', () => {
+    const sent = new Map([['p1:d1', 3]]);
+    const undone = [{ player_id: 'p1', stat_definition_id: 'd1', value: 0 }];
+    expect(changedStatValues(undone, sent)).toEqual(undone);
+  });
+
+  it('sends a row for a player the server has never seen', () => {
+    const sent = new Map([['p1:d1', 3]]);
+    expect(changedStatValues(rows, sent)).toEqual([rows[1]]);
+  });
+
+  it('keys by player and stat together, not player alone', () => {
+    const sent = new Map([['p1:d1', 3]]);
+    const other = [{ player_id: 'p1', stat_definition_id: 'd2', value: 3 }];
+    expect(changedStatValues(other, sent)).toEqual(other);
+  });
+
+  it('survives missing input', () => {
+    expect(changedStatValues(null, new Map())).toEqual([]);
   });
 });

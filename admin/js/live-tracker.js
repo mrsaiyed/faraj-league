@@ -21,13 +21,17 @@
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
+  changedStatValues, statValueKey,
   STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
 
 const storageKey = (gameId) => `faraj_live_tracker_${gameId}`;
 
-/** How long to wait after the last tap before pushing totals to the server. */
-const AUTO_SYNC_MS = 4000;
+/**
+ * Wait after the last tap before pushing. Short enough to feel immediate,
+ * long enough that a quick correction (tap, undo) is a single write.
+ */
+const AUTO_SYNC_MS = 900;
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -177,6 +181,8 @@ export function openLiveTracker(game, ctx) {
   let syncTimer = null;
   let syncing = false;
   let syncPending = false;
+  /** `player:def` → value last written, so each push carries only the diff. */
+  let lastSent = new Map();
 
   function queueAutoSync() {
     if (autoSync === false) return;
@@ -198,6 +204,8 @@ export function openLiveTracker(game, ctx) {
     // Zero-fill every roster player: without it an undone basket leaves the
     // old total sitting in the database.
     const values = toStatValues(derived.players, defs, rosterIds);
+    const changed = changedStatValues(values, lastSent);
+    if (!changed.length) { setSyncState('saved'); return; }
 
     syncing = true;
     setSyncState('saving');
@@ -205,8 +213,10 @@ export function openLiveTracker(game, ctx) {
       // No DNP list mid-game — players simply may not have come on yet.
       await adminFetch('admin-game-stats', {
         method: 'POST',
-        body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: [] }),
+        body: JSON.stringify({ game_id: game.gameId, values: changed, dnp_player_ids: [] }),
       });
+      // Only now: a failed write must be retried, not treated as sent.
+      changed.forEach(v => lastSent.set(statValueKey(v), v.value));
       setSyncState('saved');
     } catch (err) {
       // Keep scoring; the next event retries and Save is still the backstop.
@@ -516,6 +526,7 @@ export function openLiveTracker(game, ctx) {
       try {
         const { clearGame } = await import('./game-reset.js');
         await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
+        lastSent = new Map();
         flash('Cleared. This game is back to not played.');
         if (ctx.onSaved) await ctx.onSaved();
       } catch (err) {

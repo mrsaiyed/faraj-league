@@ -3,7 +3,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-import { getSeasons, getSeasonData } from '../lib/api.js';
+import { getSeasons, getSeasonData, getGameScores } from '../lib/api.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
 import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
@@ -203,6 +203,17 @@ export async function fetchSeasonData(slug) {
  * @param {{ total_weeks?: number|null }} [season]
  * @returns {{ TOTAL_WEEKS: number, CURRENT_WEEK: number }}
  */
+/**
+ * Cheap score-only read for the live poll.
+ * @param {string} seasonId
+ */
+export async function fetchGameScores(seasonId) {
+  if (!seasonId) return { data: null, error: new Error('seasonId required') };
+  const { data, error } = await getGameScores(supabase, seasonId);
+  if (error) return { data: null, error };
+  return { data: data || [], error: null };
+}
+
 export function deriveWeeks(scores, season) {
   const played = (scores || []).filter(g => g.s1 !== '' && g.s2 !== '');
   const latestPlayed = played.length ? Math.max(...played.map(g => g.week)) : 1;

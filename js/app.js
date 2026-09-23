@@ -3,9 +3,9 @@
  */
 
 import { config } from './config.js';
-import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from './data.js';
+import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides } from './data.js';
 import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
-import { liveFingerprint, shouldRepaint, POLL_INTERVAL_MS } from '../lib/live-sync.js';
+import { liveFingerprint, scoresFingerprint, shouldRepaint, SCORE_POLL_MS, FULL_POLL_MS } from '../lib/live-sync.js';
 import {
   renderAll,
   renderSchedule,
@@ -145,13 +145,17 @@ function applySeasonData(data, slug) {
   config.currentSeasonLabel = season?.label || 'Spring 2026';
   config.currentSeasonIsCurrent = season?.is_current ?? true;
   config.currentSeasonSlug = season?.slug || slug;
+  config.currentSeasonId = season?.id || null;
 }
 
 // ---- Live refresh -------------------------------------------------------
 // Stats are written by the admin tracker while a game is being played, so the
 // page re-reads the season on a timer and repaints only when something moved.
 let liveSignature = '';
-let liveTimer = null;
+let scoreSignature = '';
+let scoreTimer = null;
+let fullTimer = null;
+let polling = false;
 
 /** True while the visitor has something open that a repaint would disturb. */
 function pageIsBusy() {
@@ -161,30 +165,65 @@ function pageIsBusy() {
   return false;
 }
 
-async function pollLive() {
+/** Re-read the whole season and repaint if anything a visitor sees has moved. */
+async function refreshSeason() {
   const slug = config.currentSeasonSlug;
-  if (!slug || document.hidden) return;
-  const res = await fetchSeasonData(slug);
-  if (res.error || !res.data) return;
-  // The visitor may have switched seasons while this was in flight.
-  if (config.currentSeasonSlug !== slug) return;
+  if (!slug || polling) return;
+  polling = true;
+  try {
+    const res = await fetchSeasonData(slug);
+    if (res.error || !res.data) return;
+    // The visitor may have switched seasons while this was in flight.
+    if (config.currentSeasonSlug !== slug) return;
 
-  const next = liveFingerprint(res.data);
-  if (!shouldRepaint({ previous: liveSignature, next, busy: pageIsBusy() })) {
-    if (liveSignature === '') liveSignature = next;
-    return;
+    const next = liveFingerprint(res.data);
+    if (!shouldRepaint({ previous: liveSignature, next, busy: pageIsBusy() })) {
+      if (liveSignature === '') liveSignature = next;
+      return;
+    }
+    liveSignature = next;
+    applySeasonData(res.data, slug);
+    scoreSignature = scoresFingerprint(res.data.scores);
+    renderAll();
+  } finally {
+    polling = false;
   }
-  liveSignature = next;
-  applySeasonData(res.data, slug);
-  renderAll();
+}
+
+/**
+ * Cheap probe: one small query for this season's scores. Only when it moves is
+ * the full season re-read. Lets scores appear within seconds without running a
+ * dozen queries every few seconds.
+ */
+async function probeScores() {
+  if (document.hidden || polling) return;
+  const seasonId = config.currentSeasonId;
+  if (!seasonId) return;
+  const res = await fetchGameScores(seasonId);
+  if (res.error || !res.data) return;
+
+  const next = scoresFingerprint(res.data);
+  if (next === scoreSignature) return;
+  if (pageIsBusy()) return;   // picked up on the next probe
+  scoreSignature = next;
+  await refreshSeason();
+}
+
+/** Re-read everything on a slower beat, for changes the probe cannot see. */
+async function fullRefresh() {
+  if (document.hidden) return;
+  await refreshSeason();
+  scoreSignature = scoresFingerprint(config.DB.scores);
 }
 
 function startLiveRefresh() {
-  if (liveTimer) clearInterval(liveTimer);
-  liveTimer = setInterval(pollLive, POLL_INTERVAL_MS);
-  // Coming back to the tab should feel instant rather than waiting a full tick.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollLive(); });
-  window.addEventListener('focus', pollLive);
+  clearInterval(scoreTimer);
+  clearInterval(fullTimer);
+  scoreTimer = setInterval(probeScores, SCORE_POLL_MS);
+  fullTimer = setInterval(fullRefresh, FULL_POLL_MS);
+  // Coming back to the tab should feel instant rather than waiting a tick.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) probeScores(); });
+  window.addEventListener('focus', probeScores);
 }
 
 async function changeSeason(val) {
@@ -199,6 +238,7 @@ async function changeSeason(val) {
   // New season, new baseline — otherwise the first poll sees a wholesale
   // "change" and repaints for no reason.
   liveSignature = liveFingerprint(dataRes.data);
+  scoreSignature = scoresFingerprint(dataRes.data.scores);
   const { season, awards } = dataRes.data;
   // Keep the desktop nav picker and the mobile drawer picker in step.
   document.querySelectorAll('.nav-season-select').forEach(sel => { sel.value = config.currentSeasonSlug; });
@@ -253,6 +293,9 @@ async function loadAll() {
 
   applySeasonData(dataRes.data, defaultSlug);
   liveSignature = liveFingerprint(dataRes.data);
+  // Seeded here, not on the first probe: a score that moves in between would
+  // otherwise be swallowed as the baseline and never repaint.
+  scoreSignature = scoresFingerprint(dataRes.data.scores);
 
   populateSeasonDropdown(seasons, defaultSlug);
   renderAll();
