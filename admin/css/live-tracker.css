@@ -15,6 +15,9 @@
 .lt-clock{font-size:2.4rem;font-weight:700;font-variant-numeric:tabular-nums;background:none;border:none;
   color:#2fa89a;cursor:pointer;padding:0 0.5rem;line-height:1;}
 .lt-clock-controls{display:flex;gap:0.4rem;}
+/* The period jumper is a native <select> so touch devices get the OS's own
+   big-target picker; only the alignment needs matching to the buttons beside it. */
+.lt-period-select{font-family:inherit;text-align:center;text-align-last:center;}
 
 .lt-actions{display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.6rem;}
 .lt-btn{min-height:44px;padding:0.5rem 1rem;font-size:0.95rem;border-radius:6px;cursor:pointer;

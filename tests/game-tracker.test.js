@@ -5,8 +5,8 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
-  changedStatValues, bonusLevel, bonusLabel, bonusFor,
-  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS,
+  changedStatValues, bonusLevel, bonusLabel, bonusFor, periodLabel,
+  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS, PERIOD_OPTIONS, MAX_PERIOD,
 } from '../lib/game-tracker.js';
 
 const CFG = { homeTeamId: 'H', awayTeamId: 'A' };
@@ -273,10 +273,72 @@ describe('describeEvent', () => {
     expect(describeEvent({ type: 'foul', playerId: 'p1' }, nameOf)).toBe('Foul — Raza');
     expect(describeEvent({ type: 'stat', playerId: 'p2', stat: 'reb' }, nameOf)).toBe('Rebound — Ali');
     expect(describeEvent({ type: 'sub', playerInId: 'p2', playerOutId: 'p1' }, nameOf)).toBe('Sub: Ali in for Raza');
+    expect(describeEvent({ type: 'period', period: 3 })).toBe('Now OT1');
   });
 
   it('survives a missing event', () => {
     expect(describeEvent(null)).toBe('');
+  });
+});
+
+describe('periodLabel and PERIOD_OPTIONS', () => {
+  it('matches the picker exactly for the five offered periods', () => {
+    expect(PERIOD_OPTIONS.map(o => periodLabel(o.value))).toEqual(PERIOD_OPTIONS.map(o => o.label));
+    expect(MAX_PERIOD).toBe(5);
+  });
+
+  it('labels the two halves and three overtimes', () => {
+    expect(periodLabel(1)).toBe('H1');
+    expect(periodLabel(2)).toBe('H2');
+    expect(periodLabel(3)).toBe('OT1');
+    expect(periodLabel(4)).toBe('OT2');
+    expect(periodLabel(5)).toBe('OT3');
+  });
+
+  it('keeps counting past the offered list rather than going blank', () => {
+    // A rec-league game that somehow runs past OT3, or a stray value from
+    // before the picker existed, still has to read as something sensible.
+    expect(periodLabel(6)).toBe('OT4');
+    expect(periodLabel(9)).toBe('OT7');
+  });
+
+  it('is blank for nothing recorded yet', () => {
+    expect(periodLabel(0)).toBe('');
+    expect(periodLabel(undefined)).toBe('');
+    expect(periodLabel(null)).toBe('');
+  });
+});
+
+describe('period changes and undo/redo', () => {
+  const lineupBoth = [lineup('H', ['p1']), lineup('A', ['p2'])];
+
+  it('deriveState reports the period an undo lands on, not just the highest one reached', () => {
+    // This is the crux of it: the picker in live-tracker.js re-reads
+    // `state.period` on every paint rather than tracking it forward-only, so
+    // it has to be true that replaying only PART of the log — which is all
+    // undo is — gives back the period that was current at that point, not
+    // wherever the log eventually ends up.
+    const events = [...lineupBoth, { type: 'period', period: 2 }, { type: 'period', period: 3 }];
+    expect(deriveState(events, 2, CFG).period).toBe(1); // before either period event
+    expect(deriveState(events, 3, CFG).period).toBe(2); // after the first
+    expect(deriveState(events, 4, CFG).period).toBe(3); // after the second (== events.length)
+  });
+
+  it('a period change does not erase what was already recorded', () => {
+    // Jumping to a different period from the picker appends a new `period`
+    // event; it does not move the undo cursor, so nothing already scored is
+    // lost — that is what Undo is for.
+    const events = [...lineupBoth, score('p1', 2), { type: 'period', period: 3 }, score('p1', 3)];
+    const s = all(events);
+    expect(s.players.p1.pts).toBe(5);
+    expect(s.period).toBe(3);
+  });
+
+  it('moving the period backward is additive too: a correction, not a rewind', () => {
+    const events = [...lineupBoth, { type: 'period', period: 3 }, score('p2', 2), { type: 'period', period: 2 }];
+    const s = all(events);
+    expect(s.players.p2.pts).toBe(2); // the OT basket still counts
+    expect(s.period).toBe(2);         // but we are back on H2 for what comes next
   });
 });
 

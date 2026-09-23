@@ -21,7 +21,7 @@
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
-  changedStatValues, statValueKey, bonusFor, bonusLabel,
+  changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, PERIOD_OPTIONS, MAX_PERIOD,
   STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
 import { playBonusHorn } from './tracker-sound.js';
@@ -110,7 +110,9 @@ export function openLiveTracker(game, ctx) {
             <button type="button" class="lt-clock" id="lt-clock" title="Tap to set the clock">20:00</button>
             <div class="lt-clock-controls">
               <button type="button" id="lt-startstop" class="lt-btn lt-btn-go">Start</button>
-              <button type="button" id="lt-period" class="lt-btn">H1</button>
+              <select id="lt-period" class="lt-btn lt-period-select" title="Jump to a period">
+                ${PERIOD_OPTIONS.map(o => `<option value="${o.value}">${esc(o.label)}</option>`).join('')}
+              </select>
             </div>
           </div>
           <div class="lt-team-score"><span class="lt-team-name">${esc(awayTeam.name)}</span><span class="lt-score" id="lt-away-score">0</span></div>
@@ -319,11 +321,26 @@ export function openLiveTracker(game, ctx) {
 
   function render() {
     const derived = state();
+    // `session.period` exists only to label the picker and to stamp new
+    // events — the event log (replayed by deriveState) is what undo/redo
+    // actually move through. Re-deriving it on every paint, rather than only
+    // ever incrementing it, is what makes undo/redo work across a period
+    // change: without this, undoing back out of a period you had advanced
+    // into rolled the score back correctly but left the picker (and every
+    // event recorded after) stuck on that period.
+    session.period = derived.period;
 
     $('lt-home-score').textContent = derived.teams[homeTeam.id]?.score ?? 0;
     $('lt-away-score').textContent = derived.teams[awayTeam.id]?.score ?? 0;
     $('lt-clock').textContent = formatClock(session.clock);
-    $('lt-period').textContent = session.period <= 2 ? `H${session.period}` : `OT${session.period - 2}`;
+    const periodSelect = $('lt-period');
+    // Normally one of the five listed options; a stray value from before the
+    // picker existed (or a game that ran past OT3) gets a matching option
+    // added on the fly rather than showing blank.
+    if (derived.period > MAX_PERIOD && !periodSelect.querySelector(`option[value="${derived.period}"]`)) {
+      periodSelect.insertAdjacentHTML('beforeend', `<option value="${derived.period}">${esc(periodLabel(derived.period))}</option>`);
+    }
+    periodSelect.value = String(session.period);
     $('lt-startstop').textContent = session.running ? 'Pause' : 'Start';
     $('lt-startstop').classList.toggle('lt-btn-go', !session.running);
     $('lt-startstop').classList.toggle('lt-btn-stop', session.running);
@@ -381,7 +398,7 @@ export function openLiveTracker(game, ctx) {
 
     const shown = session.events.slice(0, session.cursor).slice(-40).reverse();
     $('lt-log').innerHTML = shown.length
-      ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${e.period <= 2 ? 'H' : 'OT'}${e.period <= 2 ? e.period : e.period - 2} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf))}</div>`).join('')
+      ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${periodLabel(e.period)} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf))}</div>`).join('')
       : '<div class="lt-empty">Nothing recorded yet.</div>';
 
     bonusPrimed = true;
@@ -588,11 +605,18 @@ export function openLiveTracker(game, ctx) {
     persist(); render();
     if (session.status && session.status !== 'scheduled') pushGameState(session.status);
   };
-  $('lt-period').onclick = () => {
+  // Jump straight to a period — replaces the old "click to advance one at a
+  // time" button, which had no way back and no cap (mis-tap it enough times
+  // and you're in "OT9"). Picking a period always appends a fresh `period`
+  // event (same as every other action here), so nothing already recorded is
+  // erased — undo is still how you take back a wrong pick.
+  $('lt-period').onchange = (e) => {
+    const next = Number(e.target.value);
+    if (!Number.isFinite(next) || next === session.period) return;
     stopClock();
-    session.period += 1;
+    session.period = next;
     session.clock = session.periodSeconds;
-    record({ type: 'period', period: session.period });
+    record({ type: 'period', period: next });
     pushGameState('live');
   };
 
@@ -640,6 +664,15 @@ export function openLiveTracker(game, ctx) {
         const { clearGame } = await import('./game-reset.js');
         await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
         lastSent = new Map();
+        // The database is genuinely fresh now (score nulled, status back to
+        // scheduled) — reset the local session to match, or the picker and
+        // clock stay wherever they were left (e.g. still showing "OT1"),
+        // which reads as if the clear hadn't really worked. The period
+        // length a scorekeeper had set is a deliberate choice, so it — and
+        // only it — survives the reset.
+        session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds };
+        persist();
+        render();
         flash('Cleared. This game is back to not played.');
         if (ctx.onSaved) await ctx.onSaved();
       } catch (err) {
