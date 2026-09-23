@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { getSeasons, getSeasonData } from '../lib/api.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
+import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
@@ -117,24 +118,9 @@ function transformSeasonData(raw) {
     playoffGameIds,
   });
 
-  const sponsorOverrides = {};
-  (sponsors || []).forEach(s => {
-    if (s.type === 'title') {
-      if (s.name != null && s.name !== '') sponsorOverrides.SP1 = s.name;
-      sponsorOverrides.SP1_LOGO = s.logo_url || null;
-      sponsorOverrides.SP1_DESC = s.label ?? '';
-    }
-    if (s.type === 'conference_mecca') {
-      if (s.name != null && s.name !== '') sponsorOverrides.SP2A = s.name;
-      sponsorOverrides.SP2A_LOGO = s.logo_url || null;
-      sponsorOverrides.SP2A_DESC = s.label ?? '';
-    }
-    if (s.type === 'conference_medina') {
-      if (s.name != null && s.name !== '') sponsorOverrides.SP2B = s.name;
-      sponsorOverrides.SP2B_LOGO = s.logo_url || null;
-      sponsorOverrides.SP2B_DESC = s.label ?? '';
-    }
-  });
+  // Always a complete set, with nulls for slots this season has no row for,
+  // so applying it clears any sponsor carried over from another season.
+  const sponsorOverrides = sponsorOverridesFrom(sponsors);
 
   // mediaSlots: { [week]: { [slot_key]: { title, url } } }
   const mediaSlots = {};
@@ -228,15 +214,19 @@ export function deriveWeeks(scores, season) {
   return { TOTAL_WEEKS: totalWeeks, CURRENT_WEEK: latestPlayed || 1 };
 }
 
+/**
+ * Apply a season's sponsors to the shared config.
+ *
+ * Every slot is assigned unconditionally — a slot the season has no row for is
+ * reset to its placeholder. `config` is a module singleton reused across season
+ * switches, so skipping absent slots used to leave the previously loaded
+ * season's sponsor on screen.
+ */
 export function applySponsorOverrides(overrides) {
-  if (!overrides) return;
-  if (overrides.SP1 != null) config.SP1 = overrides.SP1;
-  if (overrides.SP1_LOGO !== undefined) config.SP1_LOGO = overrides.SP1_LOGO;
-  if (overrides.SP1_DESC !== undefined) config.SP1_DESC = overrides.SP1_DESC;
-  if (overrides.SP2A != null) config.SP2A = overrides.SP2A;
-  if (overrides.SP2A_LOGO !== undefined) config.SP2A_LOGO = overrides.SP2A_LOGO;
-  if (overrides.SP2A_DESC !== undefined) config.SP2A_DESC = overrides.SP2A_DESC;
-  if (overrides.SP2B != null) config.SP2B = overrides.SP2B;
-  if (overrides.SP2B_LOGO !== undefined) config.SP2B_LOGO = overrides.SP2B_LOGO;
-  if (overrides.SP2B_DESC !== undefined) config.SP2B_DESC = overrides.SP2B_DESC;
+  const o = overrides || {};
+  SPONSOR_SLOTS.forEach(({ key, placeholder }) => {
+    config[key] = o[key] != null && String(o[key]).trim() !== '' ? o[key] : placeholder;
+    config[`${key}_LOGO`] = o[`${key}_LOGO`] || null;
+    config[`${key}_DESC`] = o[`${key}_DESC`] ?? '';
+  });
 }

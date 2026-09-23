@@ -2725,6 +2725,7 @@ export async function renderSponsors(content, ctx) {
       if (!confirm(`Delete sponsor "${btn.dataset.name}"?`)) return;
       try {
         await adminFetch('admin-sponsors', { method: 'POST', body: JSON.stringify({ delete: true, id: btn.dataset.id }) });
+        if (ctx.onSponsorsChanged) await ctx.onSponsorsChanged();
         renderSponsors(content, ctx);
       } catch (e) { document.getElementById('sponsors-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
     };
@@ -2743,6 +2744,7 @@ export async function renderSponsors(content, ctx) {
       await adminFetch('admin-sponsors', { method: 'POST', body: JSON.stringify(body) });
       document.getElementById('sponsors-msg').innerHTML = '<p class="msg success">Saved.</p>';
       wrap.style.display = 'none';
+      if (ctx.onSponsorsChanged) await ctx.onSponsorsChanged();
       renderSponsors(content, ctx);
     } catch (e) { document.getElementById('sponsors-msg').innerHTML = `<p class="msg error">${e.message}</p>`; }
   };

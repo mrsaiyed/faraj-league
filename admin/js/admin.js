@@ -153,6 +153,22 @@ async function adminShowPage(id) {
       });
     }
   }
+  if (id === 'sponsors') {
+    const content = document.getElementById('sponsors-admin-content');
+    if (content) {
+      const { renderSponsors } = await import('./sections.js');
+      await renderSponsors(content, {
+        adminFetch,
+        supabase,
+        getToken,
+        onSponsorsChanged: async () => {
+          await loadAdminSeason(window.adminSeasonSlug);
+          renderAll(true);
+          initAdminOverlays();
+        },
+      });
+    }
+  }
   if (id === 'players') {
     const content = document.getElementById('players-content');
     const sub = document.getElementById('players-section-sub');
@@ -566,8 +582,9 @@ async function initAdminOverlays() {
   sponsorLogoEls.forEach(({ id, type }) => {
     const el = document.getElementById(id);
     if (!el || el.dataset.adminOverlayAttached) return;
+    // No row yet for this slot: still attach, and create it on first save,
+    // otherwise a season that has cleared its sponsors can never set one.
     const sponsor = sponsorByType[type];
-    if (!sponsor) return;
     el.dataset.adminOverlayAttached = '1';
     attachEditOverlay({
       element: el,
@@ -578,7 +595,9 @@ async function initAdminOverlays() {
       },
       saveFn: (val) => adminFetch('admin-sponsors', {
         method: 'POST',
-        body: JSON.stringify({ id: sponsor.id, logo_url: val && val.trim() ? val.trim() : null }),
+        body: JSON.stringify(sponsor
+          ? { id: sponsor.id, logo_url: val && val.trim() ? val.trim() : null }
+          : { season_id: seasonId, type, logo_url: val && val.trim() ? val.trim() : null }),
       }),
       contentType: 'text',
       onSaved: () => { renderAll(true); initAdminOverlays(); },
@@ -594,7 +613,6 @@ async function initAdminOverlays() {
     const el = document.getElementById(id);
     if (!el || el.dataset.adminOverlayAttached) return;
     const sponsor = sponsorByType[type];
-    if (!sponsor) return;
     el.dataset.adminOverlayAttached = '1';
     attachEditOverlay({
       element: el,
@@ -602,7 +620,9 @@ async function initAdminOverlays() {
       getValue: () => el.textContent || '',
       saveFn: (val) => adminFetch('admin-sponsors', {
         method: 'POST',
-        body: JSON.stringify({ id: sponsor.id, label: val }),
+        body: JSON.stringify(sponsor
+          ? { id: sponsor.id, label: val }
+          : { season_id: seasonId, type, label: val }),
       }),
       contentType: 'richtext',
       onSaved: () => { renderAll(true); initAdminOverlays(); },

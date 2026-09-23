@@ -8,6 +8,7 @@ import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure } from '
 import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
 import { orderRosterForDisplay } from '../lib/roster.js';
+import { sponsorName } from '../lib/sponsors.js';
 
 let activeTeam = null;
 
@@ -111,10 +112,15 @@ export function renderAll(adminMode = false) {
 
   const banner = document.getElementById('title-sponsor-banner');
   if (banner) {
-    const titleName = config.SP1 && config.SP1 !== '[SPONSOR 1 NAME AND LOGO]' ? config.SP1 : 'Zabiha Family Ranch';
-    const titleLogo = config.SP1_LOGO || 'images/zabiha-logo.png';
-    const logoSrc = toAssetPath(titleLogo);
-  banner.innerHTML = `<div class="title-sponsor-bar"><span class="title-sponsor-eyebrow">Presented by:</span><div class="title-sponsor-logo-wrap"><img src="${logoSrc.replace(/"/g, '&quot;')}" class="title-sponsor-logo" alt="${titleName.replace(/"/g, '&quot;')} logo"></div></div>`;
+    // No title sponsor for this season means no banner at all — never a
+    // fallback to another season's sponsor.
+    const titleName = sponsorName(config.SP1, '[SPONSOR 1 NAME AND LOGO]');
+    const logoSrc = config.SP1_LOGO ? toAssetPath(config.SP1_LOGO) : '';
+    banner.innerHTML = (titleName || logoSrc)
+      ? `<div class="title-sponsor-bar"><span class="title-sponsor-eyebrow">Presented by:</span><div class="title-sponsor-logo-wrap">${logoSrc
+          ? `<img src="${escapeHtmlAttr(logoSrc)}" class="title-sponsor-logo" alt="${escapeHtmlAttr(titleName)} logo">`
+          : `<span class="title-sponsor-name">${escapeHtmlAttr(titleName)}</span>`}</div></div>`
+      : '';
   }
 
   const blocks = config.DB.contentBlocks || {};
@@ -128,11 +134,13 @@ export function renderAll(adminMode = false) {
     const el = document.getElementById(id);
     if (el) el.textContent = text || fallback;
   };
-  setLogo('sponsor-title-logo', config.SP1_LOGO || 'images/zabiha-logo.png', config.SP1 && config.SP1 !== '[SPONSOR 1 NAME AND LOGO]' ? config.SP1 : 'Zabiha Family Ranch');
+  // An unset slot renders the neutral "Add logo" placeholder rather than any
+  // particular brand, so clearing a sponsor in admin actually clears it.
+  setLogo('sponsor-title-logo', config.SP1_LOGO, sponsorName(config.SP1, '[SPONSOR 1 NAME AND LOGO]'));
   setDesc('sponsor-title-desc', config.SP1_DESC, '');
-  setLogo('sponsor-mecca-logo', config.SP2A_LOGO || 'images/toyomotors-logo.png', config.SP2A && config.SP2A !== '[Sponsor 2A]' ? config.SP2A : 'TOYOMOTORS');
+  setLogo('sponsor-mecca-logo', config.SP2A_LOGO, sponsorName(config.SP2A, '[Sponsor 2A]'));
   setDesc('sponsor-mecca-desc', config.SP2A_DESC, '');
-  setLogo('sponsor-medina-logo', config.SP2B_LOGO || 'images/wellness-logo.png', config.SP2B && config.SP2B !== '[Sponsor 2B]' ? config.SP2B : 'Xtreme Wellness');
+  setLogo('sponsor-medina-logo', config.SP2B_LOGO, sponsorName(config.SP2B, '[Sponsor 2B]'));
   setDesc('sponsor-medina-desc', config.SP2B_DESC, '');
   const tierTitle = document.querySelector('.tier-title');
   const tierConf = document.querySelector('.tier-conf');

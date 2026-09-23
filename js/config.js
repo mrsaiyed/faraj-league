@@ -4,6 +4,10 @@
  * Phase 3: SUPABASE_URL and SUPABASE_ANON_KEY can be overridden from env.
  */
 
+import { SPONSOR_SLOTS, hasSponsor, sponsorName, highlightSponsorNames } from '../lib/sponsors.js';
+
+export { SPONSOR_SLOTS };
+
 const DEFAULT_TEAMS = [
   { id: '1', name: 'Team Alpha', conf: 'Mecca', captain: 'Captain 1', players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7'] },
   { id: '2', name: 'Team Beta', conf: 'Mecca', captain: 'Captain 2', players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7'] },
@@ -82,10 +86,10 @@ export function confLabelRaw(conf) {
   if (!c) return conf ? 'Unassigned — assign to a conference' : (conf || '');
   const displayLabel = (c?.display_label || '').trim();
   if (displayLabel) return displayLabel;
-  const { SP2A, SP2B } = config;
   const name = confShortLabel(conf);
   const idx = list.findIndex(x => (x.id || x.name || '').toString() === (conf || '').toString());
-  const sponsor = idx === 0 ? SP2A : idx === 1 ? SP2B : null;
+  const slot = idx === 0 ? SPONSOR_SLOTS[1] : idx === 1 ? SPONSOR_SLOTS[2] : null;
+  const sponsor = slot ? sponsorName(config[slot.key], slot.placeholder) : '';
   return sponsor ? `${sponsor} ${name} Conference` : `${name} Conference`;
 }
 
@@ -99,9 +103,11 @@ export function confLabel(conf) {
 }
 
 /**
- * Escapes a plain string for safe HTML insertion, then wraps the three
- * SP2-tier brand names in their colour-highlight spans.
- * Only touches: TOYOMOTORS, XTREME, Wellness (case-insensitive, whole-word).
+ * Escapes a plain string for safe HTML insertion, then colour-highlights the
+ * names of whichever sponsors the current season actually has.
+ *
+ * Driven by `config.SP1/SP2A/SP2B` rather than a hard-coded brand list, so a
+ * season with no sponsors highlights nothing.
  * Safe to use in innerHTML contexts; never use in textContent/attributes.
  */
 export function highlightSponsor(text) {
@@ -110,10 +116,10 @@ export function highlightSponsor(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-  return escaped
-    .replace(/\bTOYOMOTORS\b/gi, '<span class="brand-toyomotors">$&</span>')
-    .replace(/\bXTREME\b/gi, '<span class="brand-xtreme">$&</span>')
-    .replace(/\bWellness\b/gi, '<span class="brand-wellness">$&</span>');
+  const brands = SPONSOR_SLOTS
+    .map(slot => ({ name: sponsorName(config[slot.key], slot.placeholder), brandClass: slot.brandClass }))
+    .filter(b => b.name !== '');
+  return highlightSponsorNames(escaped, brands);
 }
 
 export function motmLabel(game) {
@@ -121,14 +127,11 @@ export function motmLabel(game) {
 }
 
 export function akhlaqLabel(week) {
-  const { SP2A } = config;
-  const name = SP2A && SP2A !== '[Sponsor 2A]' ? SP2A : null;
-  const raw = name ? `${name} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`;
-  return highlightSponsor(raw);
+  const name = sponsorName(config.SP2A, '[Sponsor 2A]');
+  return highlightSponsor(name ? `${name} Akhlaq Award — Week ${week}` : `Akhlaq Award — Week ${week}`);
 }
 
 export function statsTitle() {
-  const { SP2B } = config;
-  const name = SP2B && SP2B !== '[Sponsor 2B]' ? SP2B : 'Xtreme Wellness';
-  return highlightSponsor(`${name} Player Stats`);
+  const name = sponsorName(config.SP2B, '[Sponsor 2B]');
+  return highlightSponsor(name ? `${name} Player Stats` : 'Player Stats');
 }
