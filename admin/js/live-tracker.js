@@ -21,9 +21,10 @@
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
-  changedStatValues, statValueKey,
+  changedStatValues, statValueKey, bonusFor, bonusLabel,
   STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
+import { playBonusHorn } from './tracker-sound.js';
 
 const storageKey = (gameId) => `faraj_live_tracker_${gameId}`;
 
@@ -129,13 +130,19 @@ export function openLiveTracker(game, ctx) {
 
       <div class="lt-courts">
         <div class="lt-court" data-team="${esc(homeTeam.id)}">
-          <div class="lt-court-title">${esc(homeTeam.name)} <span class="lt-team-fouls" id="lt-fouls-${esc(homeTeam.id)}"></span></div>
+          <div class="lt-court-title">
+            <span class="lt-court-head"><span class="lt-court-team">${esc(homeTeam.name)}</span><span class="lt-bonus" id="lt-bonus-${esc(homeTeam.id)}" hidden></span></span>
+            <span class="lt-team-fouls" id="lt-fouls-${esc(homeTeam.id)}"></span>
+          </div>
           <div class="lt-floor" id="lt-floor-${esc(homeTeam.id)}"></div>
           <div class="lt-bench-title">Bench</div>
           <div class="lt-bench" id="lt-bench-${esc(homeTeam.id)}"></div>
         </div>
         <div class="lt-court" data-team="${esc(awayTeam.id)}">
-          <div class="lt-court-title">${esc(awayTeam.name)} <span class="lt-team-fouls" id="lt-fouls-${esc(awayTeam.id)}"></span></div>
+          <div class="lt-court-title">
+            <span class="lt-court-head"><span class="lt-court-team">${esc(awayTeam.name)}</span><span class="lt-bonus" id="lt-bonus-${esc(awayTeam.id)}" hidden></span></span>
+            <span class="lt-team-fouls" id="lt-fouls-${esc(awayTeam.id)}"></span>
+          </div>
           <div class="lt-floor" id="lt-floor-${esc(awayTeam.id)}"></div>
           <div class="lt-bench-title">Bench</div>
           <div class="lt-bench" id="lt-bench-${esc(awayTeam.id)}"></div>
@@ -287,6 +294,17 @@ export function openLiveTracker(game, ctx) {
   }
 
   // ---- rendering ---------------------------------------------------------
+  /**
+   * teamId → bonus level already on screen. The horn sounds on the crossing
+   * only, so a repaint at 8 team fouls stays silent while the 7th sounds.
+   */
+  const bonusShown = {};
+  /**
+   * Seeded by the first paint. Reopening a game that is already in the double
+   * bonus must not blare as the panel appears — only a foul recorded here does.
+   */
+  let bonusPrimed = false;
+
   function playerTile(p, derived, { onCourt }) {
     const s = derived.players[p.id] || {};
     const fouls = s.foul || 0;
@@ -315,8 +333,30 @@ export function openLiveTracker(game, ctx) {
       const onCourt = lineupFor(team.id, derived);
       const floor = $(`lt-floor-${team.id}`);
       const bench = $(`lt-bench-${team.id}`);
-      const teamFouls = derived.teams[team.id]?.fouls || 0;
-      $(`lt-fouls-${team.id}`).textContent = teamFouls ? `${teamFouls} team fouls` : '';
+      // The bonus is a per-half count, and it is the OPPONENT's fouls that
+      // put this team in it — see `bonusFor`.
+      const opponentId = team.id === homeTeam.id ? awayTeam.id : homeTeam.id;
+      const { halfFouls, penalty, bonus } = bonusFor(derived, team.id, opponentId);
+
+      const foulsEl = $(`lt-fouls-${team.id}`);
+      foulsEl.textContent = halfFouls ? `${halfFouls} team fouls` : '';
+      foulsEl.classList.toggle('lt-fouls-bonus', penalty === 1);
+      foulsEl.classList.toggle('lt-fouls-double', penalty === 2);
+
+      const bonusEl = $(`lt-bonus-${team.id}`);
+      bonusEl.textContent = bonusLabel(bonus);
+      bonusEl.hidden = !bonus;
+      bonusEl.classList.toggle('lt-bonus-double', bonus === 2);
+
+      // Rising only: half time drops the level back to none in silence, and
+      // the next 7th foul sounds again.
+      const was = bonusShown[team.id] ?? 0;
+      bonusShown[team.id] = bonus;
+      if (bonusPrimed && bonus > was) {
+        playBonusHorn(bonus);
+        // Say it as well as sound it: a muted tablet is the normal case in a gym.
+        flash(`${team.name} — ${bonusLabel(bonus)}.`);
+      }
 
       if (!onCourt.length) {
         floor.innerHTML = `<div class="lt-pick-five">Pick the starting ${LINEUP_SIZE} — tap players below.</div>`;
@@ -344,6 +384,7 @@ export function openLiveTracker(game, ctx) {
       ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${e.period <= 2 ? 'H' : 'OT'}${e.period <= 2 ? e.period : e.period - 2} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf))}</div>`).join('')
       : '<div class="lt-empty">Nothing recorded yet.</div>';
 
+    bonusPrimed = true;
     renderArmed();
   }
 

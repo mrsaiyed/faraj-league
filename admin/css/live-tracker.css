@@ -36,8 +36,21 @@
 .lt-courts{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.9rem;}
 .lt-court{background:#0a1f2e;border:1px solid rgba(200,168,75,0.2);border-radius:8px;padding:0.75rem;}
 .lt-court-title{font-family:'Cinzel',serif;font-size:0.85rem;letter-spacing:0.12em;text-transform:uppercase;
-  color:#c8a84b;margin-bottom:0.6rem;display:flex;justify-content:space-between;gap:0.5rem;}
-.lt-team-fouls{color:#c87070;font-size:0.78rem;letter-spacing:0.05em;text-transform:none;}
+  color:#c8a84b;margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;
+  min-height:2rem;}
+.lt-court-head{display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;}
+.lt-team-fouls{color:#c87070;font-size:0.78rem;letter-spacing:0.05em;text-transform:none;
+  white-space:nowrap;transition:font-size 0.15s ease;}
+/* A team in foul trouble has to be readable from the bench without squinting,
+   so the count grows at each threshold rather than just changing colour. */
+.lt-team-fouls.lt-fouls-bonus{font-size:1.05rem;font-weight:700;color:#e08a4a;}
+.lt-team-fouls.lt-fouls-double{font-size:1.3rem;font-weight:800;color:#e0564e;}
+/* The badge sits beside the name of the team SHOOTING the bonus, which is the
+   team whose opponent is over the limit. */
+.lt-bonus{padding:0.15rem 0.5rem;border-radius:999px;background:#e08a4a;color:#1a1208;
+  font-family:inherit;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;white-space:nowrap;}
+.lt-bonus.lt-bonus-double{background:#e0564e;color:#fff;font-size:0.82rem;padding:0.2rem 0.6rem;}
+.lt-bonus[hidden]{display:none;}
 .lt-floor{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:0.5rem;min-height:84px;}
 .lt-bench-title{margin:0.8rem 0 0.4rem;font-size:0.75rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8580;}
 .lt-bench{display:flex;flex-wrap:wrap;gap:0.4rem;}

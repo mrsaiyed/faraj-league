@@ -5,8 +5,8 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
-  changedStatValues,
-  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
+  changedStatValues, bonusLevel, bonusLabel, bonusFor,
+  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS,
 } from '../lib/game-tracker.js';
 
 const CFG = { homeTeamId: 'H', awayTeamId: 'A' };
@@ -38,6 +38,79 @@ describe('deriveState — scoring', () => {
     const s = all([]);
     expect(s.teams.H.score).toBe(0);
     expect(s.teams.A.score).toBe(0);
+  });
+});
+
+describe('team fouls and the bonus', () => {
+  const fouls = (teamId, n) =>
+    Array.from({ length: n }, (_, i) => ({ type: 'foul', playerId: `p${i % 5}`, teamId }));
+
+  it('counts a foul toward both the game and the current half', () => {
+    const s = all(fouls('H', 3));
+    expect(s.teams.H.fouls).toBe(3);
+    expect(s.teams.H.halfFouls).toBe(3);
+  });
+
+  it('clears half fouls at a new period but keeps the game total', () => {
+    const s = all([...fouls('H', 8), { type: 'period', period: 2 }, ...fouls('H', 2)]);
+    expect(s.teams.H.halfFouls).toBe(2);
+    expect(s.teams.H.fouls).toBe(10);
+  });
+
+  it('clears both teams at the break, not just the one that fouled', () => {
+    const s = all([...fouls('H', 7), ...fouls('A', 4), { type: 'period', period: 2 }]);
+    expect(s.teams.H.halfFouls).toBe(0);
+    expect(s.teams.A.halfFouls).toBe(0);
+  });
+
+  it('ignores a period event that does not change the period', () => {
+    // Otherwise a re-affirmed period would wipe fouls already committed in it.
+    const s = all([...fouls('H', 7), { type: 'period', period: 1 }]);
+    expect(s.teams.H.halfFouls).toBe(7);
+  });
+
+  it('reads the level off the thresholds', () => {
+    expect(bonusLevel(6)).toBe(0);
+    expect(bonusLevel(BONUS_FOULS)).toBe(1);
+    expect(bonusLevel(9)).toBe(1);
+    expect(bonusLevel(DOUBLE_BONUS_FOULS)).toBe(2);
+    expect(bonusLevel(14)).toBe(2);
+    expect(bonusLevel(undefined)).toBe(0);
+  });
+
+  it('labels each level', () => {
+    expect(bonusLabel(0)).toBe('');
+    expect(bonusLabel(1)).toBe('Single Bonus');
+    expect(bonusLabel(2)).toBe('Double Bonus');
+  });
+
+  it('awards the bonus to the team that did NOT commit the fouls', () => {
+    const s = all(fouls('H', 7));
+    // H is over the limit, so A shoots. Getting this backwards would put the
+    // badge on the team in foul trouble.
+    expect(bonusFor(s, 'A', 'H')).toMatchObject({ halfFouls: 0, penalty: 0, bonus: 1 });
+    expect(bonusFor(s, 'H', 'A')).toMatchObject({ halfFouls: 7, penalty: 1, bonus: 0 });
+  });
+
+  it('moves to the double bonus at ten', () => {
+    const s = all(fouls('A', 10));
+    expect(bonusFor(s, 'H', 'A').bonus).toBe(2);
+    expect(bonusFor(s, 'A', 'H').penalty).toBe(2);
+  });
+
+  it('takes the bonus away again at half time', () => {
+    const events = [...fouls('H', 10), { type: 'period', period: 2 }];
+    expect(bonusFor(all(events), 'A', 'H').bonus).toBe(0);
+  });
+
+  it('rolls the bonus back on undo', () => {
+    const events = fouls('H', 7);
+    expect(bonusFor(deriveState(events, 7, CFG), 'A', 'H').bonus).toBe(1);
+    expect(bonusFor(deriveState(events, 6, CFG), 'A', 'H').bonus).toBe(0);
+  });
+
+  it('survives a team it has never seen', () => {
+    expect(bonusFor(all([]), 'nobody', 'also-nobody')).toEqual({ halfFouls: 0, penalty: 0, bonus: 0 });
   });
 });
 
