@@ -190,3 +190,29 @@ describe('liveFingerprint covers everything the probe covers', () => {
     });
   });
 });
+
+describe('pre-migration-012 rows', () => {
+  // The probe reads whatever columns the database has. Against a database that
+  // has not run migration 012 there are no status/clock columns at all, and
+  // live refresh must keep working on scores alone.
+  const legacy = [{ id: 'g1', home_score: 10, away_score: 8, forfeit_team_id: null }];
+
+  it('fingerprints a row with no status or clock columns', () => {
+    expect(() => scoresFingerprint(legacy)).not.toThrow();
+    expect(scoresFingerprint(legacy)).toBeTruthy();
+  });
+
+  it('still detects a score change without those columns', () => {
+    const after = [{ ...legacy[0], home_score: 12 }];
+    expect(scoresFingerprint(after)).not.toBe(scoresFingerprint(legacy));
+  });
+
+  it('is stable across repeated reads, so it does not repaint forever', () => {
+    expect(scoresFingerprint(legacy)).toBe(scoresFingerprint([{ ...legacy[0] }]));
+  });
+
+  it('agrees with a transformed row that also lacks them', () => {
+    const transformed = [{ gameId: 'g1', s1: '10', s2: '8', forfeitTeamId: null }];
+    expect(scoresFingerprint(legacy)).toBe(scoresFingerprint(transformed));
+  });
+});

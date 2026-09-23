@@ -122,6 +122,7 @@ export function openLiveTracker(game, ctx) {
           <button type="button" id="lt-close" class="lt-btn">Close</button>
         </div>
         <div class="lt-sync" id="lt-sync">Live · not yet saved</div>
+        <div class="lt-sync lt-sync-note" id="lt-clock-note" hidden></div>
       </div>
 
       <div class="lt-armed" id="lt-armed" hidden></div>
@@ -240,7 +241,11 @@ export function openLiveTracker(game, ctx) {
    *
    * @param {string} status one of scheduled | live | halftime | final
    */
+  /** Cleared once the database turns out not to have the clock columns yet. */
+  let clockSupported = true;
+
   async function pushGameState(status) {
+    if (!clockSupported) return;
     try {
       await adminFetch('admin-games', {
         method: 'POST',
@@ -255,7 +260,19 @@ export function openLiveTracker(game, ctx) {
       session.status = status;
       persist();
     } catch (err) {
-      // Scoring continues regardless; the next change retries.
+      // A database without migration 012 has no clock columns. Say so once, in
+      // its own line, rather than repeatedly flashing a save failure over the
+      // stats status — the stats themselves are saving fine.
+      if (/column|schema cache/i.test(err.message || '')) {
+        clockSupported = false;
+        const note = $('lt-clock-note');
+        if (note) {
+          note.hidden = false;
+          note.textContent = 'Live clock off — run migration 012. Stats are still saving.';
+        }
+        return;
+      }
+      // Anything else: scoring continues, the next change retries.
       setSyncState('error', err.message);
     }
   }
