@@ -69,3 +69,25 @@ describe('season logo assets', () => {
     }
   });
 });
+
+describe('the link preview', () => {
+  // What iMessage, WhatsApp and social sites show when farajleague.org is shared. Without
+  // an og:image they pick the largest picture on the page, which is the champions photo.
+  const head = read('index.html').split('</head>')[0];
+  const meta = (key) => head.match(new RegExp(`<meta (?:property|name)="${key}" content="([^"]*)"`))?.[1];
+
+  it('is the league logo, as a committed 1200x630 PNG', () => {
+    const url = meta('og:image');
+    expect(url).toMatch(/^https:\/\/farajleague\.org\/images\/logos\/[\w-]+\.png$/);
+    const png = fs.readFileSync(path.join(ROOT, url.replace('https://farajleague.org/', '')));
+    expect(png.subarray(1, 4).toString()).toBe('PNG');
+    // IHDR: width and height, which the tags must state truthfully.
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+    expect([meta('og:image:width'), meta('og:image:height')]).toEqual(['1200', '630']);
+  });
+
+  it('shows the same picture on every site', () => {
+    expect(meta('twitter:image')).toBe(meta('og:image'));
+    expect(meta('twitter:card')).toBe('summary_large_image');
+  });
+});
