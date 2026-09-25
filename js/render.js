@@ -11,6 +11,7 @@ import { orderRosterForDisplay } from '../lib/roster.js';
 import { sponsorName } from '../lib/sponsors.js';
 import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.js';
 import { seasonLogo } from '../lib/season-logo.js';
+import { championPhoto, photoSources } from '../lib/champion-photo.js';
 import { cardElement, overlays } from './champion-card.js';
 
 let activeTeam = null;
@@ -137,6 +138,20 @@ export function renderAll(adminMode = false) {
     if (heroLogo.src !== new URL(src, location.href).href) heroLogo.src = src;
     heroLogo.className = `hero-league-logo hero-league-logo--${logo.variant}`;
     heroLogo.alt = logo.alt;
+  }
+  // The season's own champions once their photo is listed, else the newest
+  // champions (lib/champion-photo.js). Same resolved-URL guard as the logo.
+  const heroPhoto = document.getElementById('hero-champions-photo');
+  const photo = heroPhoto && championPhoto(config.currentSeasonSlug);
+  if (photo) {
+    const { src, srcset, width, height } = photoSources(photo, toAssetPath);
+    if (heroPhoto.src !== new URL(src, location.href).href) {
+      heroPhoto.srcset = srcset;
+      heroPhoto.src = src;
+      heroPhoto.width = width;
+      heroPhoto.height = height;
+    }
+    heroPhoto.alt = photo.alt;
   }
   renderHeroChamps();
 

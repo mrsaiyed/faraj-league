@@ -43,11 +43,11 @@ a.nav-logo{text-decoration:none;}
 .hero{padding:0 0 1.6rem;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:visible;}
 .hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(26,122,110,0.14) 0%,transparent 65%);}
 .hero-geo{position:absolute;inset:0;opacity:0.03;background-image:repeating-linear-gradient(60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%),repeating-linear-gradient(-60deg,#c8a84b 0,#c8a84b 1px,transparent 0,transparent 50%);background-size:60px 60px;}
-/* The hero is the champions' photo, with the season badge and a small lockup (league logo |
-   "Presented by" title sponsor) over the top of it, and the hadith and the Reigning Champs
-   plaque below. Navy fades cover the top (so the logos read on the bright gym wall), the
-   sides and the bottom, so the photo melts into the page. The images/champions files are
-   the supplied photo cropped to the approved mock's framing, in four widths for srcset. */
+/* The hero is a season's champions photo (which one: lib/champion-photo.js), with the season
+   badge and a small lockup (league logo | "Presented by" title sponsor) over the top of it, and
+   the hadith and the Reigning Champs plaque below. Navy fades cover the top (so the logos read on
+   the bright gym wall), the sides and the bottom, so the photo melts into the page. Every photo
+   is cropped to the same framing, in four widths for srcset. */
 .hero-photo{position:relative;width:min(1180px,100%);height:620px;overflow:hidden;}
 .hero-photo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;}
 .hero-photo::after{content:'';position:absolute;inset:0;pointer-events:none;background:

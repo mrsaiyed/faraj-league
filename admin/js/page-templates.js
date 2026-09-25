@@ -7,7 +7,7 @@ export const HOME_TEMPLATE = `
   <div class="hero">
     <div class="hero-bg"></div><div class="hero-geo"></div>
     <div class="hero-photo">
-      <img class="hero-photo-img" src="../images/champions/spring2026-1200.jpg" srcset="../images/champions/spring2026-800.jpg 800w, ../images/champions/spring2026-1200.jpg 1200w, ../images/champions/spring2026-1600.jpg 1600w, ../images/champions/spring2026-2345.jpg 2345w" sizes="(min-width: 1300px) 1300px, 100vw" width="2345" height="1623" fetchpriority="high" alt="The Spring 2026 champions with the Faraj League trophy">
+      <img class="hero-photo-img" id="hero-champions-photo" src="../images/champions/spring2026-1200.jpg" srcset="../images/champions/spring2026-800.jpg 800w, ../images/champions/spring2026-1200.jpg 1200w, ../images/champions/spring2026-1600.jpg 1600w, ../images/champions/spring2026-2345.jpg 2345w" sizes="(min-width: 1300px) 1300px, 100vw" width="2345" height="1623" fetchpriority="high" alt="The Spring 2026 champions with the Faraj League trophy">
       <div class="hero-top">
         <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
         <div class="hero-lockup">
