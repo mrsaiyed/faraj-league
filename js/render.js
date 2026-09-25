@@ -400,6 +400,12 @@ function formatGameDate(scheduledAt) {
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** The date a week's heading shows: the first of its games that has one. */
+function weekScheduledAt(week) {
+  if (week == null) return null;
+  return (config.DB.scores || []).find(s => s.week === week && s.scheduled_at)?.scheduled_at || null;
+}
+
 /**
  * Team row for `name` in the season currently loaded — the logo lives on it,
  * so the same club can carry a different logo in a different season.
@@ -458,12 +464,14 @@ function buildMatchupCard(g, gameId) {
   const w2 = decided && (forfeit ? forfeit === 't1' : (played && s2 > s1));
   const isDecided = decided;
 
-  // Header band: Game N (left) | time (center) | ghost spacer (right to balance)
+  // Header band: Game N (left) | time (center) | date (right). The date is the
+  // game's own, or its week's while this game has none, as the week heading shows.
   const timeStr = (isDecided || live) ? '' : formatGameTime(g.scheduled_at, g.game || 1);
+  const dateStr = formatGameDate(g.scheduled_at || weekScheduledAt(g.week));
   const header = `<div class="mc-header">
     <span class="mc-meta-game">Game ${g.game || 1}</span>
     <span class="mc-meta-time">${timeStr}</span>
-    <span class="mc-meta-game" aria-hidden="true" style="visibility:hidden">Game ${g.game || 1}</span>
+    <span class="mc-meta-date">${dateStr}</span>
   </div>`;
 
   const showScore = played || live;
