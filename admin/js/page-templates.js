@@ -8,8 +8,8 @@ export const HOME_TEMPLATE = `
     <div class="hero-bg"></div><div class="hero-geo"></div>
     <div class="hero-content">
       <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
+      <img src="../images/logos/fall2026-city-edition.svg" id="hero-league-logo" class="hero-league-logo hero-league-logo--mark" alt="Faraj League — City Edition">
       <div id="title-sponsor-banner"></div>
-      <img src="../faraj-logo.png" style="width:340px;height:340px;mix-blend-mode:screen;" alt="Faraj League">
       <div class="hero-divider"></div>
       <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
       <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>

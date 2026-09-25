@@ -434,7 +434,13 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 .footer-insta{font-size:0.82rem;color:#2fa89a;letter-spacing:0.1em;margin-top:0.3rem;}
 .pending{color:#c8c0b0;font-style:italic;}
 .loading{text-align:center;padding:2rem;font-size:0.88rem;color:#c8c0b0;font-style:italic;}
-.hero-league-logo{width:340px;height:340px;mix-blend-mode:screen;margin:0 auto;display:block;}
+.hero-league-logo{margin:0 auto;display:block;}
+/* Which logo a season shows, and so which of these applies, is lib/season-logo.js. */
+/* The original circular badge (inaugural season): exactly the look it always had. */
+.hero-league-logo--badge{width:340px;height:340px;mix-blend-mode:screen;}
+/* The City Edition mark: airy calligraphy rather than a solid disc, so it sits a
+   little smaller, and shrinks on narrow phones instead of overflowing them. */
+.hero-league-logo--mark{width:300px;max-width:78vw;height:auto;margin-top:0.6rem;}
 /* Stacked lines: eyebrow then logo — centered on all viewports (avoids desktop row misalignment) */
 #title-sponsor-banner{display:flex;flex-direction:column;align-items:center;width:100%;margin-top:0.65rem;box-sizing:border-box;}
 .title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:center;justify-content:center;gap:0.45rem;width:100%;max-width:100%;box-sizing:border-box;}

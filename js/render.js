@@ -10,6 +10,7 @@ import { filterBankPlayers } from '../lib/draft-bank.js';
 import { orderRosterForDisplay } from '../lib/roster.js';
 import { sponsorName } from '../lib/sponsors.js';
 import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.js';
+import { seasonLogo } from '../lib/season-logo.js';
 
 let activeTeam = null;
 
@@ -99,6 +100,17 @@ export function renderAll(adminMode = false) {
   set('about-conf-title', `${config.currentSeasonLabel} Structure`);
   const heroBadge = document.getElementById('hero-badge');
   if (heroBadge) heroBadge.textContent = config.DB.contentBlocks?.hero_badge || `${config.currentSeasonLabel} · Inaugural Season`;
+  const heroLogo = document.getElementById('hero-league-logo');
+  if (heroLogo) {
+    const logo = seasonLogo(config.currentSeasonSlug);
+    // Compare resolved URLs: the HTML ships a page-relative src and toAssetPath
+    // a root-relative one for the same file, and renderAll runs on every live
+    // poll — only a real season change should touch the image.
+    const src = toAssetPath(logo.src);
+    if (heroLogo.src !== new URL(src, location.href).href) heroLogo.src = src;
+    heroLogo.className = `hero-league-logo hero-league-logo--${logo.variant}`;
+    heroLogo.alt = logo.alt;
+  }
   const seasonTag = document.getElementById('season-tag');
   if (seasonTag) {
     if (config.DB.contentBlocks?.season_tag != null) {
