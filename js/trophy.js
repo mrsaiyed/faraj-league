@@ -30,6 +30,20 @@ const DIM = { lowerW: 6.85, lowerH: 4.2, upperW: 5.65, upperH: 3.7, stemH: 2.2, 
 const BASE_TOP = DIM.lowerH + DIM.upperH;
 const BALL_Y = BASE_TOP + DIM.stemH + DIM.ballR;
 const TOP_Y = BALL_Y + DIM.ballR;
+// The ball's seams, fitted to the photo of the real trophy as it is seen from
+// the front: two great circles crossing at nearly right angles, and a ring
+// either side of the middle one. A seam is where asin(n.p) = lat + bend.k (bend.m.p)^2
+// for p on the ball: a circle round the axis n at latitude `lat` (0 for a great
+// circle), squeezed a little along `bend.m` — which is all it takes for the
+// lower ring to run off the bottom right as the real one does. In the trophy's
+// own frame (+x right, +y up, +z out of the front), so the sides and back follow
+// from the same curves.
+const BALL_SEAMS = {
+  cross: { n: [0.6895, 0.1715, 0.7037] },                                     // down the left of the front
+  middle: { n: [-0.0144, -0.9822, 0.1872] },                                  // across the middle
+  upper: { n: [-0.2390, 0.9659, 0.1001], lat: 0.7439, bend: { m: [0.8959, 0.2590, -0.3609], k: -0.141 } },  // rising to the top right
+  lower: { n: [-0.3156, -0.8607, 0.3994], lat: 0.6487, bend: { m: [-0.9489, 0.2871, -0.1312], k: 0.130 } },  // falling to the bottom right
+};
 const SLOT = { w: 3.15, h: 1.07, gapX: 0.2, gapY: 0.2, plateW: 3.02, plateH: 3.02 / CARD_ASPECT, gridOffsetY: -0.1 };
 const PLAQUE = { frameW: 5.2, frameH: 3.08, w: 4.95, h: 2.8 };
 
@@ -233,14 +247,21 @@ function loadImage(src) {
  */
 function ballMaterial(THREE, pebbleTex) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xe8b64c, metalness: 1, roughness: 0.42 });
-  const seamRot = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.55, 0.35, 0.25)));
+  // Per seam, xyz: the axis n, w: the latitude; and xyz: the squeeze direction m, w: its amount k.
+  const vec4 = (xyz, w) => { const v = new THREE.Vector3(...xyz).normalize(); return new THREE.Vector4(v.x, v.y, v.z, w); };
+  const seam = ({ n, lat = 0 }) => vec4(n, lat);
+  const bend = ({ bend: b }) => (b ? vec4(b.m, b.k) : new THREE.Vector4(1, 0, 0, 0));
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uPebble: { value: pebbleTex },
       uPebbleScale: { value: 0.8 },
-      uSeamRot: { value: seamRot },
+      uSeamCross: { value: seam(BALL_SEAMS.cross) },
+      uSeamMiddle: { value: seam(BALL_SEAMS.middle) },
+      uSeamUpper: { value: seam(BALL_SEAMS.upper) },
+      uSeamLower: { value: seam(BALL_SEAMS.lower) },
+      uBendUpper: { value: bend(BALL_SEAMS.upper) },
+      uBendLower: { value: bend(BALL_SEAMS.lower) },
       uSeamW: { value: 0.024 },
-      uSideSeam: { value: 0.62 },
       uBump: { value: 0.9 },
     });
     shader.vertexShader = shader.vertexShader
@@ -250,8 +271,13 @@ function ballMaterial(THREE, pebbleTex) {
       .replace('#include <common>', `#include <common>
         varying vec3 vBallPos;
         uniform sampler2D uPebble;
-        uniform float uPebbleScale, uSeamW, uSideSeam, uBump;
-        uniform mat3 uSeamRot;
+        uniform float uPebbleScale, uSeamW, uBump;
+        uniform vec4 uSeamCross, uSeamMiddle, uSeamUpper, uSeamLower, uBendUpper, uBendLower;
+        // Angle between a point on the ball and one seam (see BALL_SEAMS).
+        float seamDist(vec4 s, vec4 b, vec3 n) {
+          float m = dot(b.xyz, n);
+          return abs(asin(clamp(dot(s.xyz, n), -1.0, 1.0)) - s.w - b.w * m * m);
+        }
         vec3 ballPerturb(vec3 surfPos, vec3 surfNorm, vec2 dHdxy, float faceDir) {
           vec3 sx = normalize(dFdx(surfPos)), sy = normalize(dFdy(surfPos));
           vec3 r1 = cross(sy, surfNorm), r2 = cross(surfNorm, sx);
@@ -261,9 +287,8 @@ function ballMaterial(THREE, pebbleTex) {
         }`)
       .replace('#include <map_fragment>', `
         vec3 bn = normalize(vBallPos);
-        vec3 bs = uSeamRot * bn;
-        float latX = asin(clamp(bs.x, -1.0, 1.0));
-        float seamD = min(min(abs(latX), abs(asin(clamp(bs.y, -1.0, 1.0)))), abs(abs(latX) - uSideSeam));
+        float seamD = min(min(seamDist(uSeamCross, vec4(0.0), bn), seamDist(uSeamMiddle, vec4(0.0), bn)),
+                          min(seamDist(uSeamUpper, uBendUpper, bn), seamDist(uSeamLower, uBendLower, bn)));
         float seamT = clamp(seamD / uSeamW, 0.0, 1.0);
         float seamMask = 1.0 - smoothstep(0.55, 1.0, seamT);
         float pebbleW = smoothstep(1.0, 1.9, seamD / uSeamW);
