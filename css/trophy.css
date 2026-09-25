@@ -83,13 +83,12 @@
 .trophy-modal-caption{font-family:'Cinzel',serif;color:#c8a84b;letter-spacing:0.14em;text-transform:uppercase;font-size:0.8rem;text-align:center;}
 .trophy-modal-close{position:absolute;top:max(0.75rem,env(safe-area-inset-top));right:max(0.75rem,env(safe-area-inset-right));width:46px;height:46px;border-radius:50%;
   border:1px solid rgba(200,168,75,0.5);background:rgba(14,37,53,0.9);color:#f5f0e8;font-size:1.6rem;line-height:1;cursor:pointer;}
-/* A plate is three times wider than tall, so on a portrait phone the enlarged
-   card runs along the screen's long side — about twice the size it would be
-   across the width. Turn the phone and it lays out upright, still full size. */
-@media (orientation:portrait){
-  .trophy-modal{overflow:hidden;}
-  .trophy-modal-body{flex-shrink:0;width:min(86vh,900px);width:min(86svh,900px);transform:rotate(90deg) scale(0.96);}
-  .trophy-modal.is-open .trophy-modal-body{transform:rotate(90deg);}
+/* On a phone held upright the card reads straight across, the right way up —
+   no turning the phone — and as wide as the screen allows, since a plate is
+   three times wider than tall and every pixel of width is type size. */
+@media (max-width:600px){
+  .trophy-modal{padding-left:max(0.5rem,env(safe-area-inset-left));padding-right:max(0.5rem,env(safe-area-inset-right));}
+  .trophy-modal-body{width:100%;}
 }
 html.trophy-modal-open{overflow:hidden;}
 
