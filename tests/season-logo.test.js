@@ -65,6 +65,7 @@ describe('season logo assets', () => {
       const html = read(file);
       expect(html, file).toContain(`src="${prefix}${DEFAULT_LOGO.src}" id="hero-league-logo"`);
       expect(html, file).toContain(`hero-league-logo--${DEFAULT_LOGO.variant}"`);
+      expect(html, file).toContain(`alt="${DEFAULT_LOGO.alt}"`);
     }
   });
 });
