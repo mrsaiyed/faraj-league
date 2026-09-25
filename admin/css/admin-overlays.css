@@ -30,6 +30,26 @@
   background: #c8a84b;
 }
 
+/* Home hero: the badge sits centred over the champions' photo and its overlay shrinks to fit it,
+   so the Edit button goes just past the badge's right edge instead of over its text (under it
+   on phones, where there is no room beside it) */
+.hero-top .admin-edit-overlay .admin-edit-btn {
+  top: 50%;
+  right: auto;
+  left: 100%;
+  margin-left: 0.5rem;
+  transform: translateY(-50%);
+}
+@media (max-width: 500px) {
+  .hero-top .admin-edit-overlay .admin-edit-btn {
+    top: 100%;
+    left: auto;
+    right: 0;
+    margin: 0.25rem 0 0;
+    transform: none;
+  }
+}
+
 /* Edit Full Schedule: buttons stay in .fse-slot flex rows (global .admin-edit-btn is position:absolute for overlays) */
 #full-schedule-editor .admin-edit-btn {
   position: static;

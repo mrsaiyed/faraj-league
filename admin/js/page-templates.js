@@ -6,11 +6,17 @@
 export const HOME_TEMPLATE = `
   <div class="hero">
     <div class="hero-bg"></div><div class="hero-geo"></div>
+    <div class="hero-photo">
+      <img class="hero-photo-img" src="../images/champions/spring2026-1200.jpg" srcset="../images/champions/spring2026-800.jpg 800w, ../images/champions/spring2026-1200.jpg 1200w, ../images/champions/spring2026-1600.jpg 1600w, ../images/champions/spring2026-2345.jpg 2345w" sizes="(min-width: 1300px) 1300px, 100vw" width="2345" height="1623" fetchpriority="high" alt="The Spring 2026 champions with the Faraj League trophy">
+      <div class="hero-top">
+        <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
+        <div class="hero-lockup">
+          <img src="../images/logos/fall2026-city-edition.svg" id="hero-league-logo" class="hero-league-logo hero-league-logo--mark" alt="Faraj Basketball League — City Edition">
+          <div id="title-sponsor-banner"></div>
+        </div>
+      </div>
+    </div>
     <div class="hero-content">
-      <div class="hero-badge" id="hero-badge">Spring 2026 · Inaugural Season</div>
-      <img src="../images/logos/fall2026-city-edition.svg" id="hero-league-logo" class="hero-league-logo hero-league-logo--mark" alt="Faraj Basketball League — City Edition">
-      <div id="title-sponsor-banner"></div>
-      <div class="hero-divider"></div>
       <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
       <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>
       <div class="hero-champs" id="hero-champs"><span class="hero-champs-label">Reigning Champs:</span><button type="button" class="hero-champs-plaque" aria-label="The reigning champions' plaque"></button></div>

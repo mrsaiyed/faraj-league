@@ -147,7 +147,7 @@ export function renderAll(adminMode = false) {
     const titleName = sponsorName(config.SP1, '[SPONSOR 1 NAME AND LOGO]');
     const logoSrc = config.SP1_LOGO ? toAssetPath(config.SP1_LOGO) : '';
     banner.innerHTML = (titleName || logoSrc)
-      ? `<div class="title-sponsor-bar"><span class="title-sponsor-eyebrow">Presented by:</span><div class="title-sponsor-logo-wrap">${logoSrc
+      ? `<div class="title-sponsor-bar"><span class="title-sponsor-eyebrow">Presented by</span><div class="title-sponsor-logo-wrap">${logoSrc
           ? `<img src="${escapeHtmlAttr(logoSrc)}" class="title-sponsor-logo" alt="${escapeHtmlAttr(titleName)} logo">`
           : `<span class="title-sponsor-name">${escapeHtmlAttr(titleName)}</span>`}</div></div>`
       : '';
