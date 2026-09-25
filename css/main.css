@@ -455,10 +455,13 @@ footer{border-top:1px solid rgba(200,168,75,0.2);padding:1.4rem 2rem;text-align:
 /* Which logo a season shows, and so which of these applies, is lib/season-logo.js. */
 /* The original circular badge (inaugural season): exactly the look it always had. */
 .hero-league-logo--badge{width:340px;height:340px;mix-blend-mode:screen;}
-/* The City Edition mark: airy calligraphy rather than a solid disc, so it sits a
-   little smaller. Sizes are the approved mockup's: 300px, 250px on phones. */
-.hero-league-logo--mark{width:300px;max-width:82%;height:auto;margin-top:0.4rem;}
-@media(max-width:700px){.hero-league-logo--mark{width:250px;}}
+/* The City Edition mark spans the same width as the title sponsor's logo below it.
+   That logo's box is capped at 300px, 240px at 900px and under (.title-sponsor-logo),
+   and the Zabiha logo fills it less a 5% transparent margin; the mark's ink is 97% of
+   its own box. So 293px and 235px put the two edge to edge at every screen size.
+   Previously 300px, and 250px only under 700px. */
+.hero-league-logo--mark{width:293px;max-width:92%;height:auto;margin-top:0.4rem;}
+@media(max-width:900px){.hero-league-logo--mark{width:235px;}}
 /* Stacked lines: eyebrow then logo — centered on all viewports (avoids desktop row misalignment) */
 #title-sponsor-banner{display:flex;flex-direction:column;align-items:center;width:100%;margin-top:0.65rem;box-sizing:border-box;}
 .title-sponsor-bar{background:transparent;border:none;border-radius:0;padding:0;margin:0;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:center;justify-content:center;gap:0.45rem;width:100%;max-width:100%;box-sizing:border-box;}
