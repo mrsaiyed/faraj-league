@@ -380,7 +380,7 @@ function teamByName(name) {
 
 /** Resolved logo for a team name, with the site base path already applied. */
 function teamLogo(name) {
-  const hit = resolveTeamLogo(teamByName(name), name);
+  const hit = resolveTeamLogo(teamByName(name), name, config.currentSeasonSlug);
   if (!hit) return null;
   return { src: toAssetPath(hit.path), scale: hit.scale };
 }
@@ -1031,7 +1031,7 @@ export function renderPowerRankings(week) {
     const team = teamMap[entry.teamId];
     const name = team?.name || '—';
     // The team row is already in hand here, so resolve straight from it.
-    const logo = resolveTeamLogo(team, name);
+    const logo = resolveTeamLogo(team, name, config.currentSeasonSlug);
     const logoInner = logo
       ? `<img src="${escapeHtmlAttr(toAssetPath(logo.path))}" class="mc-logo-img" alt="${escapeHtmlAttr(name)}" style="transform:scale(${logoScaleCss(logo.scale)})" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials(name)}</span>`
       : initials(name);

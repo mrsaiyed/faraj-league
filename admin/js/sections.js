@@ -1323,6 +1323,7 @@ export async function attachTeamsAdminOverlays(ctx) {
     const renderMod = await importRootJs('render.js');
     const { attachEditOverlay } = await import('./edit-overlays.js');
     const { orderRosterForDisplay } = await import(new URL('../../lib/roster.js', import.meta.url).href);
+    const { resolveTeamLogo, logoScaleCss } = await import(new URL('../../lib/team-logos.js', import.meta.url).href);
 
     const teams = config.DB.teams || [];
     const rec = renderMod.calcStandings ? renderMod.calcStandings() : {};
@@ -1570,8 +1571,9 @@ export async function attachTeamsAdminOverlays(ctx) {
     /**
      * Edit one team's logo for the season being viewed. Mirrors the sponsor
      * logo field: paste a URL, or a repo-relative path like
-     * images/teams/raad.jpg. Blank removes it and the card falls back to
-     * initials (or a built-in logo, if the name still matches one).
+     * images/teams/raad.jpg. Blank removes it and the card falls back to a
+     * logo committed for this team (this season's, or a built-in one whose
+     * name still matches), else initials — the preview shows which.
      */
     function openTeamLogoModal(team) {
       const backdrop = document.createElement('div');
@@ -1607,10 +1609,14 @@ export async function attachTeamsAdminOverlays(ctx) {
       const preview = backdrop.querySelector('#tl-preview');
       const drawPreview = () => {
         const raw = urlInput.value.trim();
-        if (!raw) { preview.innerHTML = '<span style="color:#8a8580;font-size:0.8rem;">No logo — the card shows initials.</span>'; return; }
-        const scale = parseFloat(scaleInput.value) || 1.15;
-        const src = raw.startsWith('http') ? raw : `${getBasePath()}/${raw.replace(/^\//, '')}`;
-        preview.innerHTML = `<div class="team-emblem" style="flex:0 0 auto;"><img src="${escapeHtmlAttr(src)}" class="mc-logo-img" style="transform:scale(${scale})" onerror="this.style.display='none';this.parentElement.nextElementSibling.textContent='Could not load that image.'"></div><span style="color:#8a8580;font-size:0.8rem;"></span>`;
+        // Blank is not necessarily "no logo": the site may have one committed for this team.
+        const fallback = raw ? null : resolveTeamLogo(null, team.name, config.currentSeasonSlug);
+        if (!raw && !fallback) { preview.innerHTML = '<span style="color:#8a8580;font-size:0.8rem;">No logo — the card shows initials.</span>'; return; }
+        const path = raw || fallback.path;
+        const scale = raw ? (parseFloat(scaleInput.value) || 1.15) : logoScaleCss(fallback.scale);
+        const src = path.startsWith('http') ? path : `${getBasePath()}/${path.replace(/^\//, '')}`;
+        const note = raw ? '' : 'Left blank, the site uses its own logo for this team (shown). Set one here to replace it.';
+        preview.innerHTML = `<div class="team-emblem" style="flex:0 0 auto;"><img src="${escapeHtmlAttr(src)}" class="mc-logo-img" style="transform:scale(${scale})" onerror="this.style.display='none';this.parentElement.nextElementSibling.textContent='Could not load that image.'"></div><span style="color:#8a8580;font-size:0.8rem;">${note}</span>`;
       };
       drawPreview();
       urlInput.addEventListener('input', drawPreview);
