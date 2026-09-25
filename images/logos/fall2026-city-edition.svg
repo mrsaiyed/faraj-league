@@ -2,8 +2,8 @@
 <!--
   Faraj League, Fall 2026 "City Edition" mark.
 
-  Traced to a vector from the supplied artwork (fall2026-city-edition-source.png,
-  only 288x240) so it stays sharp at hero size on high-density phone screens.
+  Traced to a vector from the supplied artwork (only 288x240) so it stays sharp
+  at hero size on high-density phone screens.
 
   Recoloured for the site's dark navy, where the artwork's own blue (#015284)
   sinks into the background: a light-to-dark blue gradient, lit from above like
