@@ -2,6 +2,9 @@
  * Unit tests for the champions trophy data and layout (lib/trophy.js)
  */
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   isChampionSet, cardLines, buildChampionCards, slotForIndex, layoutCard,
   TROPHY_CAPACITY, SLOTS_PER_FACE, CARD_ASPECT, CARD_TRACKING,
@@ -149,5 +152,26 @@ describe('layoutCard', () => {
   it('centres the block vertically', () => {
     const l = layoutCard(['a', 'b', 'c'], narrow);
     expect(l.top + 3 * l.lineHeight / 2).toBeCloseTo(0.5, 6);
+  });
+});
+
+describe('the trophy on two pages', () => {
+  const html = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
+  const sections = [...html.matchAll(/<section class="trophy-scroll" id="([^"]+)"[\s\S]*?<\/section>/g)];
+
+  it('appears at the bottom of home and the top of awards', () => {
+    expect(sections.map(m => m[1])).toEqual(['home-trophy-scroll', 'trophy-scroll']);
+    const home = html.slice(html.indexOf('<div id="page-home"'), html.indexOf('<div id="page-standings"'));
+    // Last thing on the home page: nothing but the footer after it.
+    const end = home.indexOf('</section>', home.indexOf('id="home-trophy-scroll"')) + '</section>'.length;
+    expect(home.slice(end).trim()).toMatch(/^<footer>[\s\S]*<\/footer>\s*<\/div>$/);
+    // First thing on the awards page.
+    const awards = html.slice(html.indexOf('<div id="page-awards"')).replace(/^<div[^>]*>\s*/, '');
+    expect(awards.startsWith('<section class="trophy-scroll" id="trophy-scroll"')).toBe(true);
+  });
+
+  it('is the same markup in both places, apart from its id', () => {
+    const [home, awards] = sections.map(m => m[0].replace(/ id="[^"]+"/, ''));
+    expect(home).toBe(awards);
   });
 });

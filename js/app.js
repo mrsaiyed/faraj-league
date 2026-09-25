@@ -66,23 +66,45 @@ function populateSeasonDropdown(seasons, defaultSlug) {
 }
 
 /**
- * The champions trophy is WebGL and loads three.js, so it is only built the
- * first time the awards page is opened, and only once.
+ * The champions trophy appears twice — at the top of the awards page and as
+ * the last section of the home page. It is WebGL and loads three.js, so each
+ * copy is only built when it is about to be seen, once, and both share one
+ * read of the champion data.
  */
-let trophyStarted = false;
-function ensureTrophy() {
-  const section = document.getElementById('trophy-scroll');
-  if (trophyStarted || !section) return;
-  trophyStarted = true;
-  Promise.all([import('./trophy.js'), fetchChampionCards()])
+const trophiesStarted = new Set();
+let championCards = null;
+function mountTrophyIn(section) {
+  if (!section || trophiesStarted.has(section)) return;
+  trophiesStarted.add(section);
+  if (!championCards) championCards = fetchChampionCards();
+  Promise.all([import('./trophy.js'), championCards])
     .then(([mod, res]) => {
-      if (res.error) console.warn('Trophy: champion data unavailable', res.error);
+      if (res.error) {
+        console.warn('Trophy: champion data unavailable', res.error);
+        championCards = null;   // the next trophy to mount asks again
+      }
       return mod.mountTrophy(section, res.data || []);
     })
     .catch(err => {
       console.warn('Trophy failed to load', err);
-      trophyStarted = false;   // try again next time the page is opened
+      trophiesStarted.delete(section);   // try again next time it is needed
     });
+}
+
+/**
+ * The home page's trophy is its last section, and most visitors land on home
+ * without ever scrolling that far — so three.js is fetched only once the
+ * section comes within about a screen of view, not on every page load.
+ */
+function watchHomeTrophy() {
+  const section = document.getElementById('home-trophy-scroll');
+  if (!section || !('IntersectionObserver' in window)) { mountTrophyIn(section); return; }
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    io.disconnect();
+    mountTrophyIn(section);
+  }, { rootMargin: '0px 0px 900px 0px' });
+  io.observe(section);
 }
 
 function showPage(id, skipPush = false) {
@@ -91,7 +113,7 @@ function showPage(id, skipPush = false) {
   const pageEl = document.getElementById('page-' + id);
   if (!pageEl) { showPage('home', skipPush); return; }
   pageEl.classList.add('active');
-  if (id === 'awards') ensureTrophy();
+  if (id === 'awards') mountTrophyIn(document.getElementById('trophy-scroll'));
   document.querySelectorAll('.nav-tab').forEach(b => {
     if (b.getAttribute('href') === '#' + id) b.classList.add('active');
   });
@@ -435,4 +457,7 @@ window.showPage = function(id, skipPush) {
 
 initNavDrawer();
 initBoxScoreFullscreen();
-loadAll();
+// The home trophy is watched only once the page has its content: until the
+// season loads, home is short enough that its last section sits inside the
+// look-ahead margin, and three.js would load on every visit.
+loadAll().finally(watchHomeTrophy);

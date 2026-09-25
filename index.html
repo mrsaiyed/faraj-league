@@ -16,7 +16,7 @@
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/main.css?v=20260925a">
-<link rel="stylesheet" href="css/trophy.css?v=20260925a">
+<link rel="stylesheet" href="css/trophy.css?v=20260925b">
 </head>
 <body>
 <nav>
@@ -119,6 +119,24 @@
       <div class="season-awards-grid" id="home-season-awards"></div>
     </div>
   </div>
+  <section class="trophy-scroll" id="home-trophy-scroll" aria-label="Faraj League champions trophy">
+    <div class="trophy-stage">
+      <p class="trophy-eyebrow">Champions Trophy</p>
+      <div class="trophy-view">
+        <canvas class="trophy-canvas" role="img" aria-label="The Faraj League champions trophy, with a card for each champion team"></canvas>
+        <div class="trophy-loading">Loading trophy…</div>
+      </div>
+      <div class="trophy-controls">
+        <div class="trophy-cue" aria-hidden="true">Scroll</div>
+        <div class="trophy-turn">
+          <button type="button" class="trophy-arrow" data-turn="-1" aria-label="Turn the trophy to its left side"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <div class="trophy-turn-mid"><span class="trophy-face-label">Front</span><div class="trophy-dots"></div></div>
+          <button type="button" class="trophy-arrow" data-turn="1" aria-label="Turn the trophy to its right side"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <ol class="trophy-sr sr-only"></ol>
+    </div>
+  </section>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>
 

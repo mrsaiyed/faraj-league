@@ -477,16 +477,85 @@ function showFallback(section, cards) {
   view.querySelectorAll('.trophy-fallback-slot').forEach((slot, i) => slot.appendChild(cardElement(cards[i])));
 }
 
+// ---- loupe and full-screen card, shared by every trophy on the site ---------------
+
+let overlaySet = null;
+
+/**
+ * The hover loupe and the full-screen card are single elements the whole site
+ * shares: the home page and the awards page each have a trophy, only one of
+ * which is ever on screen, and two of each (plus two Escape handlers) would
+ * fight over the same keyboard and scroll lock.
+ */
+function overlays() {
+  if (overlaySet) return overlaySet;
+
+  const loupe = document.createElement('div');
+  loupe.className = 'trophy-loupe';
+  loupe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(loupe);
+  let loupeCard = null;
+  function showLoupe(card, x, y) {
+    if (loupeCard !== card) {
+      loupeCard = card;
+      loupe.replaceChildren(cardElement(card));
+    }
+    loupe.classList.add('is-open');
+    const w = loupe.offsetWidth, h = loupe.offsetHeight, m = 12;
+    let lx = x + 24, ly = y - h - 24;
+    if (lx + w > window.innerWidth - m) lx = x - w - 24;
+    if (ly < m) ly = y + 24;
+    loupe.style.transform = `translate(${Math.max(m, lx)}px, ${Math.max(m, Math.min(ly, window.innerHeight - h - m))}px)`;
+  }
+  function hideLoupe() {
+    loupe.classList.remove('is-open');
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'trophy-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.hidden = true;
+  modal.innerHTML = `<button type="button" class="trophy-modal-close" aria-label="Close">×</button>
+    <figure class="trophy-modal-body"><div class="trophy-modal-card"></div><figcaption class="trophy-modal-caption"></figcaption></figure>`;
+  document.body.appendChild(modal);
+  let lastFocus = null, hideTimer = 0;
+  function openModal(card) {
+    clearTimeout(hideTimer);   // reopened while the last close was still fading out
+    modal.querySelector('.trophy-modal-card').replaceChildren(cardElement(card));
+    modal.querySelector('.trophy-modal-caption').textContent = `${card.team} · ${card.season} Champions`;
+    modal.setAttribute('aria-label', `${card.team}, ${card.season} champions card`);
+    lastFocus = document.activeElement;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    document.documentElement.classList.add('trophy-modal-open');
+    modal.querySelector('.trophy-modal-close').focus();
+  }
+  function closeModal() {
+    if (modal.hidden) return;
+    modal.classList.remove('is-open');
+    document.documentElement.classList.remove('trophy-modal-open');
+    hideTimer = setTimeout(() => { modal.hidden = true; }, 200);
+    lastFocus?.focus?.();
+  }
+  modal.addEventListener('click', (e) => { if (e.target === modal || e.target.closest('.trophy-modal-close')) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  overlaySet = { showLoupe, hideLoupe, openModal };
+  return overlaySet;
+}
+
 // ---- mount ---------------------------------------------------------------------
 
 /**
- * @param {HTMLElement} section the `.trophy-scroll` section on the awards page
+ * @param {HTMLElement} section a `.trophy-scroll` section — the awards page's or the home page's
  * @param {Array<{ team: string, season: string, lines: string[] }>} cards oldest first
  */
 export async function mountTrophy(section, cards = []) {
   const stage = section.querySelector('.trophy-stage');
   const view = section.querySelector('.trophy-view');
   const canvas = section.querySelector('.trophy-canvas');
+  const cue = section.querySelector('.trophy-cue');
   const srList = section.querySelector('.trophy-sr');
   if (srList) srList.innerHTML = cards.map(c => `<li>${esc(c.lines.join(', '))}</li>`).join('');
 
@@ -505,6 +574,7 @@ export async function mountTrophy(section, cards = []) {
     return;
   }
 
+  const { showLoupe, hideLoupe, openModal } = overlays();
   const logo = await loadImage(`${getBasePath()}/images/trophy/plaque-logo.png`);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -543,6 +613,8 @@ export async function mountTrophy(section, cards = []) {
   const END_FOV = 30;
   let active = false, raf = 0, lastT = 0, rendered = false;
   let pre = 0;            // px of the stage still below the top of the window, before it pins
+  let cueInset = 0;       // px from the top of the controls row down to the scroll cue's text
+  let cueRoom = '';
   let pinState = '';
 
   if (reduceMotion) section.classList.add('is-static');
@@ -571,6 +643,11 @@ export async function mountTrophy(section, cards = []) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     frameDistances();
+    if (cue) {
+      const text = document.createRange();
+      text.selectNodeContents(cue);
+      cueInset = (text.getBoundingClientRect().top - cue.getBoundingClientRect().top) / zoom;
+    }
     // Under the desktop zoom, 100vh is 10% taller than the window; size the
     // stage from the real window instead so its controls stay on screen.
     const k = section.getBoundingClientRect().height / section.offsetHeight || 1;
@@ -622,11 +699,22 @@ export async function mountTrophy(section, cards = []) {
       target.z + dist * Math.sin(polar) * Math.cos(azimuth),
     );
     camera.lookAt(target);
-    // Until the stage pins, part of it is still below the window: centre the
-    // shot on the part that can be seen.
+    // Until the stage pins, part of it is still below the window — at the top
+    // of the awards page by the height of the nav, at the bottom of the home
+    // page by however much has scrolled into view. Centre the shot on the part
+    // that can be seen, but only so far that the ball stays inside the stage.
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    if (pre > 0.5 && w && h) camera.setViewOffset(w, h, 0, pre / 2, w, h);
+    const shift = Math.min(pre / 2, Math.max(0, h / 2 - 0.44 * Math.min(w, h)));
+    if (shift > 0.5 && w && h) camera.setViewOffset(w, h, 0, shift, w, h);
     else if (camera.view?.enabled) camera.clearViewOffset();
+    // The scroll cue rides up with the bottom of the window (trophy.css). While
+    // the ball still reaches down past it — as the home page's trophy scrolls
+    // up into view, with only its top half on screen — the cue would be printed
+    // across the ball, so it waits until the ball has cleared it.
+    const ballPx = (h / 2) * Math.tan(Math.asin(DIM.ballR / dist)) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const clearance = (h / 2 + shift - ballPx) - pre + cueInset;
+    const room = clamp01((clearance + 4) / 12).toFixed(2);
+    if (room !== cueRoom) { cueRoom = room; stage.style.setProperty('--cue-room', room); }
   }
 
   const upright = () => progress > 0.985;
@@ -757,58 +845,6 @@ export async function mountTrophy(section, cards = []) {
     if (card) { hideLoupe(); openModal(card); }
   });
   canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { hideLoupe(); canvas.classList.remove('is-over-card'); } });
-
-  // ---- loupe (mouse hover)
-  const loupe = document.createElement('div');
-  loupe.className = 'trophy-loupe';
-  loupe.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(loupe);
-  let loupeCard = null;
-  function showLoupe(card, x, y) {
-    if (loupeCard !== card) {
-      loupeCard = card;
-      loupe.replaceChildren(cardElement(card));
-    }
-    loupe.classList.add('is-open');
-    const w = loupe.offsetWidth, h = loupe.offsetHeight, m = 12;
-    let lx = x + 24, ly = y - h - 24;
-    if (lx + w > window.innerWidth - m) lx = x - w - 24;
-    if (ly < m) ly = y + 24;
-    loupe.style.transform = `translate(${Math.max(m, lx)}px, ${Math.max(m, Math.min(ly, window.innerHeight - h - m))}px)`;
-  }
-  function hideLoupe() {
-    loupe.classList.remove('is-open');
-  }
-
-  // ---- full-screen card (tap, click)
-  const modal = document.createElement('div');
-  modal.className = 'trophy-modal';
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.hidden = true;
-  modal.innerHTML = `<button type="button" class="trophy-modal-close" aria-label="Close">×</button>
-    <figure class="trophy-modal-body"><div class="trophy-modal-card"></div><figcaption class="trophy-modal-caption"></figcaption></figure>`;
-  document.body.appendChild(modal);
-  let lastFocus = null;
-  function openModal(card) {
-    modal.querySelector('.trophy-modal-card').replaceChildren(cardElement(card));
-    modal.querySelector('.trophy-modal-caption').textContent = `${card.team} · ${card.season} Champions`;
-    modal.setAttribute('aria-label', `${card.team}, ${card.season} champions card`);
-    lastFocus = document.activeElement;
-    modal.hidden = false;
-    requestAnimationFrame(() => modal.classList.add('is-open'));
-    document.documentElement.classList.add('trophy-modal-open');
-    modal.querySelector('.trophy-modal-close').focus();
-  }
-  function closeModal() {
-    if (modal.hidden) return;
-    modal.classList.remove('is-open');
-    document.documentElement.classList.remove('trophy-modal-open');
-    setTimeout(() => { modal.hidden = true; }, 200);
-    lastFocus?.focus?.();
-  }
-  modal.addEventListener('click', (e) => { if (e.target === modal || e.target.closest('.trophy-modal-close')) closeModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
   // First frame now; the observer takes over deciding when to draw.
   resize();
