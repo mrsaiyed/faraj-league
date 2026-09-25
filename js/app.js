@@ -3,7 +3,7 @@
  */
 
 import { config } from './config.js';
-import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides } from './data.js';
+import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides, fetchChampionCards } from './data.js';
 import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
 import { liveFingerprint, scoresFingerprint, shouldRepaint, SCORE_POLL_MS, FULL_POLL_MS } from '../lib/live-sync.js';
 import { statusLine, isInProgress } from '../lib/game-clock.js';
@@ -65,12 +65,33 @@ function populateSeasonDropdown(seasons, defaultSlug) {
   });
 }
 
+/**
+ * The champions trophy is WebGL and loads three.js, so it is only built the
+ * first time the awards page is opened, and only once.
+ */
+let trophyStarted = false;
+function ensureTrophy() {
+  const section = document.getElementById('trophy-scroll');
+  if (trophyStarted || !section) return;
+  trophyStarted = true;
+  Promise.all([import('./trophy.js'), fetchChampionCards()])
+    .then(([mod, res]) => {
+      if (res.error) console.warn('Trophy: champion data unavailable', res.error);
+      return mod.mountTrophy(section, res.data || []);
+    })
+    .catch(err => {
+      console.warn('Trophy failed to load', err);
+      trophyStarted = false;   // try again next time the page is opened
+    });
+}
+
 function showPage(id, skipPush = false) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   const pageEl = document.getElementById('page-' + id);
   if (!pageEl) { showPage('home', skipPush); return; }
   pageEl.classList.add('active');
+  if (id === 'awards') ensureTrophy();
   document.querySelectorAll('.nav-tab').forEach(b => {
     if (b.getAttribute('href') === '#' + id) b.classList.add('active');
   });

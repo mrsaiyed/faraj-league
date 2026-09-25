@@ -3,7 +3,7 @@
  * Uses a stub Supabase client so no network or DB is involved.
  */
 import { describe, it, expect } from 'vitest';
-import { getSeasonData } from '../lib/api.js';
+import { getSeasonData, getChampionData } from '../lib/api.js';
 
 /**
  * Minimal stand-in for the Supabase query builder: records the filters applied
@@ -139,5 +139,53 @@ describe('getSeasonData', () => {
     const { data, error } = await getSeasonData(makeSupabase(fixture()), 'winter2030');
     expect(data).toBe(null);
     expect(error).toBeTruthy();
+  });
+});
+
+describe('getChampionData — the trophy spans every season', () => {
+  const tables = () => ({
+    seasons: [
+      { id: 's1', label: 'Spring 2026', created_at: '2026-01-01' },
+      { id: 's2', label: 'Fall 2026', created_at: '2026-08-01' },
+    ],
+    awards: [
+      { season_id: 's1', week: 9, champ: 'Jaysh' },
+      { season_id: 's1', week: 3, champ: null },
+      { season_id: 's2', week: 1, champ: 'Fall 2026 — In Progress' },
+    ],
+    teams: [
+      { id: 't1', season_id: 's1', name: 'Jaysh', captain: 'Saif Ghori' },
+      { id: 't2', season_id: 's1', name: 'Other', captain: 'X' },
+      { id: 't3', season_id: 's2', name: 'Jaysh', captain: 'Y' },
+    ],
+    rosters: [
+      { team_id: 't1', player_id: 'p1', sort_order: 0 },
+      { team_id: 't2', player_id: 'p2', sort_order: 0 },
+    ],
+    players: [{ id: 'p1', name: 'Saif Ghori' }, { id: 'p2', name: 'Not A Champion' }],
+  });
+
+  it('reads past seasons, not just the one being shown', async () => {
+    const calls = [];
+    const { data, error } = await getChampionData(makeSupabase(tables(), calls));
+    expect(error).toBeNull();
+    expect(calls.find(c => c.table === 'awards').eq).toEqual({});
+    expect(data.teams.map(t => t.id)).toEqual(['t1']);
+  });
+
+  it('fetches rosters and players for the champion team only', async () => {
+    const calls = [];
+    const { data } = await getChampionData(makeSupabase(tables(), calls));
+    expect(calls.find(c => c.table === 'rosters').in.team_id).toEqual(['t1']);
+    expect(data.players.map(p => p.name)).toEqual(['Saif Ghori']);
+  });
+
+  it('stops early when no season has a champion', async () => {
+    const t = tables();
+    t.awards = [{ season_id: 's1', week: 1, champ: null }];
+    const calls = [];
+    const { data } = await getChampionData(makeSupabase(t, calls));
+    expect(data.teams).toEqual([]);
+    expect(calls.map(c => c.table).sort()).toEqual(['awards', 'seasons']);
   });
 });

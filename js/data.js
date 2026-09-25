@@ -3,7 +3,8 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-import { getSeasons, getSeasonData, getGameScores } from '../lib/api.js';
+import { getSeasons, getSeasonData, getGameScores, getChampionData } from '../lib/api.js';
+import { buildChampionCards } from '../lib/trophy.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
 import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
@@ -192,6 +193,16 @@ export async function fetchSeasons() {
   const { data, error } = await getSeasons(supabase);
   if (error) return { data: null, error };
   return { data: data || [], error: null };
+}
+
+/**
+ * Champion cards for the awards-page trophy, every season, oldest first.
+ * @returns {Promise<{ data: object[] | null, error: object | null }>}
+ */
+export async function fetchChampionCards() {
+  const { data, error } = await getChampionData(supabase);
+  if (error || !data) return { data: null, error: error || new Error('No champion data') };
+  return { data: buildChampionCards(data), error: null };
 }
 
 export async function fetchSeasonData(slug) {
