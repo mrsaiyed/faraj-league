@@ -3,12 +3,13 @@
  */
 
 import { config } from './config.js';
-import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides, fetchChampionCards } from './data.js';
+import { fetchSeasons, fetchSeasonData, fetchGameScores, deriveWeeks, applySponsorOverrides, getChampionCards, loadReigningChampion } from './data.js';
 import { sortSeasons, activeSeasonSlug } from '../lib/seasons.js';
 import { liveFingerprint, scoresFingerprint, shouldRepaint, SCORE_POLL_MS, FULL_POLL_MS } from '../lib/live-sync.js';
 import { statusLine, isInProgress } from '../lib/game-clock.js';
 import {
   renderAll,
+  renderHeroChamps,
   renderSchedule,
   renderScores,
   renderAwards,
@@ -68,21 +69,16 @@ function populateSeasonDropdown(seasons, defaultSlug) {
 /**
  * The champions trophy appears twice — at the top of the awards page and as
  * the last section of the home page. It is WebGL and loads three.js, so each
- * copy is only built when it is about to be seen, once, and both share one
- * read of the champion data.
+ * copy is only built when it is about to be seen, once; both, and the hero's
+ * plaque, share one read of the champion data (getChampionCards).
  */
 const trophiesStarted = new Set();
-let championCards = null;
 function mountTrophyIn(section) {
   if (!section || trophiesStarted.has(section)) return;
   trophiesStarted.add(section);
-  if (!championCards) championCards = fetchChampionCards();
-  Promise.all([import('./trophy.js'), championCards])
+  Promise.all([import('./trophy.js'), getChampionCards()])
     .then(([mod, res]) => {
-      if (res.error) {
-        console.warn('Trophy: champion data unavailable', res.error);
-        championCards = null;   // the next trophy to mount asks again
-      }
+      if (res.error) console.warn('Trophy: champion data unavailable', res.error);
       return mod.mountTrophy(section, res.data || []);
     })
     .catch(err => {
@@ -457,6 +453,9 @@ window.showPage = function(id, skipPush) {
 
 initNavDrawer();
 initBoxScoreFullscreen();
+// The hero's "Reigning Champs" plaque. It does not depend on the season being
+// viewed, so it loads alongside the season rather than after it.
+loadReigningChampion().then(renderHeroChamps);
 // The home trophy is watched only once the page has its content: until the
 // season loads, home is short enough that its last section sits inside the
 // look-ahead margin, and three.js would load on every visit.

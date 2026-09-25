@@ -13,7 +13,7 @@ export const HOME_TEMPLATE = `
       <div class="hero-divider"></div>
       <p class="hero-hadith-ar">أفْضَلُ العِبادةِ انتِظارُ الفَرَجْ</p>
       <p class="hero-hadith-en">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</p>
-      <p class="season-tag" id="season-tag">6 Teams · 42 Players · Ages 17–30</p>
+      <div class="hero-champs" id="hero-champs"><span class="hero-champs-label">Reigning Champs:</span><button type="button" class="hero-champs-plaque" aria-label="The reigning champions' plaque"></button></div>
     </div>
   </div>
   <div class="historic-banner" id="historic-banner" style="display:none;">

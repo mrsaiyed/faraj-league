@@ -1,5 +1,5 @@
 /**
- * The champions trophy at the top of the awards page.
+ * The champions trophy: the top of the awards page and the end of the home page.
  *
  * Scrolling drives a camera move from a bird's-eye view of the ball down to
  * the trophy standing upright. Once upright it turns by dragging or with the
@@ -7,23 +7,21 @@
  * on a tap or click.
  *
  * Built with three.js, imported from esm.sh (where the site already gets
- * Supabase) only when the awards page is first opened, so no other page pays
- * for it. Without WebGL2, or when three.js cannot load, the cards are shown
+ * Supabase) only when a trophy is about to be seen, so a visit that never
+ * reaches one never pays for it. Without WebGL2, or when three.js cannot load, the cards are shown
  * as a plain list instead; with reduced motion the trophy starts upright.
  *
- * What goes on the trophy and where is lib/trophy.js; this file is the DOM
- * and the 3D.
+ * What goes on the trophy and where is lib/trophy.js; the HTML card and the
+ * loupe and full-screen view it opens in are js/champion-card.js, which the
+ * home hero's plaque shares without loading any of this; this file is the 3D.
  */
 import { slotForIndex, layoutCard, CARD_ASPECT, CARD_TRACKING, SLOT_COLUMNS, SLOT_ROWS } from '../lib/trophy.js';
 import { getBasePath } from './config.js';
+import { CARD_FONT, loadCardFont, measureCard, cardElement, overlays } from './champion-card.js';
 
 // One import, deliberately: three.js's add-ons import 'three' themselves, and
 // if a CDN ever resolved that differently the page would run two copies.
 const THREE_URL = 'https://esm.sh/three@0.186.1';
-const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Jost:wght@500&display=swap';
-
-// The engraving on the real trophy is Futura; Jost is its closest free twin.
-export const CARD_FONT = '"Jost", "Futura", "Century Gothic", "Avenir Next", sans-serif';
 const INK = '#1a1309';
 const INK_ORM = 'rgb(0,150,255)';   // occluded, fairly rough, metal
 
@@ -56,49 +54,6 @@ function mulberry32(seed) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-// ---- fonts and card layout --------------------------------------------------
-
-export async function loadCardFont() {
-  const timeout = (ms) => new Promise(r => setTimeout(r, ms));
-  // Textures are drawn once, so the real face has to be there first — but a
-  // slow font must never hang the trophy; the fallbacks are close enough.
-  try {
-    let link = document.querySelector(`link[href="${FONT_CSS}"]`);
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = FONT_CSS;
-      const loaded = new Promise(r => { link.onload = r; link.onerror = r; });
-      document.head.appendChild(link);
-      // Until the stylesheet has arrived there is no @font-face for Jost, and
-      // fonts.load() would resolve at once with nothing — the plates would be
-      // engraved in the fallback font while the HTML card, which re-renders
-      // when a font arrives, looked right.
-      await Promise.race([loaded, timeout(3000)]);
-    }
-    await Promise.race([document.fonts.load('500 64px "Jost"'), timeout(3000)]);
-  } catch (_) { /* fall back silently */ }
-}
-
-let measureCtx = null;
-/** Width of `text` at a font size of 1, in the card font. */
-function measureCard(text) {
-  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
-  measureCtx.font = `500 100px ${CARD_FONT}`;
-  return measureCtx.measureText(text).width / 100;
-}
-
-/** The enlarged HTML card: same lines, same layout maths as the 3D plate. */
-function cardElement(card) {
-  const l = layoutCard(card.lines, measureCard);
-  const el = document.createElement('div');
-  el.className = 'trophy-card';
-  el.style.setProperty('--fs', l.fontSize.toFixed(4));
-  el.style.setProperty('--lh', l.lineHeight.toFixed(4));
-  el.innerHTML = card.lines.map(t => `<span>${esc(t)}</span>`).join('');
-  return el;
 }
 
 // ---- textures ----------------------------------------------------------------
@@ -475,74 +430,6 @@ function showFallback(section, cards) {
     ? `<div class="trophy-fallback">${cards.map(() => '<div class="trophy-fallback-slot"></div>').join('')}</div>`
     : '<p class="trophy-empty">The first champions are still to be crowned.</p>';
   view.querySelectorAll('.trophy-fallback-slot').forEach((slot, i) => slot.appendChild(cardElement(cards[i])));
-}
-
-// ---- loupe and full-screen card, shared by every trophy on the site ---------------
-
-let overlaySet = null;
-
-/**
- * The hover loupe and the full-screen card are single elements the whole site
- * shares: the home page and the awards page each have a trophy, only one of
- * which is ever on screen, and two of each (plus two Escape handlers) would
- * fight over the same keyboard and scroll lock.
- */
-function overlays() {
-  if (overlaySet) return overlaySet;
-
-  const loupe = document.createElement('div');
-  loupe.className = 'trophy-loupe';
-  loupe.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(loupe);
-  let loupeCard = null;
-  function showLoupe(card, x, y) {
-    if (loupeCard !== card) {
-      loupeCard = card;
-      loupe.replaceChildren(cardElement(card));
-    }
-    loupe.classList.add('is-open');
-    const w = loupe.offsetWidth, h = loupe.offsetHeight, m = 12;
-    let lx = x + 24, ly = y - h - 24;
-    if (lx + w > window.innerWidth - m) lx = x - w - 24;
-    if (ly < m) ly = y + 24;
-    loupe.style.transform = `translate(${Math.max(m, lx)}px, ${Math.max(m, Math.min(ly, window.innerHeight - h - m))}px)`;
-  }
-  function hideLoupe() {
-    loupe.classList.remove('is-open');
-  }
-
-  const modal = document.createElement('div');
-  modal.className = 'trophy-modal';
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.hidden = true;
-  modal.innerHTML = `<button type="button" class="trophy-modal-close" aria-label="Close">×</button>
-    <figure class="trophy-modal-body"><div class="trophy-modal-card"></div><figcaption class="trophy-modal-caption"></figcaption></figure>`;
-  document.body.appendChild(modal);
-  let lastFocus = null, hideTimer = 0;
-  function openModal(card) {
-    clearTimeout(hideTimer);   // reopened while the last close was still fading out
-    modal.querySelector('.trophy-modal-card').replaceChildren(cardElement(card));
-    modal.querySelector('.trophy-modal-caption').textContent = `${card.team} · ${card.season} Champions`;
-    modal.setAttribute('aria-label', `${card.team}, ${card.season} champions card`);
-    lastFocus = document.activeElement;
-    modal.hidden = false;
-    requestAnimationFrame(() => modal.classList.add('is-open'));
-    document.documentElement.classList.add('trophy-modal-open');
-    modal.querySelector('.trophy-modal-close').focus();
-  }
-  function closeModal() {
-    if (modal.hidden) return;
-    modal.classList.remove('is-open');
-    document.documentElement.classList.remove('trophy-modal-open');
-    hideTimer = setTimeout(() => { modal.hidden = true; }, 200);
-    lastFocus?.focus?.();
-  }
-  modal.addEventListener('click', (e) => { if (e.target === modal || e.target.closest('.trophy-modal-close')) closeModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-
-  overlaySet = { showLoupe, hideLoupe, openModal };
-  return overlaySet;
 }
 
 // ---- mount ---------------------------------------------------------------------

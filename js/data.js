@@ -4,10 +4,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { getSeasons, getSeasonData, getGameScores, getChampionData } from '../lib/api.js';
-import { buildChampionCards } from '../lib/trophy.js';
+import { buildChampionCards, reigningChampion } from '../lib/trophy.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
 import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
+import { loadCardFont } from './champion-card.js';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
@@ -196,13 +197,43 @@ export async function fetchSeasons() {
 }
 
 /**
- * Champion cards for the awards-page trophy, every season, oldest first.
+ * Champion cards, every season, oldest first.
  * @returns {Promise<{ data: object[] | null, error: object | null }>}
  */
 export async function fetchChampionCards() {
   const { data, error } = await getChampionData(supabase);
   if (error || !data) return { data: null, error: error || new Error('No champion data') };
   return { data: buildChampionCards(data), error: null };
+}
+
+let championCards = null;
+/**
+ * The champion cards, read once for the whole page: the home hero's plaque and
+ * both trophies show them. A failed read is not kept, so the next caller asks
+ * again.
+ * @returns {Promise<{ data: object[] | null, error: object | null }>}
+ */
+export function getChampionCards() {
+  if (!championCards) {
+    championCards = fetchChampionCards()
+      .catch(error => ({ data: null, error }))
+      .then(res => {
+        if (res.error) championCards = null;
+        return res;
+      });
+  }
+  return championCards;
+}
+
+/**
+ * Put the reigning champions — the newest season's card — on
+ * `config.reigningChampion` for the hero plaque: the card, or null when no
+ * season has one or it could not be read. Waits for the card font as well, so
+ * the plaque is laid out in the face it is drawn in.
+ */
+export async function loadReigningChampion() {
+  const [res] = await Promise.all([getChampionCards(), loadCardFont()]);
+  config.reigningChampion = reigningChampion(res.data || []);
 }
 
 export async function fetchSeasonData(slug) {

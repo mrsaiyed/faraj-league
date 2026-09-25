@@ -11,6 +11,7 @@ import { orderRosterForDisplay } from '../lib/roster.js';
 import { sponsorName } from '../lib/sponsors.js';
 import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.js';
 import { seasonLogo } from '../lib/season-logo.js';
+import { cardElement, overlays } from './champion-card.js';
 
 let activeTeam = null;
 
@@ -74,6 +75,32 @@ function buildScheduleTeamFilter() {
   (config.DB.teams || []).forEach(t => { el.innerHTML += `<option value="${t.name}">${t.name}</option>`; });
 }
 
+/**
+ * The hero's "Reigning Champs" row: the newest champions' plaque, small, which
+ * opens full screen on a click or tap. `config.reigningChampion` is filled by
+ * loadReigningChampion() (js/data.js) — undefined while it loads, when the row
+ * keeps its space but shows nothing; null when no season has a champion yet,
+ * when the row goes. Called from renderAll, which runs on every live poll, so
+ * it repaints only when the champion actually changes.
+ */
+export function renderHeroChamps() {
+  const row = document.getElementById('hero-champs');
+  const card = config.reigningChampion;
+  if (!row || card === undefined) return;
+  if (!card) { row.hidden = true; return; }
+  const key = `${card.season}\n${card.lines.join('\n')}`;
+  if (row.dataset.card === key) return;
+  row.dataset.card = key;
+  const plaque = row.querySelector('.hero-champs-plaque');
+  const el = cardElement(card);
+  el.setAttribute('aria-hidden', 'true');
+  plaque.replaceChildren(el);
+  plaque.setAttribute('aria-label', `${card.team}, ${card.season} champions. Open their plaque.`);
+  plaque.onclick = () => overlays().openModal(card);
+  row.hidden = false;
+  row.classList.add('is-ready');
+}
+
 export function renderAll(adminMode = false) {
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const conferences = getConferences();
@@ -111,17 +138,7 @@ export function renderAll(adminMode = false) {
     heroLogo.className = `hero-league-logo hero-league-logo--${logo.variant}`;
     heroLogo.alt = logo.alt;
   }
-  const seasonTag = document.getElementById('season-tag');
-  if (seasonTag) {
-    if (config.DB.contentBlocks?.season_tag != null) {
-      seasonTag.textContent = config.DB.contentBlocks.season_tag;
-    } else {
-      const confIds = new Set(conferences.map(c => c.id || c.name));
-      const teamsCount = (config.DB.teams || []).filter(t => confIds.has(t.conf)).length || 6;
-      const playersCount = (config.DB.teams || []).reduce((n, t) => n + (t.roster?.length || 0), 0) ?? 0;
-      seasonTag.textContent = `${teamsCount} Teams · ${playersCount} Players · Ages 17–30`;
-    }
-  }
+  renderHeroChamps();
 
   const banner = document.getElementById('title-sponsor-banner');
   if (banner) {

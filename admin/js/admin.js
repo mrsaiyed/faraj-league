@@ -5,10 +5,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { config } from '../../js/config.js';
-import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides } from '../../js/data.js';
+import { fetchSeasons, fetchSeasonData, deriveWeeks, applySponsorOverrides, loadReigningChampion } from '../../js/data.js';
 import { sortSeasons, activeSeasonSlug } from '../../lib/seasons.js';
 import {
   renderAll,
+  renderHeroChamps,
   renderSchedule,
   renderScores,
   renderAwards,
@@ -314,19 +315,6 @@ async function initAdminOverlays() {
       key: 'hero_badge',
       getValue: () => heroBadge.textContent || '',
       saveFn: (val) => saveContent('hero_badge', val),
-      contentType: 'text',
-      onSaved: updateContentAndRender,
-    });
-  }
-
-  const seasonTag = document.getElementById('season-tag');
-  if (seasonTag && !seasonTag.dataset.adminOverlayAttached) {
-    seasonTag.dataset.adminOverlayAttached = '1';
-    attachEditOverlay({
-      element: seasonTag,
-      key: 'season_tag',
-      getValue: () => seasonTag.textContent || '',
-      saveFn: (val) => saveContent('season_tag', val),
       contentType: 'text',
       onSaved: updateContentAndRender,
     });
@@ -771,6 +759,9 @@ async function initAdminOverlays() {
 
 async function setupDashboard() {
   const defaultSlug = await populateAdminSeasonSelect();
+  // The hero's "Reigning Champs" plaque, as on the public site; renderAll
+  // repaints it from config on every later render.
+  loadReigningChampion().then(renderHeroChamps);
 
   const sel = document.getElementById('admin-season-select');
   if (sel) sel.onchange = () => adminChangeSeason(sel.value);

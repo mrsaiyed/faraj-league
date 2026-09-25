@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  isChampionSet, cardLines, buildChampionCards, slotForIndex, layoutCard,
+  isChampionSet, cardLines, buildChampionCards, slotForIndex, layoutCard, reigningChampion,
   TROPHY_CAPACITY, SLOTS_PER_FACE, CARD_ASPECT, CARD_TRACKING,
 } from '../lib/trophy.js';
 
@@ -173,5 +173,52 @@ describe('the trophy on two pages', () => {
   it('is the same markup in both places, apart from its id', () => {
     const [home, awards] = sections.map(m => m[0].replace(/ id="[^"]+"/, ''));
     expect(home).toBe(awards);
+  });
+});
+
+describe('reigningChampion', () => {
+  it("is the newest season's card", () => {
+    const cards = [{ team: 'Jaysh', season: 'Spring 2026' }, { team: 'Nasr', season: 'Fall 2026' }];
+    expect(reigningChampion(cards)).toBe(cards[1]);
+  });
+
+  it('is null until some season has a champion', () => {
+    expect(reigningChampion([])).toBe(null);
+    expect(reigningChampion(null)).toBe(null);
+    expect(reigningChampion(undefined)).toBe(null);
+  });
+
+  it('follows buildChampionCards, which returns the oldest season first', () => {
+    const cards = buildChampionCards({
+      seasons: [
+        { id: 'f', label: 'Fall 2026', created_at: '2026-08-01' },
+        { id: 's', label: 'Spring 2026', created_at: '2026-01-01' },
+      ],
+      awards: [{ season_id: 's', week: 8, champ: 'Jaysh' }, { season_id: 'f', week: 9, champ: 'Nasr' }],
+      teams: [{ id: 't1', season_id: 's', name: 'Jaysh' }, { id: 't2', season_id: 'f', name: 'Nasr' }],
+    });
+    expect(reigningChampion(cards).team).toBe('Nasr');
+  });
+});
+
+describe('the reigning champs row in the hero', () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const copies = ['index.html', 'admin/index.html', 'admin/js/page-templates.js']
+    .map(f => [f, fs.readFileSync(path.join(root, f), 'utf8')]);
+
+  it('replaces the season tag in every copy of the hero', () => {
+    for (const [file, src] of copies) {
+      expect(src, file).not.toMatch(/id="season-tag"/);
+      expect(src, file).toMatch(/<div class="hero-champs" id="hero-champs">/);
+    }
+  });
+
+  it('is the same markup in all three, and sits where the season tag was', () => {
+    const rows = copies.map(([, src]) => src.match(/<div class="hero-champs" id="hero-champs">[\s\S]*?<\/button><\/div>/)[0]);
+    expect(new Set(rows).size).toBe(1);
+    for (const [file, src] of copies) {
+      // Straight after the English hadith, the last line of the hero.
+      expect(src, file).toMatch(/class="hero-hadith-en">[^<]*<\/p>\s*<div class="hero-champs"/);
+    }
   });
 });

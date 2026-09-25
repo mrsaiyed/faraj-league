@@ -268,7 +268,6 @@ export async function renderHome(content, ctx) {
   renderAll();
 
   const heroBadge = content.querySelector('#hero-badge');
-  const seasonTag = content.querySelector('#season-tag');
   const saveContent = (key, value) => adminFetch('admin-content', {
     method: 'POST',
     body: JSON.stringify([{ key, value, season_id: seasonId }]),
@@ -280,16 +279,6 @@ export async function renderHome(content, ctx) {
       key: 'hero_badge',
       getValue: () => heroBadge.textContent || '',
       saveFn: (val) => saveContent('hero_badge', val),
-      contentType: 'text',
-      onSaved: () => { renderAll(); },
-    });
-  }
-  if (seasonTag) {
-    attachEditOverlay({
-      element: seasonTag,
-      key: 'season_tag',
-      getValue: () => seasonTag.textContent || '',
-      saveFn: (val) => saveContent('season_tag', val),
       contentType: 'text',
       onSaved: () => { renderAll(); },
     });
