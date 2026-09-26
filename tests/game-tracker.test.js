@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
-  changedStatValues, bonusLevel, bonusLabel, bonusFor, periodLabel,
+  changedStatValues, bonusLevel, bonusLabel, bonusFor, periodLabel, rewindClock,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS, PERIOD_OPTIONS, MAX_PERIOD,
 } from '../lib/game-tracker.js';
 
@@ -413,6 +413,81 @@ describe('minutes played', () => {
     const s = all([start, score('a', 2)]);
     const rows = toStatValues(s.players, [{ id: 'd-pts', slug: 'points' }, { id: 'd-min', slug: 'minutes' }]);
     expect(rows.some(r => r.stat_definition_id === 'd-min')).toBe(false);
+  });
+});
+
+describe('setting the clock back takes the minutes back', () => {
+  const five = ['a', 'b', 'c', 'd', 'e'];
+  const start = { ...lineup('H', five), elapsed: 0, period: 1, clock: 1200 };
+  const sub = (playerInId, playerOutId, elapsed, clock) => ({ type: 'sub', teamId: 'H', playerInId, playerOutId, elapsed, period: 1, clock });
+  // What the tracker does: rewind, then read minutes at the new elapsed count.
+  const rewind = (events, elapsed, seconds, clock, period = 1) => {
+    const periodStart = all(events).periodStartElapsed;
+    return rewindClock(events, { elapsed, seconds, periodStart, clock, period });
+  };
+
+  it('takes the seconds put back off everyone on the floor', () => {
+    // The clock ran 3:00 through a stoppage (20:00 to 10:00 when it should read 13:00).
+    const r = rewind([start], 600, 180, 780);
+    expect(r).toMatchObject({ elapsed: 420, rewound: 180 });
+    expect(livePlayerSeconds(all(r.events), 'a', r.elapsed)).toBe(420);
+  });
+
+  it('gives a player subbed on during the stretch none of it, and stops one subbed off at the new time', () => {
+    // Clock left running from elapsed 420; the sub came at 500; set back to 420 at 600.
+    const r = rewind([start, sub('z', 'c', 500, 700)], 600, 180, 780);
+    const s = all(r.events);
+    expect(livePlayerSeconds(s, 'c', r.elapsed)).toBe(420);
+    expect(livePlayerSeconds(s, 'z', r.elapsed)).toBe(0);
+    // And once the clock runs again, the substitute's time counts from there.
+    expect(livePlayerSeconds(s, 'z', r.elapsed + 60)).toBe(60);
+    expect(livePlayerSeconds(s, 'c', r.elapsed + 60)).toBe(420);
+  });
+
+  it('leaves time before the stretch alone', () => {
+    const r = rewind([start, sub('z', 'c', 100, 1100)], 600, 180, 780);
+    expect(livePlayerSeconds(all(r.events), 'c', r.elapsed)).toBe(100);
+    expect(livePlayerSeconds(all(r.events), 'z', r.elapsed)).toBe(320);
+  });
+
+  it('moves what was recorded in the stretch to the corrected clock, without dropping it', () => {
+    const basket = { ...score('a', 2), elapsed: 550, period: 1, clock: 650 };
+    const r = rewind([start, basket], 600, 180, 780);
+    expect(r.events[1]).toMatchObject({ type: 'score', playerId: 'a', points: 2, elapsed: 420, clock: 780 });
+    expect(all(r.events).players.a.pts).toBe(2);
+    expect(r.events[0]).toBe(start);
+  });
+
+  it('never reaches back into the previous period', () => {
+    // H2 began at elapsed 1200; 60 seconds into it the clock is set back 5 minutes.
+    const h2 = { type: 'period', period: 2, elapsed: 1200, clock: 1200 };
+    const r = rewind([start, h2], 1260, 300, 1200 + 240, 2);
+    expect(r).toMatchObject({ elapsed: 1200, rewound: 60 });
+    expect(livePlayerSeconds(all(r.events), 'a', r.elapsed)).toBe(1200);
+  });
+
+  it('does nothing when the clock is set forward, or before it has run', () => {
+    expect(rewind([start], 600, 0, 600)).toMatchObject({ elapsed: 600, rewound: 0 });
+    expect(rewind([start], 600, -120, 480)).toMatchObject({ elapsed: 600, rewound: 0 });
+    expect(rewind([start], 0, 120, 1320)).toMatchObject({ elapsed: 0, rewound: 0 });
+  });
+
+  it('adds up when the clock is set back twice', () => {
+    const first = rewind([start, sub('z', 'c', 500, 700)], 600, 180, 780);
+    // The clock runs another minute, then is set back 30 seconds more.
+    const second = rewind(first.events, first.elapsed + 60, 30, 750);
+    const s = all(second.events);
+    expect(second.elapsed).toBe(450);
+    expect(livePlayerSeconds(s, 'a', second.elapsed)).toBe(450);
+    expect(livePlayerSeconds(s, 'c', second.elapsed)).toBe(420);
+    expect(livePlayerSeconds(s, 'z', second.elapsed)).toBe(30);
+  });
+
+  it('leaves the log it was given untouched', () => {
+    const events = [start, sub('z', 'c', 500, 700)];
+    const copy = JSON.parse(JSON.stringify(events));
+    rewind(events, 600, 180, 780);
+    expect(events).toEqual(copy);
   });
 });
 

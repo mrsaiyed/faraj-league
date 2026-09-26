@@ -30,7 +30,8 @@ Deno.serve(async (req) => {
       const { name, jersey_number, team_id } = body;
       await supabase.from('players').update({
         ...(name != null && { name }),
-        ...(jersey_number != null && { jersey_number }),
+        // Sent as null to clear a number; left out entirely to keep it.
+        ...(jersey_number !== undefined && { jersey_number }),
       }).eq('id', body.id);
 
       if (team_id !== undefined) {

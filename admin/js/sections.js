@@ -427,6 +427,17 @@ function escapeHtmlAttr(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * A jersey number typed into the admin: null when left blank, NaN when it is not
+ * a whole number from 0 to 99. `parseInt(...) || null` used to turn #0 into "none".
+ */
+function jerseyValue(raw) {
+  const text = String(raw ?? '').trim();
+  if (text === '') return null;
+  const n = Number(text);
+  return Number.isInteger(n) && n >= 0 && n <= 99 ? n : NaN;
+}
+
 export async function renderPlayers(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -468,15 +479,26 @@ export async function renderPlayers(content, ctx) {
     </div>
   `;
   const tbody = document.getElementById('players-tbody');
-  tbody.innerHTML = (players || []).map(p => `
-    <tr><td>${escapeHtml(p.name)}</td><td>${p.jersey_number ?? '—'}</td><td>${escapeHtml(teamMap[rosterMap[p.id]] || '—')}</td>
+  // Grouped by team, so a roster's numbers can be typed straight down the list.
+  const teamName = (p) => teamMap[rosterMap[p.id]] || '';
+  const listed = [...(players || [])].sort((a, b) =>
+    (!teamName(a)) - (!teamName(b)) || teamName(a).localeCompare(teamName(b)) || String(a.name).localeCompare(String(b.name)));
+  tbody.innerHTML = listed.map(p => `
+    <tr><td>${escapeHtml(p.name)}</td>
+    <td><input type="number" class="pl-jersey" data-id="${p.id}" data-name="${escapeHtml(p.name)}" value="${p.jersey_number ?? ''}"
+      min="0" max="99" step="1" inputmode="numeric" placeholder="—" aria-label="Jersey number for ${escapeHtml(p.name)}"
+      style="width:4.2rem;padding:0.3rem;background:#2a2a2a;border:1px solid #444;color:#e8e4e0;"></td>
+    <td>${escapeHtml(teamMap[rosterMap[p.id]] || '—')}</td>
     <td><button data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-jersey="${p.jersey_number ?? ''}" data-team="${rosterMap[p.id] || ''}" class="pl-edit">Edit</button>
     <button data-id="${p.id}" data-name="${escapeHtml(p.name)}" class="pl-del">Delete</button></td></tr>
   `).join('') || '<tr><td colspan="4">No players yet.</td></tr>';
 
   const wrap = document.getElementById('players-form-wrap');
+  /** The team the player being edited is on, so an unchanged team is not sent again. */
+  let editingTeam = null;
   const showForm = (p = null) => {
     wrap.style.display = 'block';
+    editingTeam = p?.team_id || null;
     document.getElementById('players-form-title').textContent = p ? 'Edit player' : 'Add player';
     document.getElementById('players-id').value = p?.id || '';
     document.getElementById('players-name').value = p?.name || '';
@@ -506,6 +528,46 @@ export async function renderPlayers(content, ctx) {
   tbody.querySelectorAll('.pl-edit').forEach(btn => {
     btn.onclick = () => showForm({ id: btn.dataset.id, name: btn.dataset.name, jersey_number: btn.dataset.jersey || null, team_id: btn.dataset.team || null });
   });
+  // Jersey numbers save as they are typed (on Enter or leaving the box), without
+  // the team: resending it would take the player off their roster and put them
+  // back at the end, reshuffling the team's order.
+  tbody.querySelectorAll('.pl-jersey').forEach(input => {
+    input.dataset.saved = input.value;
+    input.addEventListener('change', async () => {
+      const msgEl = document.getElementById('players-msg');
+      const value = jerseyValue(input.value);
+      if (Number.isNaN(value)) {
+        msgEl.innerHTML = '<p class="msg error">Jersey numbers are whole numbers from 0 to 99.</p>';
+        input.value = input.dataset.saved;
+        return;
+      }
+      try {
+        await adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ id: input.dataset.id, jersey_number: value }) });
+        if (value == null) {
+          // An admin-players deployed before clearing was supported ignores a
+          // null, so check what actually stuck rather than claim it cleared.
+          const { data: row } = await supabase.from('players').select('jersey_number').eq('id', input.dataset.id).maybeSingle();
+          if (row?.jersey_number != null) {
+            input.value = input.dataset.saved = String(row.jersey_number);
+            msgEl.innerHTML = '<p class="msg error">Not cleared: removing a number needs the updated admin-players function deployed. Setting numbers works now.</p>';
+            return;
+          }
+        }
+        input.dataset.saved = input.value;
+        const editBtn = tbody.querySelector(`.pl-edit[data-id="${input.dataset.id}"]`);
+        if (editBtn) editBtn.dataset.jersey = value ?? '';
+        // Keep the loaded season in step, so the live tracker shows it without a reload.
+        const { config } = await importRootJs('config.js');
+        (config.DB?.teams || []).forEach(t => (t.roster || []).forEach(r => {
+          if (r.id === input.dataset.id) r.jersey_number = value;
+        }));
+        msgEl.innerHTML = `<p class="msg success">${value == null ? 'Number cleared for' : `#${value} saved for`} ${escapeHtml(input.dataset.name)}.</p>`;
+      } catch (e) {
+        input.value = input.dataset.saved;
+        msgEl.innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`;
+      }
+    });
+  });
   tbody.querySelectorAll('.pl-del').forEach(btn => {
     btn.onclick = async () => {
       if (!confirm(`Delete player "${btn.dataset.name}"?`)) return;
@@ -519,11 +581,16 @@ export async function renderPlayers(content, ctx) {
   document.getElementById('players-form').onsubmit = async (e) => {
     e.preventDefault();
     const id = document.getElementById('players-id').value;
-    const body = {
-      name: document.getElementById('players-name').value,
-      jersey_number: parseInt(document.getElementById('players-jersey').value) || null,
-      team_id: document.getElementById('players-team').value || null,
-    };
+    const jersey = jerseyValue(document.getElementById('players-jersey').value);
+    if (Number.isNaN(jersey)) {
+      document.getElementById('players-msg').innerHTML = '<p class="msg error">Jersey numbers are whole numbers from 0 to 99.</p>';
+      return;
+    }
+    const teamId = document.getElementById('players-team').value || null;
+    const body = { name: document.getElementById('players-name').value, jersey_number: jersey };
+    // Only a changed team is sent: saving the same one again moves the player to
+    // the end of that team's roster.
+    if (!id || teamId !== editingTeam) body.team_id = teamId;
     if (id) body.id = id; else body.season_id = seasonId;
     try {
       await adminFetch('admin-players', { method: 'POST', body: JSON.stringify(body) });
