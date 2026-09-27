@@ -22,7 +22,7 @@ import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
   changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, rewindClock, PERIOD_OPTIONS, MAX_PERIOD,
-  STAT_LABELS, LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
+  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
 import { playBonusHorn } from './tracker-sound.js';
 
@@ -37,17 +37,12 @@ const AUTO_SYNC_MS = 900;
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Tokens dragged onto players. Points first — they are the common case. */
+/** Tokens dragged onto players: points and fouls, the only stats the tracker keeps. */
 const TOKENS = [
   { key: 'p1', label: '+1', kind: 'score', points: 1, cls: 'lt-token-score' },
   { key: 'p2', label: '+2', kind: 'score', points: 2, cls: 'lt-token-score' },
   { key: 'p3', label: '+3', kind: 'score', points: 3, cls: 'lt-token-score' },
   { key: 'foul', label: 'Foul', kind: 'foul', cls: 'lt-token-foul' },
-  { key: 'reb', label: 'Reb', kind: 'stat', stat: 'reb', cls: 'lt-token-stat' },
-  { key: 'ast', label: 'Ast', kind: 'stat', stat: 'ast', cls: 'lt-token-stat' },
-  { key: 'stl', label: 'Stl', kind: 'stat', stat: 'stl', cls: 'lt-token-stat' },
-  { key: 'blk', label: 'Blk', kind: 'stat', stat: 'blk', cls: 'lt-token-stat' },
-  { key: 'to', label: 'TO', kind: 'stat', stat: 'to', cls: 'lt-token-stat' },
 ];
 
 /**
@@ -415,9 +410,10 @@ export function openLiveTracker(game, ctx) {
     $('lt-undo').disabled = !canUndo(session.cursor);
     $('lt-redo').disabled = !canRedo(session.events, session.cursor);
     const last = session.events[session.cursor - 1];
-    $('lt-undo').title = last ? `Undo: ${describeEvent(last, nameOf)}` : 'Nothing to undo';
+    $('lt-undo').title = last ? `Undo${describeEvent(last, nameOf) ? `: ${describeEvent(last, nameOf)}` : ''}` : 'Nothing to undo';
 
-    const shown = session.events.slice(0, session.cursor).slice(-40).reverse();
+    // An older game's rebounds, assists and the like have no description any more.
+    const shown = session.events.slice(0, session.cursor).filter(e => describeEvent(e, nameOf)).slice(-40).reverse();
     $('lt-log').innerHTML = shown.length
       ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${periodLabel(e.period)} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf))}</div>`).join('')
       : '<div class="lt-empty">Nothing recorded yet.</div>';
@@ -458,7 +454,6 @@ export function openLiveTracker(game, ctx) {
     if (!t) return;
     if (t.kind === 'score') record({ type: 'score', playerId, teamId, points: t.points });
     else if (t.kind === 'foul') record({ type: 'foul', playerId, teamId });
-    else record({ type: 'stat', playerId, teamId, stat: t.stat });
   }
 
   /** A tap on a player: completes whatever is armed, or picks the starting five. */

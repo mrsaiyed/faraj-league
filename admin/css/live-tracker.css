@@ -94,14 +94,15 @@
 .lt-pick-five{grid-column:1/-1;padding:1rem;text-align:center;color:#8a8580;font-style:italic;}
 .lt-empty{color:#8a8580;font-size:0.85rem;font-style:italic;}
 
-/* Token strip */
-.lt-tokens{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;
-  margin-top:1rem;padding:0.7rem 0.5rem;background:#04101a;border-top:1px solid rgba(200,168,75,0.3);}
-.lt-token{min-width:64px;min-height:56px;padding:0.5rem 0.9rem;border-radius:8px;cursor:pointer;
-  font-size:1.05rem;font-weight:700;font-family:inherit;border:2px solid transparent;color:#f5f0e8;}
+/* Token strip: the only stats the tracker keeps — +1, +2, +3 and Foul — as four big
+   targets side by side. The padding centres them, so the strip's own background still
+   spans the page and covers what scrolls behind it. */
+.lt-tokens{position:sticky;bottom:0;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.75rem;
+  margin-top:1rem;padding:0.8rem max(0.5rem,calc((100% - 760px) / 2));background:#04101a;border-top:1px solid rgba(200,168,75,0.3);}
+.lt-token{min-height:88px;padding:0.5rem;border-radius:12px;cursor:pointer;
+  font-size:2rem;font-weight:800;font-family:inherit;border:3px solid transparent;color:#f5f0e8;}
 .lt-token-score{background:#1d6f45;border-color:#2fa89a;}
 .lt-token-foul{background:#8a3030;border-color:#c87070;}
-.lt-token-stat{background:#0e2535;border-color:rgba(200,168,75,0.35);font-size:0.95rem;}
 .lt-token.lt-armed-el{outline:3px solid #c8a84b;outline-offset:2px;}
 .lt-hint{text-align:center;color:#8a8580;font-size:0.82rem;margin:0.5rem 0 0;}
 
@@ -122,6 +123,8 @@
 /* Tablet portrait and phones: stack the two courts */
 @media (max-width:880px){
   .lt-courts{grid-template-columns:1fr;}
+  .lt-tokens{gap:0.5rem;}
+  .lt-token{min-height:72px;font-size:1.6rem;}
   .lt-score{font-size:2.2rem;}
   .lt-clock{font-size:1.9rem;}
   .lt-panel{padding:0.5rem 0.6rem 2rem;}
@@ -175,9 +178,8 @@
   .lt-player-stats{font-size:0.64rem;gap:0.3rem;}
   .lt-player-mins{font-size:0.56rem;}
 
-  .lt-tokens{position:static;margin-top:0.25rem;padding:0.3rem 0.3rem;gap:0.3rem;flex:none;}
-  .lt-token{min-width:42px;min-height:36px;padding:0.25rem 0.5rem;font-size:0.82rem;}
-  .lt-token-stat{font-size:0.7rem;}
+  .lt-tokens{position:static;margin-top:0.25rem;padding:0.3rem max(0.3rem,calc((100% - 560px) / 2));gap:0.4rem;flex:none;}
+  .lt-token{min-height:46px;padding:0.2rem;font-size:1.3rem;border-width:2px;border-radius:9px;}
 
   /* Secondary once you know the game: reclaim their space so the courts and
      tokens — what you are actually looking at mid-game — get the room. */

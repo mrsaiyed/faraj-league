@@ -121,14 +121,11 @@ describe('deriveState — fouls and counting stats', () => {
     expect(s.teams.H.fouls).toBe(2);
   });
 
-  it('records rebounds, assists, steals, blocks and turnovers', () => {
-    const s = all(['reb', 'ast', 'stl', 'blk', 'to'].map(stat => ({ type: 'stat', playerId: 'p1', stat })));
-    expect(s.players.p1).toMatchObject({ reb: 1, ast: 1, stl: 1, blk: 1, to: 1 });
-  });
-
-  it('rejects an unknown stat key', () => {
-    const s = all([{ type: 'stat', playerId: 'p1', stat: 'dunks' }]);
-    expect(s.warnings[0]).toMatch(/unknown stat/);
+  it('ignores the rebounds, assists and the rest an older log recorded', () => {
+    // Only points and fouls are kept now; a game tracked before that still opens.
+    const s = all([score('p1', 2), ...['reb', 'ast', 'stl', 'blk', 'to'].map(stat => ({ type: 'stat', playerId: 'p1', stat }))]);
+    expect(s.players.p1).toEqual({ pts: 2, fg1: 0, fg2: 1, fg3: 0, foul: 0, secondsPlayed: 0 });
+    expect(s.warnings).toEqual([]);
   });
 });
 
@@ -229,18 +226,17 @@ describe('toStatValues', () => {
     { id: 'd-reb', slug: 'rebounds' },
   ];
 
-  it('maps totals onto the defined stat columns', () => {
+  it('maps points and fouls onto their stat columns, and nothing else', () => {
     const s = all([score('p1', 2), { type: 'foul', playerId: 'p1', teamId: 'H' }, { type: 'stat', playerId: 'p1', stat: 'reb' }]);
-    const rows = toStatValues(s.players, defs);
-    expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-pts', value: 2 });
-    expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-foul', value: 1 });
-    expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-reb', value: 1 });
+    expect(toStatValues(s.players, defs)).toEqual([
+      { player_id: 'p1', stat_definition_id: 'd-pts', value: 2 },
+      { player_id: 'p1', stat_definition_id: 'd-foul', value: 1 },
+    ]);
   });
 
   it('skips stats the league has not defined', () => {
-    const rows = toStatValues(all([{ type: 'stat', playerId: 'p1', stat: 'stl' }]).players, defs);
-    expect(rows.every(r => r.stat_definition_id !== undefined)).toBe(true);
-    expect(rows).toHaveLength(3);
+    const rows = toStatValues(all([{ type: 'foul', playerId: 'p1', teamId: 'H' }]).players, [{ id: 'd-pts', slug: 'points' }]);
+    expect(rows).toEqual([{ player_id: 'p1', stat_definition_id: 'd-pts', value: 0 }]);
   });
 
   it('returns nothing when no stats are defined', () => {
@@ -255,13 +251,11 @@ describe('toStatValues', () => {
 
 describe('missingStatSlugs', () => {
   it('names the columns that still need creating', () => {
-    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(
-      ['fouls', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers']);
+    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(['fouls']);
   });
 
-  it('is empty once everything exists', () => {
-    const defs = ['points', 'fouls', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers'].map(slug => ({ slug }));
-    expect(missingStatSlugs(defs)).toEqual([]);
+  it('is empty once points and fouls exist', () => {
+    expect(missingStatSlugs(['points', 'fouls'].map(slug => ({ slug })))).toEqual([]);
   });
 });
 
@@ -271,7 +265,8 @@ describe('describeEvent', () => {
   it('describes each event type for the play log', () => {
     expect(describeEvent(score('p1', 3), nameOf)).toBe('Raza +3');
     expect(describeEvent({ type: 'foul', playerId: 'p1' }, nameOf)).toBe('Foul — Raza');
-    expect(describeEvent({ type: 'stat', playerId: 'p2', stat: 'reb' }, nameOf)).toBe('Rebound — Ali');
+    // An older log's rebound is no longer kept, so the play log leaves it out.
+    expect(describeEvent({ type: 'stat', playerId: 'p2', stat: 'reb' }, nameOf)).toBe('');
     expect(describeEvent({ type: 'sub', playerInId: 'p2', playerOutId: 'p1' }, nameOf)).toBe('Sub: Ali in for Raza');
     expect(describeEvent({ type: 'period', period: 3 })).toBe('Now OT1');
   });
@@ -514,7 +509,8 @@ describe('hasRecordedStats', () => {
   it('is true once anything is scored or recorded', () => {
     expect(hasRecordedStats(all([score('p1', 2)]).players)).toBe(true);
     expect(hasRecordedStats(all([{ type: 'foul', playerId: 'p1', teamId: 'H' }]).players)).toBe(true);
-    expect(hasRecordedStats(all([{ type: 'stat', playerId: 'p1', stat: 'reb' }]).players)).toBe(true);
+    // A rebound from an older log is not kept, so it alone does not make a game played.
+    expect(hasRecordedStats(all([{ type: 'stat', playerId: 'p1', stat: 'reb' }]).players)).toBe(false);
   });
 
   it('goes back to false when the only basket is undone', () => {
