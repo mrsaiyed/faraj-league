@@ -126,6 +126,7 @@ export function openLiveTracker(game, ctx) {
           <button type="button" id="lt-undo" class="lt-btn">↶ Undo</button>
           <button type="button" id="lt-redo" class="lt-btn">↷ Redo</button>
           <button type="button" id="lt-swap-colors" class="lt-btn" title="Swap which team is white and which is blue">⇄ Swap colors</button>
+          <button type="button" id="lt-not-started" class="lt-btn" title="Put this game back to not started: no score, not live">Mark not started</button>
           <button type="button" id="lt-end" class="lt-btn">End game</button>
           <button type="button" id="lt-save" class="lt-btn lt-btn-save">Save stats</button>
           <button type="button" id="lt-close" class="lt-btn">Close</button>
@@ -184,6 +185,7 @@ export function openLiveTracker(game, ctx) {
   }
 
   function record(event) {
+    if (resetting) return;
     const next = appendEvent(session.events, session.cursor, {
       ...event, period: session.period, clock: session.clock,
       elapsed: session.elapsed, at: Date.now(),
@@ -204,11 +206,13 @@ export function openLiveTracker(game, ctx) {
   let syncTimer = null;
   let syncing = false;
   let syncPending = false;
+  /** True while the game is being marked not started: taps and pushes wait. */
+  let resetting = false;
   /** `player:def` → value last written, so each push carries only the diff. */
   let lastSent = new Map();
 
   function queueAutoSync() {
-    if (autoSync === false) return;
+    if (autoSync === false || resetting) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(runAutoSync, AUTO_SYNC_MS);
   }
@@ -260,8 +264,15 @@ export function openLiveTracker(game, ctx) {
    */
   /** Cleared once the database turns out not to have the clock columns yet. */
   let clockSupported = true;
+  /** The state push in flight, if any. Pushes run in order, and a reset waits for them. */
+  let statePush = Promise.resolve();
 
-  async function pushGameState(status) {
+  function pushGameState(status) {
+    statePush = statePush.then(() => writeGameState(status));
+    return statePush;
+  }
+
+  async function writeGameState(status) {
     if (!clockSupported) return;
     try {
       await adminFetch('admin-games', {
@@ -654,6 +665,61 @@ export function openLiveTracker(game, ctx) {
   $('lt-redo').onclick = () => { session.cursor = redo(session.events, session.cursor); persist(); render(); queueAutoSync(); };
   $('lt-swap-colors').onclick = () => { session.colorsSwapped = !session.colorsSwapped; persist(); render(); };
 
+  // ---- mark not started --------------------------------------------------
+  /**
+   * Put the game back to not started — no score, no stats, not live — on the
+   * site and in this tracker. A queued push is cancelled and one in flight is
+   * waited for first, or a basket tapped a moment earlier (or the "live" it
+   * set off) would land after the reset and undo it.
+   */
+  async function markNotStarted() {
+    resetting = true;
+    stopClock();
+    try {
+      clearTimeout(syncTimer);
+      syncPending = false;
+      while (syncing) await new Promise(r => setTimeout(r, 100));
+      await statePush;
+      const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
+      const { clearGame } = await import('./game-reset.js');
+      await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
+      lastSent = new Map();
+      game.s1 = ''; game.s2 = '';
+      // The database is genuinely fresh now (score nulled, status back to
+      // scheduled) — reset the local session to match, or the picker and
+      // clock stay wherever they were left (e.g. still showing "OT1"),
+      // which reads as if the reset hadn't really worked. The period
+      // length and the team colours are deliberate choices, so they — and
+      // only they — survive it.
+      session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds, colorsSwapped: session.colorsSwapped };
+      persist();
+      render();
+      const sync = $('lt-sync');
+      sync.className = 'lt-sync';
+      sync.textContent = 'Not started';
+    } finally {
+      resetting = false;
+    }
+    if (ctx.onSaved) await ctx.onSaved();
+  }
+
+  $('lt-not-started').onclick = async () => {
+    const scored = hasRecordedStats(state().players) || [game.s1, game.s2].some(v => v !== '' && v != null);
+    if (!confirm(scored
+      ? 'Mark this game as not started?\n\nIts score and every stat recorded for it are cleared, here and on the site. Viewers will see it as scheduled again.'
+      : 'Mark this game as not started?\n\nViewers will see it as scheduled again, not live.')) return;
+    $('lt-not-started').disabled = true;
+    flash('Marking not started…');
+    try {
+      await markNotStarted();
+      flash('Marked not started — viewers see it as scheduled again.');
+    } catch (err) {
+      flash(`Could not mark it not started: ${err.message}`);
+    } finally {
+      $('lt-not-started').disabled = false;
+    }
+  };
+
   $('lt-end').onclick = async () => {
     if (!confirm('End this game?\n\nViewers will see the final score and the winner instead of a running clock.')) return;
     stopClock();
@@ -687,26 +753,14 @@ export function openLiveTracker(game, ctx) {
     // empty stats alone would leave the score at 0–0, which still reads as
     // played everywhere, so clear the score too.
     if (!hasRecordedStats(derived.players)) {
-      if (!confirm('Nothing is recorded for this game.\n\nClear its stats and mark it as NOT played?')) return;
+      if (!confirm('Nothing is recorded for this game.\n\nMark it as not started? Its score and stats are cleared, here and on the site.')) return;
       $('lt-save').disabled = true;
-      flash('Clearing…');
+      flash('Marking not started…');
       try {
-        const { clearGame } = await import('./game-reset.js');
-        await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
-        lastSent = new Map();
-        // The database is genuinely fresh now (score nulled, status back to
-        // scheduled) — reset the local session to match, or the picker and
-        // clock stay wherever they were left (e.g. still showing "OT1"),
-        // which reads as if the clear hadn't really worked. The period
-        // length and the team colours are deliberate choices, so they — and
-        // only they — survive the reset.
-        session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds, colorsSwapped: session.colorsSwapped };
-        persist();
-        render();
-        flash('Cleared. This game is back to not played.');
-        if (ctx.onSaved) await ctx.onSaved();
+        await markNotStarted();
+        flash('Marked not started — viewers see it as scheduled again.');
       } catch (err) {
-        flash(`Clear failed: ${err.message}`);
+        flash(`Could not mark it not started: ${err.message}`);
       } finally {
         $('lt-save').disabled = false;
       }
