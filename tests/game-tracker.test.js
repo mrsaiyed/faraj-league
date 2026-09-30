@@ -129,6 +129,54 @@ describe('deriveState — fouls and counting stats', () => {
   });
 });
 
+describe('−Foul: taking a foul back', () => {
+  const foul = (playerId, teamId = 'H') => ({ type: 'foul', playerId, teamId });
+  const unfoul = (playerId, teamId = 'H') => ({ type: 'unfoul', playerId, teamId });
+
+  it("takes one off the player's and the team's fouls, this half's included", () => {
+    const s = all([foul('p1'), foul('p1'), foul('p2'), unfoul('p1')]);
+    expect(s.players.p1.foul).toBe(1);
+    expect(s.teams.H).toMatchObject({ fouls: 2, halfFouls: 2 });
+  });
+
+  it("leaves this half's count alone when the foul was in an earlier half", () => {
+    // Found in the second half: the first half's count was already cleared at the break.
+    const s = all([foul('p1'), { type: 'period', period: 2 }, foul('p2'), unfoul('p1')]);
+    expect(s.players.p1.foul).toBe(0);
+    expect(s.teams.H).toMatchObject({ fouls: 1, halfFouls: 1 });
+  });
+
+  it("takes back the player's most recent foul", () => {
+    // One in each half: the second-half foul is the one that goes.
+    const s = all([foul('p1'), { type: 'period', period: 2 }, foul('p1'), unfoul('p1')]);
+    expect(s.players.p1.foul).toBe(1);
+    expect(s.teams.H).toMatchObject({ fouls: 1, halfFouls: 0 });
+  });
+
+  it('does nothing for a player with no fouls', () => {
+    const s = all([foul('p2'), unfoul('p1')]);
+    expect(s.players.p1?.foul ?? 0).toBe(0);
+    expect(s.teams.H.fouls).toBe(1);
+    expect(s.warnings[0]).toMatch(/no foul to take back/);
+  });
+
+  it('drops the other team out of the bonus', () => {
+    const seven = Array.from({ length: BONUS_FOULS }, () => foul('p1'));
+    expect(bonusFor(all(seven), 'A', 'H').bonus).toBe(1);
+    expect(bonusFor(all([...seven, unfoul('p1')]), 'A', 'H').bonus).toBe(0);
+  });
+
+  it('is undone like anything else', () => {
+    const events = [foul('p1'), unfoul('p1')];
+    expect(deriveState(events, 1, CFG).players.p1.foul).toBe(1);
+    expect(deriveState(events, 2, CFG).players.p1.foul).toBe(0);
+  });
+
+  it('reads as a correction in the play log', () => {
+    expect(describeEvent(unfoul('p1'), (id) => ({ p1: 'Raza' }[id]))).toBe('Foul taken back — Raza');
+  });
+});
+
 describe('deriveState — lineups and substitutions', () => {
   const five = ['a', 'b', 'c', 'd', 'e'];
 

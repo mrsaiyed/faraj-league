@@ -4,13 +4,15 @@
  * Loaded solely from admin/js/sections.js, so the public site never ships it.
  *
  * Interaction is built for a tablet at courtside and a laptop equally:
- *  - Drag a token (+1/+2/+3, foul, rebound…) onto a player. Pointer Events are
- *    used rather than HTML5 drag-and-drop, which iOS Safari does not fire.
- *  - Or tap a token to arm it, then tap a player. Faster than dragging when
- *    you are watching the game rather than the screen, and the reliable path
- *    on a tablet.
- *  - Substitute by dragging (or arming) a bench player onto the player coming
- *    off; the incoming player takes the same spot on the floor.
+ *  - Tap a player and their options open under their name: +1, +2, +3, Foul
+ *    and −Foul (a foul found to be wrong later — undo only reaches the last
+ *    thing recorded). Tap one and it is recorded; tap anywhere else to close.
+ *  - A bench player's options also say who they come on "In for", one button
+ *    per player on the floor, so a substitution is two taps. Dragging a bench
+ *    player onto whoever is coming off works too — Pointer Events, not HTML5
+ *    drag-and-drop, which iOS Safari does not fire. The incoming player takes
+ *    the same spot on the floor.
+ *  - Until a team's starting five is set, tapping its players picks them.
  *
  * The event log is the source of truth and lives in localStorage per game, so
  * a refresh, a locked tablet or a dropped connection mid-game loses nothing.
@@ -37,12 +39,13 @@ const AUTO_SYNC_MS = 900;
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Tokens dragged onto players: points and fouls, the only stats the tracker keeps. */
-const TOKENS = [
-  { key: 'p1', label: '+1', kind: 'score', points: 1, cls: 'lt-token-score' },
-  { key: 'p2', label: '+2', kind: 'score', points: 2, cls: 'lt-token-score' },
-  { key: 'p3', label: '+3', kind: 'score', points: 3, cls: 'lt-token-score' },
-  { key: 'foul', label: 'Foul', kind: 'foul', cls: 'lt-token-foul' },
+/** A player's options: points first — they are the common case — then fouls. */
+const ACTIONS = [
+  { act: 'p1', label: '+1', cls: 'lt-opt-score' },
+  { act: 'p2', label: '+2', cls: 'lt-opt-score' },
+  { act: 'p3', label: '+3', cls: 'lt-opt-score' },
+  { act: 'foul', label: 'Foul', cls: 'lt-opt-foul' },
+  { act: 'unfoul', label: '−Foul', cls: 'lt-opt-unfoul' },
 ];
 
 /**
@@ -70,6 +73,8 @@ export function openLiveTracker(game, ctx) {
   const nameOf = (id) => nameById[id] || '—';
   /** "#23 Name" where the player has a number — how a scorekeeper spots them on the floor. */
   const labelOf = (id) => (numberById[id] != null ? `#${numberById[id]} ` : '') + nameOf(id);
+  /** "#23 Saif" — number and first name, for the tight "In for" buttons. */
+  const shortLabelOf = (id) => (numberById[id] != null ? `#${numberById[id]} ` : '') + String(nameOf(id)).split(' ')[0];
   const cfg = { homeTeamId: homeTeam.id, awayTeamId: awayTeam.id };
 
   // ---- persisted session -------------------------------------------------
@@ -135,8 +140,6 @@ export function openLiveTracker(game, ctx) {
         <div class="lt-sync lt-sync-note" id="lt-clock-note" hidden></div>
       </div>
 
-      <div class="lt-armed" id="lt-armed" hidden></div>
-
       <div class="lt-courts">
         <div class="lt-court" data-team="${esc(homeTeam.id)}">
           <div class="lt-court-title">
@@ -158,10 +161,7 @@ export function openLiveTracker(game, ctx) {
         </div>
       </div>
 
-      <div class="lt-tokens" id="lt-tokens">
-        ${TOKENS.map(t => `<button type="button" class="lt-token ${t.cls}" data-token="${t.key}">${esc(t.label)}</button>`).join('')}
-      </div>
-      <p class="lt-hint">Drag a token onto a player, or tap the token then tap the player. Substitute by dragging a bench player onto whoever is coming off.</p>
+      <p class="lt-hint">Tap a player for +1, +2, +3, a foul or −Foul. Tap someone on the bench to sub them in, or drag them onto whoever is coming off.</p>
 
       <div class="lt-log-wrap">
         <div class="lt-log-title">Play log</div>
@@ -326,18 +326,35 @@ export function openLiveTracker(game, ctx) {
    */
   let bonusPrimed = false;
 
-  function playerTile(p, derived, { onCourt }) {
+  /** The player whose options are open under their tile, or null. */
+  let menuFor = null;
+
+  function playerTile(p, derived, { onCourt, floor = [] }) {
     const s = derived.players[p.id] || {};
     const fouls = s.foul || 0;
     const mins = formatClock(livePlayerSeconds(derived, p.id, session.elapsed));
     const number = numberById[p.id];
-    return `<button type="button" class="lt-player${onCourt ? ' lt-on-court' : ' lt-bench-chip'}${fouls >= 5 ? ' lt-fouled-out' : ''}"
-      data-player="${esc(p.id)}" data-team="${esc(p.teamId)}" data-oncourt="${onCourt ? '1' : '0'}">
-      <span class="lt-player-num${number == null ? ' lt-player-num-none' : ''}">${number == null ? '–' : esc(number)}</span>
-      <span class="lt-player-name">${esc(p.name)}</span>
-      <span class="lt-player-stats"><span class="lt-fouls">${fouls}F</span><span class="lt-pts">${s.pts || 0} pts</span></span>
-      <span class="lt-player-mins" data-mins-for="${esc(p.id)}">${mins}</span>
-    </button>`;
+    const open = menuFor === p.id;
+    return `<div class="lt-slot${open ? ' lt-slot-open' : ''}">
+      <button type="button" class="lt-player${onCourt ? ' lt-on-court' : ' lt-bench-chip'}${fouls >= 5 ? ' lt-fouled-out' : ''}${open ? ' lt-menu-open' : ''}"
+        data-player="${esc(p.id)}" data-team="${esc(p.teamId)}" data-oncourt="${onCourt ? '1' : '0'}" aria-expanded="${open}">
+        <span class="lt-player-num${number == null ? ' lt-player-num-none' : ''}">${number == null ? '–' : esc(number)}</span>
+        <span class="lt-player-name">${esc(p.name)}</span>
+        <span class="lt-player-stats"><span class="lt-fouls">${fouls}F</span><span class="lt-pts">${s.pts || 0} pts</span></span>
+        <span class="lt-player-mins" data-mins-for="${esc(p.id)}">${mins}</span>
+      </button>
+      ${open ? playerMenu(p, fouls, onCourt, floor) : ''}
+    </div>`;
+  }
+
+  /** +1 +2 +3 Foul −Foul, and for a bench player who they come on for. */
+  function playerMenu(p, fouls, onCourt, floor) {
+    const who = `data-player="${esc(p.id)}" data-team="${esc(p.teamId)}"`;
+    const subs = onCourt || !floor.length ? '' : `<div class="lt-menu-row lt-menu-subs"><span class="lt-menu-label">In for</span>${floor
+      .map(id => `<button type="button" class="lt-opt lt-opt-sub" data-act="sub" ${who} data-out="${esc(id)}">${esc(shortLabelOf(id))}</button>`).join('')}</div>`;
+    const button = (a) => `<button type="button" class="lt-opt ${a.cls}" data-act="${a.act}" ${who}${a.act === 'unfoul' && !fouls ? ' disabled' : ''}>${esc(a.label)}</button>`;
+    const group = (acts) => `<div class="lt-menu-row">${ACTIONS.filter(a => acts.includes(a.act)).map(button).join('')}</div>`;
+    return `<div class="lt-menu" aria-label="${esc(labelOf(p.id))}">${subs}<div class="lt-menu-acts">${group(['p1', 'p2', 'p3'])}${group(['foul', 'unfoul'])}</div></div>`;
   }
 
   function render() {
@@ -412,9 +429,9 @@ export function openLiveTracker(game, ctx) {
       floor.innerHTML = onCourt
         .map(id => roster.find(p => p.id === id))
         .filter(Boolean)
-        .map(p => playerTile(p, derived, { onCourt: true })).join('');
+        .map(p => playerTile(p, derived, { onCourt: true, floor: onCourt })).join('');
       bench.innerHTML = roster.filter(p => !onCourt.includes(p.id))
-        .map(p => playerTile(p, derived, { onCourt: false })).join('')
+        .map(p => playerTile(p, derived, { onCourt: false, floor: onCourt })).join('')
         || '<span class="lt-empty">Everyone is on the floor.</span>';
     });
 
@@ -430,7 +447,7 @@ export function openLiveTracker(game, ctx) {
       : '<div class="lt-empty">Nothing recorded yet.</div>';
 
     bonusPrimed = true;
-    renderArmed();
+    placeMenu();
   }
 
   /** Repaint just the minutes, so the per-second tick never rebuilds the tiles. */
@@ -441,54 +458,32 @@ export function openLiveTracker(game, ctx) {
     });
   }
 
-  // ---- arm / drag --------------------------------------------------------
-  /** { kind:'token', token } | { kind:'sub', playerId, teamId } | null */
-  let armed = null;
-
-  function renderArmed() {
-    const bar = $('lt-armed');
-    wrap.querySelectorAll('.lt-token, .lt-player').forEach(el => el.classList.remove('lt-armed-el'));
-    if (!armed) { bar.hidden = true; return; }
-    bar.hidden = false;
-    if (armed.kind === 'token') {
-      const t = TOKENS.find(x => x.key === armed.token);
-      bar.textContent = `${t.label} — tap the player it belongs to. (Tap ${t.label} again to cancel.)`;
-      wrap.querySelector(`.lt-token[data-token="${armed.token}"]`)?.classList.add('lt-armed-el');
-    } else {
-      bar.textContent = `${labelOf(armed.playerId)} coming in — tap the player coming off.`;
-      wrap.querySelector(`.lt-player[data-player="${armed.playerId}"]`)?.classList.add('lt-armed-el');
-    }
+  // ---- player options ----------------------------------------------------
+  /**
+   * Keep the open options inside their court — centred under the tile, nudged
+   * in from either edge — and in view, since on a phone lying down each court
+   * scrolls on its own. Placed in the tile's own box, so opening them never
+   * moves a tile.
+   */
+  function placeMenu() {
+    const menu = wrap.querySelector('.lt-menu');
+    if (!menu) { menuFor = null; return; }
+    const court = menu.closest('.lt-court');
+    menu.style.maxWidth = `${Math.min(440, court.clientWidth - 12)}px`;
+    menu.style.setProperty('--nudge', '0px');
+    const c = court.getBoundingClientRect(), m = menu.getBoundingClientRect();
+    const k = court.offsetWidth ? c.width / court.offsetWidth : 1;  // the desktop html{zoom}
+    const edge = 6 * k;
+    let dx = 0;
+    if (m.left < c.left + edge) dx = c.left + edge - m.left;
+    else if (m.right > c.right - edge) dx = c.right - edge - m.right;
+    if (dx) menu.style.setProperty('--nudge', `${dx / k}px`);
+    menu.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
-  function applyToken(tokenKey, playerId, teamId) {
-    const t = TOKENS.find(x => x.key === tokenKey);
-    if (!t) return;
-    if (t.kind === 'score') record({ type: 'score', playerId, teamId, points: t.points });
-    else if (t.kind === 'foul') record({ type: 'foul', playerId, teamId });
-  }
-
-  /** A tap on a player: completes whatever is armed, or picks the starting five. */
-  function onPlayerActivated(playerId, teamId, isOnCourt) {
-    const derived = state();
-    const onCourt = lineupFor(teamId, derived);
-
-    if (armed?.kind === 'token') {
-      const token = armed.token;
-      // Disarm after one use: leaving it armed means the next tap anywhere
-      // silently records another basket or foul.
-      armed = null;
-      applyToken(token, playerId, teamId);
-      return;
-    }
-    if (armed?.kind === 'sub') {
-      if (armed.teamId !== teamId) { flash('Substitutions have to stay within one team.'); armed = null; renderArmed(); return; }
-      if (!isOnCourt) { flash('Tap the player coming off the floor.'); return; }
-      record({ type: 'sub', teamId, playerInId: armed.playerId, playerOutId: playerId });
-      armed = null;
-      return;
-    }
-
-    // Nothing armed: build the starting five, or arm a bench player for a sub.
+  /** A tap on a player: picks the starting five until it is set, then opens their options. */
+  function onPlayerTap(playerId, teamId) {
+    const onCourt = lineupFor(teamId, state());
     if (!onCourt.length) {
       const picked = pending[teamId] || [];
       const next = picked.includes(playerId) ? picked.filter(x => x !== playerId) : [...picked, playerId];
@@ -501,7 +496,21 @@ export function openLiveTracker(game, ctx) {
       }
       return;
     }
-    if (!isOnCourt) { armed = { kind: 'sub', playerId, teamId }; renderArmed(); }
+    menuFor = menuFor === playerId ? null : playerId;
+    render();
+  }
+
+  /** One of the options under a player. */
+  function onAction(btn) {
+    if (btn.disabled) return;
+    const { act, player: playerId, team: teamId, out } = btn.dataset;
+    menuFor = null;
+    if (resetting) { render(); return; }
+    if (act === 'p1' || act === 'p2' || act === 'p3') record({ type: 'score', playerId, teamId, points: Number(act.slice(1)) });
+    else if (act === 'foul') record({ type: 'foul', playerId, teamId });
+    else if (act === 'unfoul') record({ type: 'unfoul', playerId, teamId });
+    else if (act === 'sub') record({ type: 'sub', teamId, playerInId: playerId, playerOutId: out });
+    else render();
   }
 
   const pending = {};
@@ -518,13 +527,13 @@ export function openLiveTracker(game, ctx) {
     flash._t = setTimeout(() => { el.textContent = ''; }, 2600);
   }
 
-  // Pointer-based drag: works with touch, pen and mouse alike. A press that
-  // never moves far is treated as a tap, so both interaction styles coexist.
+  // Pointer-based: works with touch, pen and mouse alike. A press on a player
+  // that never moves far is a tap; one that does is a drag, which is how a
+  // bench player can be dropped onto whoever is coming off.
   let drag = null;
   wrap.addEventListener('pointerdown', (e) => {
-    const token = e.target.closest('.lt-token');
-    const player = e.target.closest('.lt-player');
-    const src = token || player;
+    if (e.target.closest('.lt-opt')) return;
+    const src = e.target.closest('.lt-player');
     if (!src) return;
     drag = { src, startX: e.clientX, startY: e.clientY, moved: false, ghost: null };
   });
@@ -537,9 +546,7 @@ export function openLiveTracker(game, ctx) {
       drag.moved = true;
       drag.ghost = document.createElement('div');
       drag.ghost.className = 'lt-ghost';
-      drag.ghost.textContent = drag.src.classList.contains('lt-token')
-        ? drag.src.textContent.trim()
-        : labelOf(drag.src.dataset.player);
+      drag.ghost.textContent = labelOf(drag.src.dataset.player);
       document.body.appendChild(drag.ghost);
       e.preventDefault();
     }
@@ -550,43 +557,62 @@ export function openLiveTracker(game, ctx) {
   });
 
   wrap.addEventListener('pointerup', (e) => {
-    if (!drag) return;
+    const opt = e.target.closest('.lt-opt');
+    if (opt && !drag) { onAction(opt); return; }
+    if (!drag) {
+      // A tap anywhere else closes the options.
+      if (menuFor && !e.target.closest('.lt-menu')) { menuFor = null; render(); }
+      return;
+    }
     const { src, moved, ghost } = drag;
     drag = null;
     ghost?.remove();
     wrap.querySelectorAll('.lt-player').forEach(el => el.classList.remove('lt-drop-target'));
 
-    if (!moved) {
-      // A tap.
-      if (src.classList.contains('lt-token')) {
-        const key = src.dataset.token;
-        armed = armed?.kind === 'token' && armed.token === key ? null : { kind: 'token', token: key };
-        renderArmed();
-      } else {
-        onPlayerActivated(src.dataset.player, src.dataset.team, src.dataset.oncourt === '1');
-      }
-      return;
-    }
+    if (!moved) { onPlayerTap(src.dataset.player, src.dataset.team); return; }
 
     const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.lt-player');
     if (!target) return;
-    const targetId = target.dataset.player;
-    const targetTeam = target.dataset.team;
-
-    if (src.classList.contains('lt-token')) {
-      applyToken(src.dataset.token, targetId, targetTeam);
-      return;
-    }
     // Player dragged onto player = substitution.
-    if (src.dataset.team !== targetTeam) { flash('Substitutions have to stay within one team.'); return; }
+    if (src.dataset.team !== target.dataset.team) { flash('Substitutions have to stay within one team.'); return; }
     if (src.dataset.oncourt === '1' || target.dataset.oncourt !== '1') {
       flash('Drag a bench player onto someone on the floor.');
       return;
     }
-    record({ type: 'sub', teamId: targetTeam, playerInId: src.dataset.player, playerOutId: targetId });
+    menuFor = null;
+    record({ type: 'sub', teamId: target.dataset.team, playerInId: src.dataset.player, playerOutId: target.dataset.player });
   });
 
   wrap.addEventListener('pointercancel', () => { drag?.ghost?.remove(); drag = null; });
+
+  // Keyboard: Enter or Space on a player or an option does what a tap does
+  // (a click with no pointer behind it), and Escape closes the options. Every
+  // one repaints the tiles, so focus is put back where the next key belongs.
+  const focusTile = (id) => wrap.querySelector(`.lt-player[data-player="${CSS.escape(id)}"]`)?.focus();
+  wrap.addEventListener('click', (e) => {
+    if (e.detail !== 0) return;
+    const opt = e.target.closest('.lt-opt');
+    if (opt) {
+      const id = opt.dataset.player;
+      onAction(opt);
+      focusTile(id);
+      return;
+    }
+    const tile = e.target.closest('.lt-player');
+    if (!tile) return;
+    const id = tile.dataset.player;
+    onPlayerTap(id, tile.dataset.team);
+    const first = menuFor === id && wrap.querySelector('.lt-menu .lt-opt:not(:disabled)');
+    if (first) first.focus(); else focusTile(id);
+  });
+  const onKeydown = (e) => {
+    if (e.key !== 'Escape' || !menuFor) return;
+    const id = menuFor;
+    menuFor = null;
+    render();
+    focusTile(id);
+  };
+  document.addEventListener('keydown', onKeydown);
 
   // ---- clock -------------------------------------------------------------
   let ticker = null;
@@ -732,6 +758,7 @@ export function openLiveTracker(game, ctx) {
   $('lt-close').onclick = () => {
     stopClock();
     persist();
+    document.removeEventListener('keydown', onKeydown);
     wrap.remove();
   };
 

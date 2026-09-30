@@ -32,8 +32,6 @@
 .lt-sync-saved{color:#2fa89a;}
 .lt-sync-error{color:#e06a6a;}
 .lt-sync-note{color:#c8a84b;}
-.lt-armed{margin:0.6rem 0;padding:0.5rem 0.75rem;border-radius:6px;background:rgba(47,168,154,0.18);
-  border:1px solid #2fa89a;font-size:0.95rem;text-align:center;}
 
 /* Team colours, as the schedule shows them — home blue, away white — swappable per
    game with "Swap colors". Set on each court and scoreboard block (data-color) and
@@ -88,23 +86,38 @@
 .lt-bench-chip .lt-player-stats{gap:0.35rem;}
 .lt-bench-chip .lt-player-mins{font-size:0.68rem;}
 .lt-player.lt-drop-target{border-color:#c8a84b;background:#1d5470;transform:scale(1.04);}
-.lt-player.lt-armed-el{border-color:#c8a84b;box-shadow:0 0 0 3px rgba(200,168,75,0.45);}
+.lt-player.lt-menu-open{border-color:#c8a84b;box-shadow:0 0 0 3px rgba(200,168,75,0.45);}
 .lt-player.lt-picked{border-color:#c8a84b;}
 .lt-player.lt-fouled-out{opacity:0.55;border-color:#c87070;}
 .lt-pick-five{grid-column:1/-1;padding:1rem;text-align:center;color:#8a8580;font-style:italic;}
 .lt-empty{color:#8a8580;font-size:0.85rem;font-style:italic;}
 
-/* Token strip: the only stats the tracker keeps — +1, +2, +3 and Foul — as four big
-   targets side by side. The padding centres them, so the strip's own background still
-   spans the page and covers what scrolls behind it. */
-.lt-tokens{position:sticky;bottom:0;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.75rem;
-  margin-top:1rem;padding:0.8rem max(0.5rem,calc((100% - 760px) / 2));background:#04101a;border-top:1px solid rgba(200,168,75,0.3);}
-.lt-token{min-height:88px;padding:0.5rem;border-radius:12px;cursor:pointer;
-  font-size:2rem;font-weight:800;font-family:inherit;border:3px solid transparent;color:#f5f0e8;}
-.lt-token-score{background:#1d6f45;border-color:#2fa89a;}
-.lt-token-foul{background:#8a3030;border-color:#c87070;}
-.lt-token.lt-armed-el{outline:3px solid #c8a84b;outline-offset:2px;}
-.lt-hint{text-align:center;color:#8a8580;font-size:0.82rem;margin:0.5rem 0 0;}
+/* A player's options, open under their tile: +1 +2 +3 Foul −Foul, and for someone on
+   the bench, who they come on for. Each tile sits in a slot, and the options hang off
+   the slot absolutely, so opening them never moves a tile; --nudge (set by placeMenu)
+   keeps them inside the court at its edges, and the little arrow still points home. */
+.lt-slot{position:relative;display:flex;flex-direction:column;}
+.lt-slot > .lt-player{flex:1;}
+.lt-slot-open{z-index:5;}
+.lt-menu{position:absolute;top:calc(100% + 9px);left:50%;transform:translateX(calc(-50% + var(--nudge,0px)));
+  z-index:6;width:max-content;max-width:min(440px,calc(100vw - 1.5rem));padding:0.55rem;border-radius:12px;
+  background:#04101a;border:2px solid var(--team,#c8a84b);box-shadow:0 10px 28px rgba(0,0,0,0.65);
+  display:flex;flex-direction:column;gap:0.5rem;}
+.lt-menu::before{content:'';position:absolute;bottom:100%;left:calc(50% - var(--nudge,0px));transform:translateX(-50%);
+  border:8px solid transparent;border-bottom-color:var(--team,#c8a84b);}
+.lt-menu-row{display:flex;flex-wrap:wrap;justify-content:center;gap:0.45rem;}
+/* Points, then fouls: side by side when the court is wide enough, stacked when not. */
+.lt-menu-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:0.45rem 0.9rem;}
+.lt-menu-label{width:100%;text-align:center;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8580;}
+.lt-opt{min-width:66px;min-height:60px;padding:0.4rem 0.75rem;border-radius:10px;cursor:pointer;font-family:inherit;
+  font-size:1.5rem;font-weight:800;line-height:1;color:#f5f0e8;border:2px solid transparent;}
+.lt-opt-score{background:#1d6f45;border-color:#2fa89a;}
+.lt-opt-foul{background:#8a3030;border-color:#c87070;}
+.lt-opt-unfoul{background:#2a1417;border-color:#c87070;color:#f0b0b0;}
+.lt-opt-sub{min-height:48px;background:#0e2535;border-color:var(--team-dim,rgba(200,168,75,0.35));
+  font-size:0.95rem;font-weight:700;color:var(--team,#f5f0e8);}
+.lt-opt:disabled{opacity:0.3;cursor:default;}
+.lt-hint{text-align:center;color:#8a8580;font-size:0.82rem;margin:0.9rem 0 0;}
 
 /* Drag ghost follows the pointer */
 .lt-ghost{position:fixed;z-index:1000;pointer-events:none;transform:translate(-50%,-50%);
@@ -123,8 +136,7 @@
 /* Tablet portrait and phones: stack the two courts */
 @media (max-width:880px){
   .lt-courts{grid-template-columns:1fr;}
-  .lt-tokens{gap:0.5rem;}
-  .lt-token{min-height:72px;font-size:1.6rem;}
+  .lt-opt{min-width:58px;min-height:54px;font-size:1.3rem;}
   .lt-score{font-size:2.2rem;}
   .lt-clock{font-size:1.9rem;}
   .lt-panel{padding:0.5rem 0.6rem 2rem;}
@@ -132,14 +144,14 @@
 
 /* Phone in landscape while tracking a game: plenty of width, very little
    height (phones are ~360-430px tall lying down). The panel becomes a
-   fixed-height flex column — header and tokens stay put, each court scrolls
+   fixed-height flex column — the header stays put, each court scrolls
    internally — so the two teams sit side by side in one screen instead of a
    tall page you scroll through. This overrides the width-based stacking
    rule above on purpose: a narrow phone (e.g. 667px wide lying down) would
    otherwise still stack the courts, which is the opposite of what landscape
-   is for. Placed last so it wins on source order against that rule. Taps
-   work everywhere drags do (see live-tracker.js), so nothing about the
-   interaction itself needs to change here — only the layout. */
+   is for. Placed last so it wins on source order against that rule. Everything
+   is a tap (see live-tracker.js), so only the layout changes here; a player's
+   options scroll into view inside their court when they open. */
 @media (orientation:landscape) and (max-height:500px){
   .lt-backdrop{overflow-y:hidden;}
   .lt-panel{height:100vh;height:100dvh;max-width:none;margin:0;
@@ -157,8 +169,6 @@
   .lt-actions{margin-top:0.25rem;gap:0.3rem;}
   .lt-actions .lt-btn{min-height:30px;padding:0.25rem 0.55rem;font-size:0.72rem;}
   .lt-sync{margin-top:0.15rem;font-size:0.65rem;}
-
-  .lt-armed{margin:0.25rem 0;padding:0.25rem 0.5rem;font-size:0.78rem;flex:none;}
 
   .lt-courts{flex:1;min-height:0;grid-template-columns:1fr 1fr;gap:0.35rem;margin-top:0.25rem;}
   .lt-court{overflow-y:auto;padding:0.35rem;min-height:0;}
@@ -178,11 +188,14 @@
   .lt-player-stats{font-size:0.64rem;gap:0.3rem;}
   .lt-player-mins{font-size:0.56rem;}
 
-  .lt-tokens{position:static;margin-top:0.25rem;padding:0.3rem max(0.3rem,calc((100% - 560px) / 2));gap:0.4rem;flex:none;}
-  .lt-token{min-height:46px;padding:0.2rem;font-size:1.3rem;border-width:2px;border-radius:9px;}
+  .lt-menu{padding:0.35rem;gap:0.3rem;}
+  .lt-menu-row{gap:0.3rem;}
+  .lt-menu-acts{gap:0.3rem 0.5rem;}
+  .lt-opt{min-width:46px;min-height:42px;padding:0.2rem 0.45rem;font-size:1.05rem;border-radius:8px;}
+  .lt-opt-sub{min-height:36px;font-size:0.72rem;}
 
-  /* Secondary once you know the game: reclaim their space so the courts and
-     tokens — what you are actually looking at mid-game — get the room. */
+  /* Secondary once you know the game: reclaim their space so the courts —
+     what you are actually looking at mid-game — get the room. */
   .lt-hint,.lt-log-wrap{display:none;}
   .lt-msg{margin-top:0.15rem;min-height:0.9rem;font-size:0.7rem;flex:none;}
 }
