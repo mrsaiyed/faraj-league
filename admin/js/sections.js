@@ -3,6 +3,9 @@
  * Each renderX(content, ctx) populates the content div.
  */
 
+import { jerseyValue } from '../../lib/jersey.js';
+import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
+
 const importRootJs = (name) => import(new URL('../../js/' + name, import.meta.url).href);
 
 /** `YYYY-MM-DDTHH:mm` in the browser's local zone, for `<input type="datetime-local">` and text fields. */
@@ -427,17 +430,6 @@ function escapeHtmlAttr(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/**
- * A jersey number typed into the admin: null when left blank, NaN when it is not
- * a whole number from 0 to 99. `parseInt(...) || null` used to turn #0 into "none".
- */
-function jerseyValue(raw) {
-  const text = String(raw ?? '').trim();
-  if (text === '') return null;
-  const n = Number(text);
-  return Number.isInteger(n) && n >= 0 && n <= 99 ? n : NaN;
-}
-
 export async function renderPlayers(content, ctx) {
   const { adminFetch, supabase } = ctx;
   const seasonId = window.adminSeasonId;
@@ -542,27 +534,19 @@ export async function renderPlayers(content, ctx) {
         return;
       }
       try {
-        await adminFetch('admin-players', { method: 'POST', body: JSON.stringify({ id: input.dataset.id, jersey_number: value }) });
-        if (value == null) {
-          // An admin-players deployed before clearing was supported ignores a
-          // null, so check what actually stuck rather than claim it cleared.
-          const { data: row } = await supabase.from('players').select('jersey_number').eq('id', input.dataset.id).maybeSingle();
-          if (row?.jersey_number != null) {
-            input.value = input.dataset.saved = String(row.jersey_number);
-            msgEl.innerHTML = '<p class="msg error">Not cleared: removing a number needs the updated admin-players function deployed. Setting numbers works now.</p>';
-            return;
-          }
-        }
+        // Confirmed against the database (see saveJerseyNumber), not just the reply.
+        await saveJerseyNumber({ adminFetch, supabase, playerId: input.dataset.id, value });
         input.dataset.saved = input.value;
         const editBtn = tbody.querySelector(`.pl-edit[data-id="${input.dataset.id}"]`);
         if (editBtn) editBtn.dataset.jersey = value ?? '';
         // Keep the loaded season in step, so the live tracker shows it without a reload.
         const { config } = await importRootJs('config.js');
-        (config.DB?.teams || []).forEach(t => (t.roster || []).forEach(r => {
-          if (r.id === input.dataset.id) r.jersey_number = value;
-        }));
+        setLoadedJersey(config, input.dataset.id, value);
         msgEl.innerHTML = `<p class="msg success">${value == null ? 'Number cleared for' : `#${value} saved for`} ${escapeHtml(input.dataset.name)}.</p>`;
       } catch (e) {
+        // Put back what the database actually holds: the last confirmed number,
+        // or the one it reports instead when the save did not take.
+        if (e?.stored !== undefined) input.dataset.saved = e.stored == null ? '' : String(e.stored);
         input.value = input.dataset.saved;
         msgEl.innerHTML = `<p class="msg error">${escapeHtml(e.message)}</p>`;
       }
@@ -2054,7 +2038,7 @@ export async function attachScheduleAdminOverlays(ctx) {
 async function openLiveStats(game, ctx, onSaved) {
   const { config } = await importRootJs('config.js');
   const { openLiveTracker } = await import('./live-tracker.js');
-  openLiveTracker(game, { adminFetch: ctx.adminFetch, config, onSaved });
+  openLiveTracker(game, { adminFetch: ctx.adminFetch, supabase: ctx.supabase, config, onSaved });
 }
 
 async function openStatSheet(game, content, ctx, onSaved) {

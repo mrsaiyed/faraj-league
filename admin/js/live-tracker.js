@@ -13,6 +13,9 @@
  *    drag-and-drop, which iOS Safari does not fire. The incoming player takes
  *    the same spot on the floor.
  *  - Until a team's starting five is set, tapping its players picks them.
+ *  - "Jersey numbers" opens a panel down the left side to add or change every
+ *    player's number, both teams at once. A number saves to that player the
+ *    moment its box is left (or Enter is pressed) and shows on the tiles at once.
  *
  * The event log is the source of truth and lives in localStorage per game, so
  * a refresh, a locked tablet or a dropped connection mid-game loses nothing.
@@ -26,6 +29,8 @@ import {
   changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, rewindClock, PERIOD_OPTIONS, MAX_PERIOD,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
+import { hasJersey, jerseyValue, typedJersey, numberDuplicates } from '../../lib/jersey.js';
+import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 import { playBonusHorn } from './tracker-sound.js';
 
 const storageKey = (gameId) => `faraj_live_tracker_${gameId}`;
@@ -68,7 +73,7 @@ export function openLiveTracker(game, ctx) {
   const numberById = {};
   [homeTeam, awayTeam].forEach(t => rosterOf(t).forEach(p => {
     nameById[p.id] = p.name;
-    if (p.jersey_number != null && p.jersey_number !== '') numberById[p.id] = String(p.jersey_number);
+    if (hasJersey(p.jersey_number)) numberById[p.id] = String(p.jersey_number);
   }));
   const nameOf = (id) => nameById[id] || '—';
   /** "#23 Name" where the player has a number — how a scorekeeper spots them on the floor. */
@@ -131,6 +136,7 @@ export function openLiveTracker(game, ctx) {
           <button type="button" id="lt-undo" class="lt-btn">↶ Undo</button>
           <button type="button" id="lt-redo" class="lt-btn">↷ Redo</button>
           <button type="button" id="lt-swap-colors" class="lt-btn" title="Swap which team is white and which is blue">⇄ Swap colors</button>
+          <button type="button" id="lt-numbers" class="lt-btn" title="Add or change the players' jersey numbers">Jersey numbers<span class="lt-badge" id="lt-numbers-badge" hidden></span></button>
           <button type="button" id="lt-not-started" class="lt-btn" title="Put this game back to not started: no score, not live">Mark not started</button>
           <button type="button" id="lt-end" class="lt-btn">End game</button>
           <button type="button" id="lt-save" class="lt-btn lt-btn-save">Save stats</button>
@@ -168,7 +174,35 @@ export function openLiveTracker(game, ctx) {
         <div class="lt-log" id="lt-log"></div>
       </div>
       <div class="lt-msg" id="lt-msg"></div>
-    </div>`;
+    </div>
+
+    <div class="lt-drawer-scrim" id="lt-jn-scrim"></div>
+    <aside class="lt-drawer" id="lt-jn" role="dialog" aria-label="Enter jersey numbers" aria-hidden="true">
+      <div class="lt-drawer-head">
+        <div>
+          <div class="lt-drawer-title">Enter jersey numbers</div>
+          <div class="lt-drawer-sub">${esc(config.currentSeasonLabel || 'This season')}</div>
+        </div>
+        <button type="button" id="lt-jn-done" class="lt-btn lt-btn-save">Done</button>
+      </div>
+      <p class="lt-drawer-hint">Type a number for each player and press Enter. It saves to this season's roster as you go; other seasons keep their own numbers.</p>
+      <div class="lt-jn-msg" id="lt-jn-msg" role="status"></div>
+      <div class="lt-drawer-body">
+        ${[homeTeam, awayTeam].map(team => `
+        <section class="lt-jn-team" data-team="${esc(team.id)}">
+          <h3 class="lt-jn-team-name">${esc(team.name)}</h3>
+          <div class="lt-jn-dupes" data-dupes-for="${esc(team.id)}" hidden></div>
+          ${rosterOf(team).map(p => `
+          <div class="lt-jn-row" data-player="${esc(p.id)}">
+            <input class="lt-jn-input" id="lt-jn-${esc(p.id)}" data-id="${esc(p.id)}" data-team="${esc(team.id)}" data-saved="${esc(numberById[p.id] ?? '')}"
+              type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" placeholder="#"
+              value="${esc(numberById[p.id] ?? '')}" aria-label="Jersey number for ${esc(p.name)}">
+            <label class="lt-jn-name" for="lt-jn-${esc(p.id)}" title="${esc(p.name)}">${esc(p.name)}</label>
+            <span class="lt-jn-state" data-state-for="${esc(p.id)}"></span>
+          </div>`).join('') || '<div class="lt-empty">No players on this team yet.</div>'}
+        </section>`).join('')}
+      </div>
+    </aside>`;
   document.body.appendChild(wrap);
 
   const $ = (id) => wrap.querySelector('#' + id);
@@ -382,7 +416,7 @@ export function openLiveTracker(game, ctx) {
     // Each team in its colour — the court, its players and its scoreboard block.
     [homeTeam, awayTeam].forEach(team => {
       const color = teamColor(team.id);
-      wrap.querySelectorAll(`.lt-court[data-team="${team.id}"], .lt-team-score[data-team="${team.id}"]`)
+      wrap.querySelectorAll(`.lt-court[data-team="${team.id}"], .lt-team-score[data-team="${team.id}"], .lt-jn-team[data-team="${team.id}"]`)
         .forEach(el => { el.dataset.color = color; });
     });
     $('lt-startstop').textContent = session.running ? 'Pause' : 'Start';
@@ -606,13 +640,218 @@ export function openLiveTracker(game, ctx) {
     if (first) first.focus(); else focusTile(id);
   });
   const onKeydown = (e) => {
-    if (e.key !== 'Escape' || !menuFor) return;
+    if (e.key !== 'Escape') return;
+    if (numbersOpen) { closeNumbers(); return; }
+    if (!menuFor) return;
     const id = menuFor;
     menuFor = null;
     render();
     focusTile(id);
   };
   document.addEventListener('keydown', onKeydown);
+
+  // ---- jersey numbers ----------------------------------------------------
+  // A panel down the left side to add or change every player's number, both
+  // teams at once. There is nothing to submit: a number is saved to that player
+  // the moment its box is left (or Enter is pressed), and the tiles behind show
+  // it at once. Players are one row per person per season, so a number set here
+  // belongs to this season alone.
+  const drawer = $('lt-jn');
+  const scrim = $('lt-jn-scrim');
+  const panelEl = wrap.querySelector('.lt-panel');
+  const numberInputs = () => [...drawer.querySelectorAll('.lt-jn-input')];
+  let numbersOpen = false;
+  /** playerId → that player's latest save, so two quick edits land in order. */
+  const saveChain = new Map();
+
+  /** '' | 'saving' | 'saved' | 'error' — the small mark beside a player's box. */
+  function setRowState(id, kind, detail) {
+    const mark = drawer.querySelector(`.lt-jn-state[data-state-for="${CSS.escape(id)}"]`);
+    if (!mark) return;
+    mark.closest('.lt-jn-row').dataset.state = kind;
+    mark.textContent = kind === 'saving' ? '…' : kind === 'saved' ? '✓' : kind === 'error' ? '!' : '';
+    mark.title = kind === 'error' ? (detail || '') : '';
+  }
+
+  /**
+   * A message in the panel itself — the tracker's own line is behind it while it
+   * is open. It says who it is about, so that player's next success or edit
+   * clears it and nobody else's does.
+   */
+  let msgOwner = null;
+  function numberMsg(text, owner = null) {
+    $('lt-jn-msg').textContent = text;
+    msgOwner = text ? owner : null;
+    if (text && !numbersOpen) flash(text);
+  }
+
+  const joinNames = (names) => (names.length < 3 ? names.join(' and ') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+  /** Duplicate warnings, and the button's count of who still has no number or has one not saved. */
+  function refreshNumbersUi() {
+    const inputs = numberInputs();
+    [homeTeam, awayTeam].forEach(team => {
+      const mine = inputs.filter(i => i.dataset.team === team.id);
+      const dupes = numberDuplicates(mine.map(i => ({ id: i.dataset.id, number: i.value })));
+      const dupeIds = new Set(dupes.flatMap(d => d.ids));
+      mine.forEach(i => i.closest('.lt-jn-row').classList.toggle('lt-jn-dupe', dupeIds.has(i.dataset.id)));
+      const note = drawer.querySelector(`.lt-jn-dupes[data-dupes-for="${CSS.escape(team.id)}"]`);
+      note.hidden = !dupes.length;
+      note.textContent = dupes
+        .map(d => `#${d.number} is down for ${d.ids.length === 2 ? 'two players' : `${d.ids.length} players`}: ${joinNames(d.ids.map(nameOf))}.`)
+        .join(' ');
+    });
+    const missing = inputs.filter(i => !hasJersey(numberById[i.dataset.id])).length;
+    const unsaved = inputs.filter(i => i.value.trim() !== (i.dataset.saved ?? '')).length;
+    const badge = $('lt-numbers-badge');
+    badge.hidden = !missing && !unsaved;
+    badge.textContent = unsaved ? '!' : String(missing);
+    badge.classList.toggle('lt-badge-warn', unsaved > 0);
+    $('lt-numbers').title = unsaved ? 'Some numbers are not saved yet'
+      : missing ? `${missing} ${missing === 1 ? 'player has' : 'players have'} no number yet`
+      : 'Add or change the players\' jersey numbers';
+  }
+
+  /** A number the database now holds: the tiles, the options and the loaded season all show it. */
+  function applyNumber(id, value) {
+    if (value == null) delete numberById[id]; else numberById[id] = String(value);
+    [homeTeam, awayTeam].forEach(t => rosterOf(t).forEach(p => { if (p.id === id) p.jersey_number = value; }));
+    setLoadedJersey(config, id, value);
+    render();
+    refreshNumbersUi();
+  }
+
+  /**
+   * Save what a box holds if it differs from what is saved. Safe to call again
+   * and again — Enter and then leaving the box both do — because a value already
+   * on its way is not sent twice. Returns the save, or null when there was none.
+   */
+  function commitNumber(input) {
+    const id = input.dataset.id;
+    const text = input.value.trim();
+    if (text === (input.dataset.pending ?? input.dataset.saved ?? '')) {
+      // Back to what is saved (after a failed try, say): nothing left to send, nothing wrong.
+      if (text === (input.dataset.saved ?? '') && input.closest('.lt-jn-row').dataset.state === 'error') setRowState(id, '');
+      return null;
+    }
+    const value = jerseyValue(text);
+    if (Number.isNaN(value)) { setRowState(id, 'error', 'Whole numbers from 0 to 99.'); return null; }
+
+    input.dataset.pending = text;
+    setRowState(id, 'saving');
+    const run = async () => {
+      // What to call them in a message, before a failed save changes the number.
+      const who = `${text === '' ? 'the number' : `#${text}`} for ${nameOf(id)}`;
+      try {
+        await saveJerseyNumber({ adminFetch, supabase: ctx.supabase, playerId: id, value });
+        input.dataset.saved = text === '' ? '' : String(value);
+        applyNumber(id, value);
+        // Still what was typed? Tidy it ("07" to "7"). If they have typed on since, leave them to it.
+        if (input.value.trim() === text) { input.value = input.dataset.saved; setRowState(id, 'saved'); }
+        if (msgOwner === id) numberMsg('');
+      } catch (err) {
+        if (err?.stored !== undefined) {
+          // The database answered, with something else: show what it really holds.
+          input.dataset.saved = err.stored == null ? '' : String(err.stored);
+          applyNumber(id, err.stored);
+          if (input.value.trim() === text) input.value = input.dataset.saved;
+        }
+        if (input.value.trim() === text || err?.stored !== undefined) setRowState(id, 'error', err.message);
+        // A database that answered says so in its own words; a request that failed needs the lead-in.
+        numberMsg(err?.stored !== undefined ? `${nameOf(id)}: ${err.message}` : `Could not save ${who}: ${err.message}`, id);
+      } finally {
+        if (input.dataset.pending === text) delete input.dataset.pending;
+        refreshNumbersUi();
+      }
+    };
+    const save = (saveChain.get(id) || Promise.resolve()).then(run);
+    saveChain.set(id, save);
+    return save;
+  }
+
+  /** Commit every box that needs it; resolves once every save on its way has finished. */
+  function flushNumbers() {
+    const saves = numberInputs().map(commitNumber).filter(Boolean);
+    return Promise.allSettled([...saveChain.values(), ...saves]);
+  }
+
+  function openNumbers() {
+    if (numbersOpen) return;
+    menuFor = null;
+    render();                        // close any player's options first
+    numbersOpen = true;
+    drawer.classList.add('lt-drawer-open');
+    scrim.classList.add('lt-drawer-open');
+    drawer.removeAttribute('aria-hidden');
+    panelEl.inert = true;
+    numberMsg('');
+    // Straight to the first player without a number: that is what it is open for.
+    // Called here, in the tap that opened it, so a phone brings its keyboard up.
+    (numberInputs().find(i => i.value.trim() === '') || numberInputs()[0])?.focus();
+  }
+
+  /** Closing never waits: anything still saving carries on, and says so if it fails. */
+  function closeNumbers() {
+    if (!numbersOpen) return;
+    flushNumbers();
+    numbersOpen = false;
+    drawer.classList.remove('lt-drawer-open');
+    scrim.classList.remove('lt-drawer-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    panelEl.inert = false;
+    if (drawer.contains(document.activeElement)) document.activeElement.blur();
+    $('lt-numbers').focus({ preventScroll: true });
+  }
+
+  $('lt-numbers').onclick = openNumbers;
+  $('lt-jn-done').onclick = closeNumbers;
+  scrim.onclick = closeNumbers;
+
+  drawer.addEventListener('input', (e) => {
+    const input = e.target;
+    if (!input.classList?.contains('lt-jn-input')) return;
+    const clean = typedJersey(input.value);
+    if (clean !== input.value) input.value = clean;
+    setRowState(input.dataset.id, '');        // typing again clears an old tick or error
+    if (msgOwner === input.dataset.id) numberMsg('');
+    refreshNumbersUi();
+  });
+  // A box's number is selected as it is entered, so typing replaces it.
+  drawer.addEventListener('focusin', (e) => {
+    const input = e.target;
+    if (!input.classList?.contains('lt-jn-input')) return;
+    drawer.classList.add('lt-drawer-typing');
+    setTimeout(() => { if (document.activeElement === input) input.select(); }, 0);
+  });
+  drawer.addEventListener('focusout', (e) => {
+    if (!e.target.classList?.contains('lt-jn-input')) return;
+    commitNumber(e.target);
+    // Moving on to another box keeps the keyboard up; leaving them all puts it away.
+    if (!e.relatedTarget?.classList?.contains('lt-jn-input')) drawer.classList.remove('lt-drawer-typing');
+  });
+  drawer.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      // Keep Tab inside the panel while it is open.
+      const items = [...drawer.querySelectorAll('input, button')];
+      if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); items.at(-1).focus(); }
+      else if (!e.shiftKey && document.activeElement === items.at(-1)) { e.preventDefault(); items[0].focus(); }
+      return;
+    }
+    const input = e.target.closest?.('.lt-jn-input');
+    if (!input) return;
+    const all = numberInputs();
+    const at = all.indexOf(input);
+    if (e.key === 'Enter') {
+      // Save this one and go down to the next; after the last, put the keyboard away.
+      e.preventDefault();
+      commitNumber(input);
+      const next = all[at + 1];
+      if (next) next.focus(); else input.blur();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      all[at + (e.key === 'ArrowDown' ? 1 : -1)]?.focus();
+    }
+  });
 
   // ---- clock -------------------------------------------------------------
   let ticker = null;
@@ -821,6 +1060,7 @@ export function openLiveTracker(game, ctx) {
   };
 
   render();
+  refreshNumbersUi();
   if (missingStatSlugs(config.DB.statDefinitions || []).length) {
     flash(`Heads up: no stat column for ${missingStatSlugs(config.DB.statDefinitions || []).join(', ')} — those will not be saved.`);
   }
