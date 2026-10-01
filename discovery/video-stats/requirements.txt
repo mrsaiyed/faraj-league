@@ -1,0 +1,7 @@
+# For video_probe.py. The analysis repo's own requirements.txt does not install
+# (its "python_version >=3.8" line is read as a package) and omits most of these.
+ultralytics>=8.3
+supervision>=0.25
+pandas
+opencv-python-headless
+yt-dlp
