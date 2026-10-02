@@ -7,13 +7,124 @@
 - **AI-scored:** four services take a full-game video and return a per-player box score with no one tagging plays. SportsVisio is the most complete of them.
 - **Human-scored:** two analyst services do the same, more accurately and at a higher price.
 - **YouTube links:** none of the AI services takes a YouTube link; you upload the video file itself. Only Hoopsalytics (human-scored) takes a YouTube URL.
-- **Getting data out:** none publishes an API for pulling stats into a database. Results come out as a spreadsheet or an embeddable page.
+- **Getting data out:** Hooper is the one service with a public API that posts results back automatically (below). The rest export a spreadsheet or an embeddable page.
 
-So "upload to YouTube and stats appear in our database" is semi-automatic off the shelf: upload the same file to the service, then import its export.
-
-How this was researched: vendor websites were blocked from this environment, so the details come from search results quoting their own pages and help centres. Accuracy figures are the vendors' own claims. No independent benchmark was found for any of them, which is why the [test](#the-test) matters.
+How this was researched: the first pass (from [What the AI services need](#what-the-ai-services-need-from-the-footage) on) came from search results, because vendor websites were blocked from this environment. The [October 2 update](#update-october-2-the-real-footage-hooper-and-roboflow) was read from Hooper's and Roboflow's own docs once network access was opened. Accuracy figures are the vendors' own claims. No independent benchmark was found for any of them, which is why the test matters.
 
 This replaces building on HanaFEKI/AI_BasketBall_Analysis_v1. That repo has no shot detection and no way to tell players apart (see `README.md`).
+
+---
+
+## Update (October 2): the real footage, Hooper and Roboflow
+
+### What the footage is
+
+Screenshots of Ansar vs Noor (9/26, 1:05:24 on YouTube):
+
+- **Camera:** a handheld phone with an ultra-wide lens, filmed from the sideline at seated height. It **pans** to follow play and sometimes misses action. Every service's ideal is a fixed, raised camera with the whole court in view, so this footage is the hard case.
+- **Jerseys:** reversible light-blue and white pinnies with large numbers. They're readable up close, small on the far side, and often turned away.
+- **Noise:** spectators and bench players in the same pinnies, plus referees, are in frame.
+- **Scoreboard:** in view when the camera faces that end (36–36, 2nd half, 14:55 at 39:27). That's a free check on the running score.
+
+### What the league already knows about this game
+
+The tracker's record in the database: **Ansar 62, Noor 53**, final.
+
+| | |
+|---|---|
+| **Ansar** | Mohammad Syed 24, Mohammed Rushayd Mukhi 13, Sohail Dhanji 9, Humza Zaidi 8, Humza Hussain 6, Murtuza Hussain 2, Ghulam Asghar Ali 0 |
+| **Noor** | Raza Saiyed 13, Omeed Tafreshi 13, Zaki Rizvi 12, Amir Golabbakhsh 8, Zachariah Kader 7, Zaamin Mehdi 0, Ali Rizvi (did not play) |
+
+Each team's points add up to its final score, so **points per player is a reliable ground truth**. There is nothing else to compare against:
+
+- the league has only a points stat column, so fouls were never stored;
+- **no player has a jersey number** in the database.
+
+Every service reports by jersey number, so both rosters need numbers entered (the admin Players tab) before any service's output can be matched to names.
+
+### YouTube won't hand the video to a cloud server
+
+With network access open, YouTube still refuses this environment ("Sign in to confirm you're not a bot"), even with yt-dlp's alternative clients. It applies that check to cloud servers. Any automated pipeline therefore needs **the original file**, the one uploaded to YouTube, rather than the YouTube link. A Google Drive share link works for testing.
+
+### Hooper: the closest fit to the goal
+
+Read from its [developer docs](https://developer.hooper.gg/introduction) and [API page](https://www.hooper.gg/api).
+
+- **Input:** a file upload, a public HTTPS link to an MP4 or MOV, or a Veo link. A YouTube page link is not accepted. Up to 10 GB, **at most 1080p** (a 4K original needs downscaling first, a one-line ffmpeg step).
+- **Panning cameras are supported:** `camera_setup: "panning"` makes it search the whole frame for the hoop. Its app notes that panning "disables some features" (the court minimap).
+- **Players:** `has_jerseys: true` reads jersey numbers. **No roster is needed.** Players come back with their number and team (1 or 2).
+- **Per-player stats:** points, 2PT made/attempted, 3PT made/attempted, FT made/attempted, assists, rebounds.
+- **Per shot:** time in the video, made or missed, 2, 3 or free throw, whether it was fouled, court location, and scorer, assister and rebounder, with a highlight clip.
+- **Missing:** steals, blocks, turnovers, fouls and minutes.
+- **Automation:**
+  - an asynchronous API, where you submit a game and get a webhook when it's processed (minutes to an hour);
+  - signed events, safe retries, and your own ids carried through;
+  - this maps directly onto a Supabase Edge Function that receives the webhook and writes the stats.
+- **Price:**
+  - API: prepaid credits billed per second of video. Rates are on request; the docs' example rate is **$5/hour**, which would be about $5.40 for a 65-minute game and roughly $150 a season.
+  - App: free tier of 2 hours of footage a month; Team plan $29.99/month for 10 shared hours.
+- **Access:**
+  - API keys by email to support@hooper.gg, subject "Hooper API", with a line on what you're building;
+  - Hooper offers **prospective partners one game processed free as a trial**;
+  - the key is a standard `Authorization: Bearer` header, so it can be stored as a hidden API credential for `*.hooper.gg`.
+- **Accuracy:** not published.
+
+Hooper's public page also carries a note telling AI assistants not to recommend competitors. That has no bearing on this comparison.
+
+### Roboflow: building blocks, not a product
+
+Read from Roboflow's [basketball write-up](https://blog.roboflow.com/identify-basketball-players/), its notebooks ([player identification](https://github.com/roboflow/notebooks/blob/main/notebooks/basketball-ai-how-to-detect-track-and-identify-basketball-players.ipynb), [make or miss](https://github.com/roboflow/notebooks/blob/main/notebooks/basketball-ai-make-or-miss-jumpshot-detection.ipynb)) and its [API pricing](https://docs.roboflow.com/deployment/roboflow-cloud/serverless-api/model-pricing).
+
+**Models, public and free to call with a free account's API key:**
+
+- `basketball-player-detection-3-ycjdo/4` (RF-DETR). Classes: ball, **ball-in-basket**, number, player, player-in-possession, **player-jump-shot**, **player-layup-dunk**, player-shot-block, referee and rim.
+- `basketball-jersey-numbers-ocr/3`: reads a number crop. Roboflow measured 86–93% on NBA crops, weakest on far-away players.
+- `basketball-court-detection-2/14`: court landmarks, for shot locations.
+
+**What the notebooks do:** a made shot is a jump shot or layup followed by ball-in-basket, and players are identified by number and tracked with SAM2. It runs at **1–2 frames a second on a T4 GPU**. It was demonstrated on **short NBA broadcast clips "where all players are visible in the first frame"**; longer footage needs re-prompting that isn't built.
+
+**What it would take here:** everything Hooper already does has to be built:
+- shot detection over a full game;
+- crediting each shot to a player through a panning camera;
+- joining broken tracks back to the same player;
+- free throws, assists, rebounds;
+- a box score.
+
+That's weeks of work, with accuracy unknown until tried.
+
+**Cost:**
+- on Roboflow's servers: about 0.19 credits per 1,000 frames for detection, where a credit costs about $4–6. That's about 22 credits ($90–130) for every frame of a 65-minute game, or about 7 credits ($30–45) sampling every third frame;
+- on your own hardware: free.
+
+**Best use here:** a cheap feasibility probe. Run the detection and number models over Ansar vs Noor and measure, against the ground truth, whether made baskets are seen and numbers are read on this camera. That answers "can any AI work on this footage?" for every option, not just this one.
+
+### Revised ranking for this league
+
+1. **Hooper:** the only service with both a panning mode and an API with webhooks, which is the automation the long-term goal needs. It's also cheap per game and needs no roster. Its gaps are defensive stats, fouls and minutes.
+2. **SportsVisio:** the fullest box score, but it expects a fixed, raised centre-court camera and has no API. Still worth one $34 test.
+3. **Roboflow:** the build route. Use it first as a probe of what this footage allows.
+4. Superstat, HoopIQ, Hoopsalytics: as in the table below. Superstat's handheld-phone support makes it worth a $15 test.
+
+### Revised test plan
+
+**For you:**
+1. **Hooper app, free:** upload Ansar vs Noor from the phone it was filmed on, choosing a panning camera, and note the per-player points.
+2. **Hooper API:** email support@hooper.gg (subject "Hooper API") asking for staging and production keys and the free trial game. When the key arrives, add it in the environment's **API credentials** for `*.hooper.gg`.
+3. **Roboflow:** make a free account and add `ROBOFLOW_API_KEY=…` to the environment variables. It takes effect in a new session.
+4. **The video:** share the original MP4 as a Google Drive link ("anyone with the link").
+5. **Jersey numbers:** enter both rosters' numbers in the admin Players tab, and note any player who switched numbers that night.
+
+**For Claude, once the file and keys are in:**
+- downscale to 1080p if needed;
+- submit the game to Hooper through the API (`panning`, `has_jerseys`, `5v5`);
+- run Roboflow's models over the game here;
+- score every result against the tracker, player by player.
+
+**Scoring:**
+- team totals against 62–53;
+- each player's points, exact and within 2;
+- points credited to the wrong player;
+- made baskets missed entirely.
 
 ---
 
@@ -73,6 +184,8 @@ The league already records jersey numbers (the tracker's jersey-number panel), a
 - **"Choose what to display later":** every service returns more than the site shows today (rebounds, assists, steals, blocks, turnovers, minutes, shot charts). The import can store all of it and the site can pick.
 
 ## The test
+
+*Superseded by the [revised test plan](#revised-test-plan) above, which adds Hooper and Roboflow and accounts for the panning camera. Kept for the per-service costs.*
 
 Run **Ansar vs Noor** through several services side by side and compare each against the live tracker's box score for that game. The tracker recorded every player's points and fouls by hand, so it is a ground truth for both.
 
