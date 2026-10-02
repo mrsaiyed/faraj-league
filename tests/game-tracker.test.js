@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats,
   changedStatValues, bonusLevel, bonusLabel, bonusFor, periodLabel, rewindClock,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS, PERIOD_OPTIONS, MAX_PERIOD,
 } from '../lib/game-tracker.js';
@@ -295,15 +295,64 @@ describe('toStatValues', () => {
     const rows = toStatValues(all([score('p1', 2)]).players, defs);
     expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-foul', value: 0 });
   });
+
+  describe('minutes', () => {
+    const withMin = [...defs, { id: 'd-min', slug: 'minutes' }];
+    const minRows = rows => rows.filter(r => r.stat_definition_id === 'd-min');
+
+    it('leaves minutes out when no court time is given, as the live push does', () => {
+      expect(minRows(toStatValues(all([score('p1', 2)]).players, withMin, ['p1', 'p2']))).toEqual([]);
+    });
+
+    it('writes whole minutes, rounded, the way a box score shows them', () => {
+      const rows = toStatValues(all([score('p1', 2)]).players, withMin, ['p1'], { p1: 23 * 60 + 31 });
+      expect(minRows(rows)).toEqual([{ player_id: 'p1', stat_definition_id: 'd-min', value: 24 }]);
+    });
+
+    it('covers players with no stats, and gives zero to anyone it has no time for', () => {
+      const rows = toStatValues(all([score('p1', 2)]).players, withMin, ['p1', 'p2', 'p3'], { p1: 600, p2: 89 });
+      expect(minRows(rows)).toEqual([
+        { player_id: 'p1', stat_definition_id: 'd-min', value: 10 },
+        { player_id: 'p2', stat_definition_id: 'd-min', value: 1 },
+        { player_id: 'p3', stat_definition_id: 'd-min', value: 0 },
+      ]);
+    });
+
+    it('is skipped when the league has no minutes column, court time or not', () => {
+      expect(minRows(toStatValues(all([score('p1', 2)]).players, defs, ['p1'], { p1: 600 }))).toEqual([]);
+    });
+
+    it('takes court time from the live state, open stints included', () => {
+      const s = all([{ ...lineup('H', ['a', 'b', 'c', 'd', 'e']), elapsed: 0 }, { ...score('a', 2), elapsed: 30 },
+        { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 }]);
+      const ids = ['a', 'c', 'z', 'bench'];
+      const rows = toStatValues(s.players, withMin, ids, courtSeconds(s, ids, 1200));
+      expect(minRows(rows).map(r => [r.player_id, r.value])).toEqual([
+        ['a', 20], ['c', 5], ['z', 15], ['bench', 0],
+      ]);
+    });
+  });
+});
+
+describe('courtSeconds', () => {
+  it('reads every listed player the way livePlayerSeconds does', () => {
+    const s = all([{ ...lineup('H', ['a', 'b', 'c', 'd', 'e']), elapsed: 0 },
+      { type: 'sub', teamId: 'H', playerInId: 'z', playerOutId: 'c', elapsed: 300 }]);
+    expect(courtSeconds(s, ['a', 'c', 'z', 'nobody'], 900)).toEqual({ a: 900, c: 300, z: 600, nobody: 0 });
+  });
+
+  it('is empty for no players', () => {
+    expect(courtSeconds(all([]), [], 900)).toEqual({});
+  });
 });
 
 describe('missingStatSlugs', () => {
   it('names the columns that still need creating', () => {
-    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(['fouls']);
+    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(['fouls', 'minutes']);
   });
 
-  it('is empty once points and fouls exist', () => {
-    expect(missingStatSlugs(['points', 'fouls'].map(slug => ({ slug })))).toEqual([]);
+  it('is empty once points, fouls and minutes exist', () => {
+    expect(missingStatSlugs(['points', 'fouls', 'minutes'].map(slug => ({ slug })))).toEqual([]);
   });
 });
 
