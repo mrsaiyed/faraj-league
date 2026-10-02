@@ -6,6 +6,8 @@
 
 This is discovery only. Nothing here touches the site.
 
+**Follow-up:** this repo is set aside. [`vendors.md`](vendors.md) compares the services that already do this (SportsVisio, Superstat, HoopIQ, Preciser, Hoopsalytics and others) and sets out a side-by-side test on Ansar vs Noor.
+
 ---
 
 ## What was and wasn't tested
