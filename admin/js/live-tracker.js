@@ -25,7 +25,7 @@
 
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, hasRecordedStats,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats,
   changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, rewindClock, PERIOD_OPTIONS, MAX_PERIOD,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
@@ -244,6 +244,8 @@ export function openLiveTracker(game, ctx) {
   let resetting = false;
   /** `player:def` → value last written, so each push carries only the diff. */
   let lastSent = new Map();
+  /** The push on its way, for End game to wait out before sending minutes. */
+  let syncInFlight = null;
 
   function queueAutoSync() {
     if (autoSync === false || resetting) return;
@@ -251,7 +253,12 @@ export function openLiveTracker(game, ctx) {
     syncTimer = setTimeout(runAutoSync, AUTO_SYNC_MS);
   }
 
-  async function runAutoSync() {
+  /**
+   * @param {{ withMinutes?: boolean }} [opts] minutes ride only on End game:
+   *   they grow every second the clock runs, so carrying them on every tap
+   *   would slow the push viewers are waiting on (see `toStatValues`).
+   */
+  async function runAutoSync({ withMinutes = false } = {}) {
     if (autoSync === false) return;
     if (syncing) { syncPending = true; return; }       // fold into the next run
     const defs = config.DB.statDefinitions || [];
@@ -264,7 +271,8 @@ export function openLiveTracker(game, ctx) {
     const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
     // Zero-fill every roster player: without it an undone basket leaves the
     // old total sitting in the database.
-    const values = toStatValues(derived.players, defs, rosterIds);
+    const seconds = withMinutes ? courtSeconds(derived, rosterIds, session.elapsed) : undefined;
+    const values = toStatValues(derived.players, defs, rosterIds, seconds);
     const changed = changedStatValues(values, lastSent);
     if (!changed.length) { setSyncState('saved'); return; }
 
@@ -272,10 +280,11 @@ export function openLiveTracker(game, ctx) {
     setSyncState('saving');
     try {
       // No DNP list mid-game — players simply may not have come on yet.
-      await adminFetch('admin-game-stats', {
+      syncInFlight = adminFetch('admin-game-stats', {
         method: 'POST',
         body: JSON.stringify({ game_id: game.gameId, values: changed, dnp_player_ids: [] }),
       });
+      await syncInFlight;
       // Only now: a failed write must be retried, not treated as sent.
       changed.forEach(v => lastSent.set(statValueKey(v), v.value));
       setSyncState('saved');
@@ -989,7 +998,11 @@ export function openLiveTracker(game, ctx) {
     if (!confirm('End this game?\n\nViewers will see the final score and the winner instead of a running clock.')) return;
     stopClock();
     render();
-    await runAutoSync();          // make sure the last baskets are in
+    // A push still on its way would fold this one into the next run, which
+    // carries no minutes, so let it land first. Its own clean-up resumes
+    // before this does, so `syncing` is clear by the time we go on.
+    if (syncing) await syncInFlight?.catch(() => {});
+    await runAutoSync({ withMinutes: true });   // the last baskets, and everyone's minutes
     await pushGameState('final');
     flash('Game ended — viewers now see the final score.');
   };
@@ -1007,7 +1020,7 @@ export function openLiveTracker(game, ctx) {
     const defs = config.DB.statDefinitions || [];
     const missing = missingStatSlugs(defs);
     const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
-    const values = toStatValues(derived.players, defs, rosterIds);
+    const values = toStatValues(derived.players, defs, rosterIds, courtSeconds(derived, rosterIds, session.elapsed));
 
     if (!defs.length) {
       flash('No stat columns are defined yet — add at least "points" on the Stats tab.');
