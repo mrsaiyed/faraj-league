@@ -36,6 +36,10 @@ export const config = {
   SP3C: '[Sponsor 3C]',
   TOTAL_WEEKS: 8,
   CURRENT_WEEK: 1,
+  /** Stat columns the public site shows in box scores and on the stats page. */
+  PUBLIC_STAT_SLUGS: ['points'],
+  /** Set by the admin, which shows every stat the league records (fouls, minutes…). */
+  SHOW_ALL_STATS: false,
   currentSeasonLabel: 'Spring 2026',
   currentSeasonIsCurrent: true,
   currentSeasonSlug: 'spring2026',

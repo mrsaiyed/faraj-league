@@ -2,7 +2,8 @@
  * Unit tests for aggregateStats
  */
 import { describe, it, expect } from 'vitest';
-import { aggregateStats } from '../lib/stats.js';
+import { aggregateStats, visibleStatDefinitions } from '../lib/stats.js';
+import { config } from '../js/config.js';
 
 const pointsDef = { id: 'pt1', slug: 'points', name: 'Points', sort_order: 0 };
 
@@ -95,5 +96,36 @@ describe('aggregateStats', () => {
     });
 
     expect(stats).toHaveLength(0);
+  });
+});
+
+describe('visibleStatDefinitions', () => {
+  const defs = [
+    { id: 'd-pts', slug: 'points' },
+    { id: 'd-foul', slug: 'fouls' },
+    { id: 'd-min', slug: 'minutes' },
+  ];
+
+  it('shows the public site only the public columns', () => {
+    expect(visibleStatDefinitions(defs, ['points'])).toEqual([{ id: 'd-pts', slug: 'points' }]);
+  });
+
+  it('shows the admin every column, in order', () => {
+    expect(visibleStatDefinitions(defs, ['points'], true)).toEqual(defs);
+  });
+
+  it('keeps the original order when several are public', () => {
+    expect(visibleStatDefinitions(defs, ['minutes', 'points']).map(d => d.slug)).toEqual(['points', 'minutes']);
+  });
+
+  it('copes with no definitions or no public list', () => {
+    expect(visibleStatDefinitions(undefined, ['points'])).toEqual([]);
+    expect(visibleStatDefinitions(defs, undefined)).toEqual([]);
+  });
+
+  it('defaults the public site to points only, with the admin switching it off', () => {
+    // Fouls and minutes are recorded by the admin tracker but stay off the public site.
+    expect(config.PUBLIC_STAT_SLUGS).toEqual(['points']);
+    expect(config.SHOW_ALL_STATS).toBe(false);
   });
 });
