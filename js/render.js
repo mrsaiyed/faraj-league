@@ -12,7 +12,12 @@ import { sponsorName } from '../lib/sponsors.js';
 import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.js';
 import { seasonLogo } from '../lib/season-logo.js';
 import { championPhoto, photoSources } from '../lib/champion-photo.js';
+import { visibleStatDefinitions } from '../lib/stats.js';
 import { cardElement, overlays } from './champion-card.js';
+
+/** Stat columns for this page: points only on the public site, everything in the admin. */
+const shownStatDefinitions = () =>
+  visibleStatDefinitions(config.DB.statDefinitions || [], config.PUBLIC_STAT_SLUGS, config.SHOW_ALL_STATS);
 
 let activeTeam = null;
 
@@ -588,7 +593,7 @@ function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
 export function openBoxScoreFullscreen(game) {
   const teams = config.DB.teams || [];
   const gameStatValues = config.DB.gameStatValues || {};
-  const statDefinitions = config.DB.statDefinitions || [];
+  const statDefinitions = shownStatDefinitions();
   const content = document.getElementById('box-score-fullscreen-content');
   const overlay = document.getElementById('box-score-fullscreen');
   if (!content || !overlay) return;
@@ -844,7 +849,7 @@ export function renderStats(teamFilter) {
   const filterWrap = document.getElementById('stats-filter-wrap');
   if (!wrap) return;
   if (teamFilter === undefined) teamFilter = document.getElementById('stats-team-filter')?.value || '';
-  const defs = config.DB.statDefinitions || [];
+  const defs = shownStatDefinitions();
   const sub = document.getElementById('stats-section-sub');
   if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
   const pointsDef = defs.find(d => d.slug === 'points');
@@ -856,8 +861,10 @@ export function renderStats(teamFilter) {
   // the same rule the standings seed by (see compareRecords).
   const compareTeams = (nameA, nameB) => compareRecords(standingsRec[nameA], standingsRec[nameB]);
 
+  // Only the columns on show decide who is listed, so a player with minutes
+  // but no points does not appear on the public table as a row of dashes.
   const filteredStats = (config.DB.stats || [])
-    .filter(s => s.total > 0 || Object.values(s.statValues || {}).some(v => v > 0));
+    .filter(s => s.total > 0 || defs.some(d => (s.statValues?.[d.id] || 0) > 0));
 
   // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: cross-conf team rank);
   // players who missed ≥2 reg season games → by total points, shown below.

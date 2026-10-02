@@ -23,6 +23,9 @@ import {
   closeBoxScoreFullscreen,
 } from '../../js/render.js';
 
+// The admin sees every stat the league records; the public site only PUBLIC_STAT_SLUGS.
+config.SHOW_ALL_STATS = true;
+
 const TOKEN_KEY = 'faraj_admin_token';
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
