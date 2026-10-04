@@ -296,6 +296,42 @@ describe('toStatValues', () => {
     expect(rows).toContainEqual({ player_id: 'p1', stat_definition_id: 'd-foul', value: 0 });
   });
 
+  describe('3s, 2s and 1s made', () => {
+    const made = [
+      { id: 'd-pts', slug: 'points' },
+      { id: 'd-3', slug: '3s_made' }, { id: 'd-2', slug: '2s_made' }, { id: 'd-1', slug: '1s_made' },
+    ];
+    const valuesOf = (rows, playerId) => Object.fromEntries(
+      rows.filter(r => r.player_id === playerId).map(r => [r.stat_definition_id, r.value]));
+
+    it('counts each basket by the button tapped: +3, +2 or +1', () => {
+      const s = all([score('p1', 3), score('p1', 2), score('p1', 2), score('p1', 1), score('p2', 3)]);
+      expect(valuesOf(toStatValues(s.players, made), 'p1')).toEqual({ 'd-pts': 8, 'd-3': 1, 'd-2': 2, 'd-1': 1 });
+      expect(valuesOf(toStatValues(s.players, made), 'p2')).toEqual({ 'd-pts': 3, 'd-3': 1, 'd-2': 0, 'd-1': 0 });
+    });
+
+    it('takes an undone basket off its count, as it does the points', () => {
+      const events = [score('p1', 3), score('p1', 2)];
+      const rows = toStatValues(deriveState(events, 1, CFG).players, made, ['p1']);
+      expect(valuesOf(rows, 'p1')).toEqual({ 'd-pts': 3, 'd-3': 1, 'd-2': 0, 'd-1': 0 });
+    });
+
+    it('zero-fills players who never scored', () => {
+      const rows = toStatValues(all([score('p1', 2)]).players, made, ['p1', 'p9']);
+      expect(valuesOf(rows, 'p9')).toEqual({ 'd-pts': 0, 'd-3': 0, 'd-2': 0, 'd-1': 0 });
+    });
+
+    it('sends points before the made counts', () => {
+      const ids = toStatValues(all([score('p1', 3)]).players, made).map(r => r.stat_definition_id);
+      expect(ids).toEqual(['d-pts', 'd-3', 'd-2', 'd-1']);
+    });
+
+    it('uses the slugs the admin Stats tab makes of "3s Made", "2s Made" and "1s Made"', () => {
+      const slugOf = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      expect(['3s Made', '2s Made', '1s Made'].map(slugOf)).toEqual(['3s_made', '2s_made', '1s_made']);
+    });
+  });
+
   describe('minutes', () => {
     const withMin = [...defs, { id: 'd-min', slug: 'minutes' }];
     const minRows = rows => rows.filter(r => r.stat_definition_id === 'd-min');
@@ -348,11 +384,11 @@ describe('courtSeconds', () => {
 
 describe('missingStatSlugs', () => {
   it('names the columns that still need creating', () => {
-    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(['fouls', 'minutes']);
+    expect(missingStatSlugs([{ slug: 'points' }])).toEqual(['3s_made', '2s_made', '1s_made', 'fouls', 'minutes']);
   });
 
-  it('is empty once points, fouls and minutes exist', () => {
-    expect(missingStatSlugs(['points', 'fouls', 'minutes'].map(slug => ({ slug })))).toEqual([]);
+  it('is empty once every column the tracker writes exists', () => {
+    expect(missingStatSlugs(['points', '3s_made', '2s_made', '1s_made', 'fouls', 'minutes'].map(slug => ({ slug })))).toEqual([]);
   });
 });
 
