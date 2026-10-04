@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { gameLogRows, visibleLogTypes, periodHeading, LOG_TYPES_BY_STAT } from '../lib/game-log.js';
 import { gameLogHtml } from '../js/game-log.js';
+import { STAT_SLUGS } from '../lib/game-tracker.js';
 
 const H = 'H';
 const A = 'A';
@@ -98,7 +99,11 @@ describe('visibleLogTypes', () => {
   });
 
   it('covers every stat the tracker saves', () => {
-    expect(Object.keys(LOG_TYPES_BY_STAT).sort()).toEqual(['fouls', 'minutes', 'points']);
+    expect(Object.keys(LOG_TYPES_BY_STAT).sort()).toEqual(Object.values(STAT_SLUGS).sort());
+  });
+
+  it('lists scoring plays for the made-basket columns', () => {
+    expect([...visibleLogTypes(['3s_made'])]).toEqual(['score']);
   });
 });
 
