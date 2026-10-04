@@ -29,7 +29,7 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
 
 4. **Run migrations**
    - Open Supabase Dashboard → SQL Editor
-   - Run migrations in order: 001, 002, 003, 004, 005, 006
+   - Run migrations in order: 001 through 014 (`supabase/migrations/`)
    - Phase 5 adds `006_phase5_login_attempts.sql` for rate limiting
    - Or use Supabase CLI: `npx supabase db push`
 
@@ -48,7 +48,7 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
    - Run migration 006 before deploying auth-login
    - Deploy all functions:
      ```bash
-     npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
+     npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats admin-game-log
      ```
 
 ---
