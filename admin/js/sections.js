@@ -4,9 +4,49 @@
  */
 
 import { jerseyValue } from '../../lib/jersey.js';
+import { getGameLog } from '../../lib/api.js';
+import { gameLogRows } from '../../lib/game-log.js';
+import { isFinal } from '../../lib/game-clock.js';
+import { gameLogHtml } from '../../js/game-log.js';
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 
 const importRootJs = (name) => import(new URL('../../js/' + name, import.meta.url).href);
+
+/**
+ * The full play-by-play under a stat sheet, once the game is over (the public
+ * box score shows only the scoring plays; see `showGameLog` in js/render.js).
+ * Unlike the public site, the admin says why there is no log.
+ *
+ * @param {HTMLElement} el where the log goes; emptied first
+ * @param {{ gameId: string, t1Id: string, t2Id: string, s1: any, s2: any, status?: string, forfeit?: any }} game
+ * @param {object} supabase
+ */
+async function showStatSheetLog(el, game, supabase) {
+  if (!el) return;
+  el.innerHTML = '';
+  if (!game?.gameId || !isFinal(game)) return;
+  el.innerHTML = '<p class="msg" style="font-size:0.85rem;">Loading game log…</p>';
+  const { data: log, error } = await getGameLog(supabase, game.gameId);
+  if (error) {
+    el.innerHTML = `<p class="msg" style="font-size:0.85rem;">Game log unavailable: ${escapeHtml(error.message || String(error))} (run migration 013).</p>`;
+    return;
+  }
+  if (!Array.isArray(log?.events) || !log.events.length) {
+    el.innerHTML = '<p class="msg" style="font-size:0.85rem;">No game log saved for this game. Logs are saved when a game is tracked live; a game tracked before that uploads its log the next time the admin is opened on the device that tracked it.</p>';
+    return;
+  }
+  const { config } = await importRootJs('config.js');
+  const names = {};
+  (config.DB.teams || []).forEach(t => (t.roster || []).forEach(p => { if (p?.id) names[p.id] = p.name; }));
+  const teamName = (id) => (config.DB.teams || []).find(t => t.id === id)?.name || '';
+  const rows = gameLogRows(log.events, {
+    homeTeamId: game.t1Id,
+    awayTeamId: game.t2Id,
+    nameOf: (id) => names[id] || log.names?.[id] || '—',
+  });
+  el.innerHTML = gameLogHtml(rows, { homeTeamId: game.t1Id, homeName: teamName(game.t1Id) || 'Home', awayName: teamName(game.t2Id) || 'Away' })
+    || '<p class="msg" style="font-size:0.85rem;">The saved game log has no plays in it.</p>';
+}
 
 /** `YYYY-MM-DDTHH:mm` in the browser's local zone, for `<input type="datetime-local">` and text fields. */
 function scheduledAtToDatetimeLocalValue(scheduledAt) {
@@ -2062,8 +2102,10 @@ async function openStatSheet(game, content, ctx, onSaved) {
         <button id="stat-sheet-close" style="padding:0.5rem 1rem;background:#444;color:#e8e4e0;border:none;border-radius:4px;cursor:pointer;margin-left:0.5rem;">Close</button>
       </div>
       <div id="stat-sheet-msg" style="margin-top:0.5rem;"></div>
+      <div id="stat-sheet-log"></div>
     </div>`;
   document.body.appendChild(wrap);
+  showStatSheetLog(wrap.querySelector('#stat-sheet-log'), game, supabase);
 
   const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }, { data: gameRow }] = await Promise.all([
     supabase.from('rosters').select('*').or(`team_id.eq.${game.t1Id},team_id.eq.${game.t2Id}`),
@@ -2160,6 +2202,7 @@ async function openStatSheet(game, content, ctx, onSaved) {
       await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds });
       msgEl.innerHTML = '<p class="msg success">Cleared — this game is back to not played.</p>';
       wrap.querySelector('#stat-sheet-scores').textContent = 'Score: ? – ?';
+      wrap.querySelector('#stat-sheet-log').innerHTML = '';   // its log went with it
       if (onSaved) await onSaved();
       else if (content) {
         const sections = await import('./sections.js');
@@ -2227,6 +2270,7 @@ export async function renderGames(content, ctx) {
           <button id="games-stat-sheet-close">Close</button>
         </div>
         <div id="games-stat-sheet-msg"></div>
+        <div id="games-stat-sheet-log"></div>
       </div>
     </div>
     <div id="games-form-wrap" style="display:none;margin-top:1rem;max-width:500px;">
@@ -2303,6 +2347,10 @@ export async function renderGames(content, ctx) {
       statSheetScores.textContent = `Score: ${g.home_score ?? '?'} – ${g.away_score ?? '?'}`;
       statSheetNote.style.display = 'block';
       statSheetMsg.innerHTML = '';
+      showStatSheetLog(document.getElementById('games-stat-sheet-log'), {
+        gameId: g.id, t1Id: g.home_team_id, t2Id: g.away_team_id,
+        s1: g.home_score ?? '', s2: g.away_score ?? '', status: g.status, forfeit: g.forfeit_team_id,
+      }, supabase);
 
       const [{ data: rosters }, { data: players }, { data: statDefs }, { data: gsv }, { data: dnpRows }] = await Promise.all([
         supabase.from('rosters').select('*').or(`team_id.eq.${g.home_team_id},team_id.eq.${g.away_team_id}`),

@@ -3,7 +3,7 @@
  * Uses a stub Supabase client so no network or DB is involved.
  */
 import { describe, it, expect } from 'vitest';
-import { getSeasonData, getChampionData } from '../lib/api.js';
+import { getSeasonData, getChampionData, getGameLog } from '../lib/api.js';
 
 /**
  * Minimal stand-in for the Supabase query builder: records the filters applied
@@ -187,5 +187,33 @@ describe('getChampionData — the trophy spans every season', () => {
     const { data } = await getChampionData(makeSupabase(t, calls));
     expect(data.teams).toEqual([]);
     expect(calls.map(c => c.table).sort()).toEqual(['awards', 'seasons']);
+  });
+});
+
+describe('getGameLog', () => {
+  const log = { version: 1, events: [{ type: 'score', playerId: 'p1', teamId: 't1', points: 2 }], names: { p1: 'P' } };
+
+  it("reads one game's log, and only that game's", async () => {
+    const calls = [];
+    const supabase = makeSupabase({ game_logs: [{ game_id: 'g1', log }, { game_id: 'g2', log: { version: 1, events: [] } }] }, calls);
+    const res = await getGameLog(supabase, 'g1');
+    expect(res).toEqual({ data: log, error: null });
+    expect(calls).toEqual([expect.objectContaining({ table: 'game_logs', eq: { game_id: 'g1' } })]);
+  });
+
+  it('answers null for a game with no saved log', async () => {
+    expect(await getGameLog(makeSupabase({ game_logs: [] }), 'g9')).toEqual({ data: null, error: null });
+  });
+
+  it('passes on the error from a database without migration 013', async () => {
+    const error = { message: 'relation "game_logs" does not exist' };
+    const failing = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error }) }) }) }) };
+    expect(await getGameLog(failing, 'g1')).toEqual({ data: null, error });
+  });
+
+  it('asks nothing without a game id', async () => {
+    const calls = [];
+    expect(await getGameLog(makeSupabase({}, calls), '')).toEqual({ data: null, error: null });
+    expect(calls).toEqual([]);
   });
 });

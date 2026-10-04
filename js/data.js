@@ -3,7 +3,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-import { getSeasons, getSeasonData, getGameScores, getChampionData } from '../lib/api.js';
+import { getSeasons, getSeasonData, getGameScores, getChampionData, getGameLog } from '../lib/api.js';
 import { buildChampionCards, reigningChampion } from '../lib/trophy.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
@@ -188,6 +188,21 @@ function transformSeasonData(raw) {
     playoffWeeks,
     totalRegGames,
   };
+}
+
+/**
+ * A game's saved play-by-play, or null — including when the database has not
+ * run migration 013 yet, so the box score simply shows no log.
+ * @param {string} gameId
+ * @returns {Promise<{ version: number, events: object[], names: object } | null>}
+ */
+export async function fetchGameLog(gameId) {
+  try {
+    const { data } = await getGameLog(supabase, gameId);
+    return data;
+  } catch (_) {
+    return null;
+  }
 }
 
 export async function fetchSeasons() {

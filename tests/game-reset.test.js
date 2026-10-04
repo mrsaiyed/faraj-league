@@ -15,14 +15,15 @@ function stub() {
 }
 
 describe('clearGame', () => {
-  it('deletes the stat rows, empties DNP, then nulls the score — in that order', async () => {
+  it('deletes the stat rows, empties DNP, nulls the score, then drops the game log — in that order', async () => {
     const { calls, adminFetch } = stub();
     await clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: ['p1', 'p2'] });
 
-    expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-game-stats', 'admin-games']);
+    expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-game-stats', 'admin-games', 'admin-game-log']);
     expect(calls[0].body).toMatchObject({ game_id: 'G1', values: [], dnp_player_ids: ['p1', 'p2'] });
     expect(calls[1].body).toMatchObject({ game_id: 'G1', values: [], dnp_player_ids: [] });
     expect(calls[2].body).toMatchObject({ id: 'G1', home_score: null, away_score: null, status: 'scheduled' });
+    expect(calls[3].body).toEqual({ game_id: 'G1', delete: true });
   });
 
   it('nulls the score rather than zeroing it — 0 still reads as played', async () => {
@@ -37,7 +38,8 @@ describe('clearGame', () => {
   it('resets the live clock too, so a cleared game stops showing one', async () => {
     const { calls, adminFetch } = stub();
     await clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: ['p1'] });
-    expect(calls.at(-1).body).toMatchObject({ status: 'scheduled', clock_running: false, clock_seconds: null, period: null });
+    expect(calls.find(c => c.fn === 'admin-games').body)
+      .toMatchObject({ status: 'scheduled', clock_running: false, clock_seconds: null, period: null });
   });
 
   it('clears any forfeit along the way', async () => {
@@ -50,8 +52,8 @@ describe('clearGame', () => {
   it('still nulls the score when the rosters are empty', async () => {
     const { calls, adminFetch } = stub();
     await clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: [] });
-    expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-games']);
-    expect(calls.at(-1).body).toMatchObject({ id: 'G1', home_score: null, away_score: null, status: 'scheduled' });
+    expect(calls.map(c => c.fn)).toEqual(['admin-game-stats', 'admin-games', 'admin-game-log']);
+    expect(calls.find(c => c.fn === 'admin-games').body).toMatchObject({ id: 'G1', home_score: null, away_score: null, status: 'scheduled' });
   });
 
   it('de-duplicates and drops blank player ids', async () => {
@@ -63,6 +65,16 @@ describe('clearGame', () => {
   it('refuses without a game id', async () => {
     const { adminFetch } = stub();
     await expect(clearGame({ adminFetch, gameId: null, rosterPlayerIds: [] })).rejects.toThrow('gameId is required');
+  });
+
+  it('still clears the game when the log cannot be deleted (no migration 013 or function yet)', async () => {
+    const calls = [];
+    const adminFetch = (fn) => {
+      calls.push(fn);
+      return fn === 'admin-game-log' ? Promise.reject(new Error('Request failed: 404')) : Promise.resolve({ ok: true });
+    };
+    await expect(clearGame({ adminFetch, gameId: 'G1', rosterPlayerIds: ['p1'] })).resolves.toBeUndefined();
+    expect(calls).toContain('admin-games');
   });
 
   it('propagates a failure instead of reporting success', async () => {
