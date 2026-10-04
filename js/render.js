@@ -13,7 +13,10 @@ import { gameStatus, isFinal, statusLine, GAME_STATUS } from '../lib/game-clock.
 import { seasonLogo } from '../lib/season-logo.js';
 import { championPhoto, photoSources } from '../lib/champion-photo.js';
 import { visibleStatDefinitions } from '../lib/stats.js';
+import { gameLogRows, visibleLogTypes } from '../lib/game-log.js';
 import { cardElement, overlays } from './champion-card.js';
+import { gameLogHtml } from './game-log.js';
+import { fetchGameLog } from './data.js';
 
 /** Stat columns for this page: points only on the public site, everything in the admin. */
 const shownStatDefinitions = () =>
@@ -590,6 +593,36 @@ function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
   return html;
 }
 
+/**
+ * The play-by-play under a final game's box score, read on demand.
+ *
+ * Only once the game is over, and only the plays behind the stats this page
+ * shows: scoring on the public site (`PUBLIC_STAT_SLUGS`), every play in the
+ * admin. A game with no saved log (not tracked live, or before migration 013)
+ * simply shows none. If the box score is closed or switched to another game
+ * while the log loads, the stale result is dropped.
+ */
+async function showGameLog(game, container) {
+  if (!game?.gameId || !isFinal(game)) return;
+  const slot = document.createElement('div');
+  slot.className = 'game-log-slot';
+  container.appendChild(slot);
+  const log = await fetchGameLog(game.gameId);
+  if (!slot.isConnected || !Array.isArray(log?.events) || !log.events.length) { slot.remove(); return; }
+
+  const names = {};
+  (config.DB.teams || []).forEach(t => (t.roster || []).forEach(p => { if (p?.id) names[p.id] = p.name; }));
+  const nameOf = (id) => names[id] || log.names?.[id] || '—';
+  const rows = gameLogRows(log.events, {
+    homeTeamId: game.t1Id,
+    awayTeamId: game.t2Id,
+    types: visibleLogTypes(config.PUBLIC_STAT_SLUGS, config.SHOW_ALL_STATS),
+    nameOf,
+  });
+  const html = gameLogHtml(rows, { homeTeamId: game.t1Id, homeName: game.t1 || 'Home', awayName: game.t2 || 'Away' });
+  if (html) slot.innerHTML = html; else slot.remove();
+}
+
 export function openBoxScoreFullscreen(game) {
   const teams = config.DB.teams || [];
   const gameStatValues = config.DB.gameStatValues || {};
@@ -598,6 +631,7 @@ export function openBoxScoreFullscreen(game) {
   const overlay = document.getElementById('box-score-fullscreen');
   if (!content || !overlay) return;
   content.innerHTML = renderBoxScore(game, teams, gameStatValues, statDefinitions);
+  showGameLog(game, content);
   overlay.style.display = 'flex';
   overlay.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';

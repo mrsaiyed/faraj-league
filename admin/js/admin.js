@@ -194,6 +194,20 @@ async function adminShowPage(id) {
   }
 }
 
+/**
+ * Games tracked on this device before game logs were saved kept their
+ * play-by-play here only (localStorage). Put any that are complete into the
+ * database, in the background — see `uploadStoredGameLogs()` for the care it
+ * takes not to replace a better log. Silent unless something was saved.
+ */
+function uploadDeviceGameLogs(games, teams) {
+  if (!getToken()) return;
+  import('./game-log-store.js')
+    .then(({ uploadStoredGameLogs }) => uploadStoredGameLogs({ adminFetch, supabase, games, teams }))
+    .then((res) => { if (res?.uploaded) console.info(`Saved ${res.uploaded} game log(s) kept on this device.`); })
+    .catch(() => { /* nothing is lost: the logs stay on the device for next time */ });
+}
+
 async function loadAdminSeason(slug) {
   const dataRes = await fetchSeasonData(slug);
   if (dataRes.error || !dataRes.data) return false;
@@ -208,6 +222,7 @@ async function loadAdminSeason(slug) {
   config.currentSeasonIsCurrent = season?.is_current ?? true;
   window.adminSeasonId = season?.id;
   window.adminSeasonSlug = slug;
+  uploadDeviceGameLogs(scores, teams);
   const sa = awards?.find(a => a.champ);
   const isPlaceholder = (v) => !v || /^—\s*$|^season in progress$/i.test(String(v).trim()) || /—\s*in progress$/i.test(String(v).trim());
   const isSeasonComplete = (a) => a && !isPlaceholder(a.champ);

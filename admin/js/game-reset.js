@@ -8,8 +8,12 @@
  * still counts as a tie in the standings. Only NULL scores mark it unplayed.
  *
  * This runs entirely through Edge Functions that are already deployed, so
- * clearing a game needs no new backend.
+ * clearing a game needs no new backend. The last step, deleting the saved game
+ * log, uses `admin-game-log` (migration 013) and is skipped quietly where that
+ * is not deployed yet.
  */
+
+import { deleteGameLog } from './game-log-store.js';
 
 /**
  * Wipe a game's recorded stats and mark it as not played.
@@ -51,4 +55,12 @@ export async function clearGame({ adminFetch, gameId, rosterPlayerIds }) {
       status: 'scheduled', period: null, clock_seconds: null, clock_running: false,
     }),
   });
+
+  // 4. Delete the saved play-by-play, or a game later filled in from the stat
+  //    sheet would show the log of the game that was cleared. Last, and never
+  //    fatal: the game is already back to not played, and a database without
+  //    migration 013 or the admin-game-log function has no log to delete.
+  try {
+    await deleteGameLog({ adminFetch, gameId });
+  } catch (_) { /* nothing saved to remove */ }
 }
