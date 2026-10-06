@@ -64,7 +64,7 @@ This repository contains the code for the **Faraj League** public site (farajlea
 │   ├── phase3.md        # Phase 3 step-by-step
 │   ├── API.md           # API reference
 │   └── PROJECT.md       # This file
-└── .env                 # SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_PASSWORD
+└── .env                 # SUPABASE_URL, SUPABASE_ANON_KEY (admin password: Supabase secrets only)
 ```
 
 ---

@@ -59,7 +59,7 @@ npx supabase db push
 
    | Secret Name | Value | Notes |
    |-------------|-------|-------|
-   | `ADMIN_PASSWORD` | Your admin login password | Same one you use locally |
+   | `ADMIN_PASSWORD` | Your admin login password | Kept only here — never in `.env` or the repo |
    | `SUPABASE_SERVICE_ROLE_KEY` | From Settings → API → service_role | Needed for auth-login rate limiting and admin writes |
 
 4. **Verify:** Both secrets appear in the list. Do not commit these to git.

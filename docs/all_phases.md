@@ -175,10 +175,9 @@ Refactor the public site from a single `index.html` into a proper file structure
 
 ### Your tasks
 
-1. Choose and set `ADMIN_PASSWORD`; add to Supabase Edge Function env or dashboard secrets.
-2. Add `ADMIN_PASSWORD` to GitHub Actions secrets (if using Actions) as `ADMIN_PASSWORD`.
-3. Test admin login in incognito; confirm you can edit data.
-4. Confirm no admin UI or password visible on public pages.
+1. Choose and set `ADMIN_PASSWORD` in the Supabase Edge Function secrets — the only place it is kept.
+2. Test admin login in incognito; confirm you can edit data.
+3. Confirm no admin UI or password visible on public pages.
 
 ---
 
@@ -360,7 +359,7 @@ Add a dedicated Schedule tab so users can view the season schedule, navigate by 
 
 ### Your tasks
 
-1. Add GitHub repository secrets if not done: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ADMIN_PASSWORD` (for any CI that needs them).
+1. Add GitHub repository secrets if not done: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (for any CI that needs them). The admin password stays in the Supabase secrets only.
 2. Run tests locally.
 3. Periodically export CSV or use Supabase backup for safety.
 
@@ -404,9 +403,8 @@ Add a dedicated Schedule tab so users can view the season schedule, navigate by 
 2. **New repository secret** for each:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - `ADMIN_PASSWORD`
 
-Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient.
+Add these when you introduce GitHub Actions; for local dev, `.env` is sufficient. The admin password is not one of them: it is kept only in the Supabase Edge Function secrets.
 
 ---
 

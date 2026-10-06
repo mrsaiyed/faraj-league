@@ -237,10 +237,11 @@ RLS allows public read on all tables; writes are enforced by Edge Function JWT v
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-ADMIN_PASSWORD=
 ```
 
 Copy `.env.example` to `.env` for local development. The seed script and Edge Functions use `SUPABASE_SERVICE_ROLE_KEY`; the browser uses only `SUPABASE_ANON_KEY`.
+
+The admin password is **not** an `.env` variable: it is the `ADMIN_PASSWORD` Edge Function secret in Supabase (Dashboard → Project Settings → Edge Functions → Secrets) and nowhere else. `auth-login` checks logins against it and `_shared/auth.ts` signs and verifies the admin JWTs with it, so changing it logs every admin out. Never write its value into the repo — not in docs, examples or tests — because the repo is public.
 
 ### Deploy Flow
 
