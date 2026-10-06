@@ -23,7 +23,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
 
 - **all_phases.md Phase 3:** Admin app, shared-password login (Edge Function), protected API (JWT + Bearer), schema migrations (games.scheduled_at, seasons.current_week, media_items, content_blocks), CRUD for seasons, teams, players, games, awards, stats, sponsors, media, about, draft — all covered.
 - **Business goal:** farajleague.org remains a static site. Admin enables editable content without a traditional backend. Deploy flow (dev repo → fork → farajleague.org) unchanged for static assets; Edge Functions deploy separately to Supabase.
-- **Admin password:** Use `ADMIN_PASSWORD` env/secret (e.g. `Faraj2026`). Never commit the password. Set in Supabase Edge Function secrets and `.env` for local dev.
+- **Admin password:** Use the `ADMIN_PASSWORD` secret. Never commit the password. Set it only in Supabase Edge Function secrets.
 
 ---
 
@@ -71,11 +71,11 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
 
 3. **Document:** User must set `ADMIN_PASSWORD` in Supabase → Project Settings → Edge Functions → Secrets.
 
-4. **Update `.env.example`:** Add `ADMIN_PASSWORD=` (empty, as placeholder). Never put the real password in the repo.
+4. **Do not add it to `.env` or `.env.example`:** the password lives only in the Supabase secrets. Never put it in the repo.
 
 **How:** In Agent mode:
 
-> Implement Phase 3 Step 2 from phase3.md: Create auth-login Edge Function. Accept password, compare to ADMIN_PASSWORD, return JWT on success. Add ADMIN_PASSWORD to .env.example. Document secrets.
+> Implement Phase 3 Step 2 from phase3.md: Create auth-login Edge Function. Accept password, compare to ADMIN_PASSWORD, return JWT on success. Document secrets.
 
 ---
 
@@ -277,17 +277,11 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
 
 1. **Supabase Edge Functions secrets:**
    - Dashboard → Project Settings → Edge Functions → Secrets
-   - Add `ADMIN_PASSWORD` = `Faraj2026` (or your chosen password)
+   - Add `ADMIN_PASSWORD` = a password of your choosing
 
-2. **Local `.env` (for Edge Function local dev):**
-   - Add `ADMIN_PASSWORD=Faraj2026` to `.env`
-   - Ensure `.env` is in `.gitignore`
+That is the only place it goes — not `.env`, not GitHub secrets.
 
-3. **GitHub Actions (if used):**
-   - Repo → Settings → Secrets and variables → Actions
-   - Add `ADMIN_PASSWORD` (e.g. `Faraj2026`)
-
-**Verify:** Never commit the password. `.env.example` lists `ADMIN_PASSWORD=` (empty) as a placeholder only.
+**Verify:** Never commit the password, or write it into docs or examples.
 
 ---
 
@@ -305,7 +299,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
    ```
 2. Ensure `ADMIN_PASSWORD` is set in Supabase secrets before deploy.
 
-**Verify:** `curl -X POST https://<project>.supabase.co/functions/v1/auth-login -H "Content-Type: application/json" -d '{"password":"Faraj2026"}'` returns a token.
+**Verify:** `curl -X POST https://<project>.supabase.co/functions/v1/auth-login -H "Content-Type: application/json" -d '{"password":"YOUR_ADMIN_PASSWORD"}'` returns a token.
 
 ---
 
@@ -316,7 +310,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
 **What:**
 
 1. Open `/admin` (or `admin/index.html`) in incognito.
-2. Log in with `Faraj2026`.
+2. Log in with the password you set in step 13.
 3. Confirm: season switcher works; edit a team; edit a game score; edit about content.
 4. Confirm: no admin UI or password visible on public homepage.
 
@@ -352,7 +346,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
 | 10    | Agent | CRUD UI — Stats                                                      |
 | 11    | Agent | CRUD UI — Sponsors, Media, About, Draft                              |
 | 12    | Agent | Extend public site (media_items, content_blocks in fetchSeasonData)   |
-| 13    | You   | Set ADMIN_PASSWORD (Supabase secrets, .env, GitHub)                   |
+| 13    | You   | Set ADMIN_PASSWORD (Supabase secrets only)                           |
 | 14    | You   | Deploy Edge Functions                                                |
 | 15    | You   | Test admin login and CRUD                                            |
 | 16    | You   | Verify Phase 3 complete                                              |

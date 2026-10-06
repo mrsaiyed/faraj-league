@@ -25,7 +25,8 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
    - `SUPABASE_URL` — from Supabase Dashboard → Settings → API
    - `SUPABASE_ANON_KEY` — anon/public key
    - `SUPABASE_SERVICE_ROLE_KEY` — for seed script and Edge Functions; **required for auth-login** (rate limiting uses `login_attempts` table)
-   - `ADMIN_PASSWORD` — for admin login (set in Supabase Edge Function secrets; not in `.env` for production)
+
+   The admin password is not an `.env` variable: set it only as the `ADMIN_PASSWORD` secret in Supabase (step 7).
 
 4. **Run migrations**
    - Open Supabase Dashboard → SQL Editor
@@ -44,7 +45,7 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
    - Add allowed origins: `https://farajleague.org`, `http://localhost:*`, `https://<your-username>.github.io`
 
 7. **Admin:** Set secrets and deploy Edge Functions
-   - Dashboard → Project Settings → Edge Functions → Secrets: add `ADMIN_PASSWORD` (e.g. `Faraj2026`) and `SUPABASE_SERVICE_ROLE_KEY`
+   - Dashboard → Project Settings → Edge Functions → Secrets: add `ADMIN_PASSWORD` (a password of your choosing — never write it into the repo) and `SUPABASE_SERVICE_ROLE_KEY`
    - Run migration 006 before deploying auth-login
    - Deploy all functions:
      ```bash

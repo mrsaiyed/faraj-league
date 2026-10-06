@@ -179,7 +179,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
    - `SUPABASE_URL` — Supabase project URL
    - `SUPABASE_ANON_KEY` — anon/public key
    - `SUPABASE_SERVICE_ROLE_KEY` — for seed script and Edge Functions; **required for auth-login** (rate limiting uses `login_attempts` table)
-   - `ADMIN_PASSWORD` — for admin login (set in Supabase Edge Function secrets; not in `.env` for production)
+   - `ADMIN_PASSWORD` — for admin login; a Supabase Edge Function secret only, never in `.env`
 
 2. **Migrations:** Run in order 001 → 002 → 003 → 004 → 005 → 006. Phase 5 adds `006_phase5_login_attempts.sql`.
 
@@ -223,7 +223,7 @@ Execute these steps in order. **Agent** = tasks the Cursor agent does. **You** =
    npx supabase functions deploy auth-login admin-export-csv admin-seasons admin-teams admin-players admin-games admin-awards admin-stats admin-sponsors admin-media admin-content admin-media-slots admin-game-stats
    ```
 
-4. **GitHub Actions (if used):** Add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ADMIN_PASSWORD` to repo secrets for CI.
+4. **GitHub Actions (if used):** Add `SUPABASE_URL`, `SUPABASE_ANON_KEY` to repo secrets for CI. The admin password stays in the Supabase secrets only.
 
 ---
 
