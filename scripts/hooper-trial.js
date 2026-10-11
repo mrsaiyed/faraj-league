@@ -148,7 +148,9 @@ async function prepareVideo(file, ranges, info, outDir) {
   const input = [];
   if (ranges) {
     const list = join(outDir, 'keep.txt');
-    writeFileSync(list, concatScript(resolve(file), ranges));
+    // Forward slashes: ffmpeg reads them on Windows too, and a backslash path
+    // is one less thing to get wrong in its quoting.
+    writeFileSync(list, concatScript(resolve(file).replace(/\\/g, '/'), ranges));
     input.push('-f', 'concat', '-safe', '0', '-i', list);
   } else {
     input.push('-i', file);
@@ -425,6 +427,13 @@ async function main() {
     if (!opts.yes) {
       console.log(JSON.stringify(request, null, 2));
       finish('\nNothing sent. Run again with --yes to upload and process it.');
+    }
+    // Hooper would take the upload and then fail the session for want of
+    // credit, so say so before the upload rather than after it.
+    if (balance.available_cents < cost) {
+      fail(`\nNot enough credit: this needs about ${dollars(cost)} and ${dollars(balance.available_cents)} is available.`
+        + '\nAdd credit at https://hub.hooper.gg (Usage, then Buy credits) and run the same command again;'
+        + ' the download and the cut are kept, so it picks up from here.');
     }
     if (!state.uploadId) {
       state.uploadId = await upload(sendFile);
