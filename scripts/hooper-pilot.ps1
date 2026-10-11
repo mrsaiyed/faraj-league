@@ -53,8 +53,8 @@ $source = Get-ChildItem $unpacked -Directory | Select-Object -First 1
 # Swap the old code for the new, keeping the key, the packages and earlier
 # runs (whose download, cut and Hooper session a re-run picks up). Moved
 # rather than copied over the top, which nests folders that already exist.
-$keep = @('.env', 'hooper-runs', 'node_modules', '.code', '.code.zip')
-Get-ChildItem $Dir -Force | Where-Object { $keep -notcontains $_.Name } | Remove-Item -Recurse -Force
+$preserve = @('.env', 'hooper-runs', 'node_modules', '.code', '.code.zip')
+Get-ChildItem $Dir -Force | Where-Object { $preserve -notcontains $_.Name } | Remove-Item -Recurse -Force
 Get-ChildItem $source.FullName -Force | Move-Item -Destination $Dir
 Remove-Item $unpacked -Recurse -Force
 Remove-Item $zip -Force
