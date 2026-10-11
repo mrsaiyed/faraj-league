@@ -16,6 +16,12 @@
  *  - "Jersey numbers" opens a panel down the left side to add or change every
  *    player's number, both teams at once. A number saves to that player the
  *    moment its box is left (or Enter is pressed) and shows on the tiles at once.
+ *  - "Timeout" on a team's court records one for them and stops the clock. How
+ *    many each team has left follows the league's rules (League rules, in the
+ *    admin menu: so many a game or a half, and any extra in overtime).
+ *  - The ◀ ▶ under the clock is the possession arrow: tap the side it points to.
+ *    Setting it after the opening tip and flipping it once it is used are both
+ *    a tap, and both go in the log, so Undo takes either back.
  *
  * The event log is the source of truth and lives in localStorage per game, so
  * a refresh, a locked tablet or a dropped connection mid-game loses nothing.
@@ -33,6 +39,7 @@ import { hasJersey, jerseyValue, typedJersey, numberDuplicates } from '../../lib
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 import { playBonusHorn } from './tracker-sound.js';
 import { trackerStorageKey, effectiveEvents, saveGameLog } from './game-log-store.js';
+import { gameRules, timeoutsLeft, timeoutRuleText, scopeText } from '../../lib/game-rules.js';
 
 const storageKey = trackerStorageKey;
 
@@ -82,6 +89,10 @@ export function openLiveTracker(game, ctx) {
   /** "#23 Saif" — number and first name, for the tight "In for" buttons. */
   const shortLabelOf = (id) => (numberById[id] != null ? `#${numberById[id]} ` : '') + String(nameOf(id)).split(' ')[0];
   const cfg = { homeTeamId: homeTeam.id, awayTeamId: awayTeam.id };
+  const teamById = { [homeTeam.id]: homeTeam, [awayTeam.id]: awayTeam };
+  const teamNameOf = (id) => teamById[id]?.name || '—';
+  /** The league's timeout rules (League rules in the admin menu), as loaded with the season. */
+  const rules = gameRules(config.DB.contentBlocks?.game_rules);
 
   // ---- persisted session -------------------------------------------------
   const blank = {
@@ -130,6 +141,11 @@ export function openLiveTracker(game, ctx) {
                 ${PERIOD_OPTIONS.map(o => `<option value="${o.value}">${esc(o.label)}</option>`).join('')}
               </select>
             </div>
+            <div class="lt-arrow" id="lt-arrow" role="group" aria-label="Possession arrow">
+              <button type="button" class="lt-arrow-btn" data-arrow="${esc(homeTeam.id)}" aria-pressed="false" title="Point the possession arrow at ${esc(homeTeam.name)}">◀</button>
+              <span class="lt-arrow-label"><span class="lt-arrow-cap" id="lt-arrow-cap">Set</span><span class="lt-arrow-team" id="lt-arrow-team">arrow</span></span>
+              <button type="button" class="lt-arrow-btn" data-arrow="${esc(awayTeam.id)}" aria-pressed="false" title="Point the possession arrow at ${esc(awayTeam.name)}">▶</button>
+            </div>
           </div>
           <div class="lt-team-score" data-team="${esc(awayTeam.id)}"><span class="lt-team-name">${esc(awayTeam.name)}</span><span class="lt-score" id="lt-away-score">0</span></div>
         </div>
@@ -148,27 +164,22 @@ export function openLiveTracker(game, ctx) {
       </div>
 
       <div class="lt-courts">
-        <div class="lt-court" data-team="${esc(homeTeam.id)}">
+        ${[homeTeam, awayTeam].map(team => `
+        <div class="lt-court" data-team="${esc(team.id)}">
           <div class="lt-court-title">
-            <span class="lt-court-head"><span class="lt-court-team">${esc(homeTeam.name)}</span><span class="lt-bonus" id="lt-bonus-${esc(homeTeam.id)}" hidden></span></span>
-            <span class="lt-team-fouls" id="lt-fouls-${esc(homeTeam.id)}"></span>
+            <span class="lt-court-head"><span class="lt-court-team">${esc(team.name)}</span><span class="lt-bonus" id="lt-bonus-${esc(team.id)}" hidden></span></span>
+            <span class="lt-court-tools">
+              <span class="lt-team-fouls" id="lt-fouls-${esc(team.id)}"></span>
+              <button type="button" class="lt-btn lt-timeout" id="lt-to-${esc(team.id)}" data-team="${esc(team.id)}">Timeout<span class="lt-to-left" id="lt-to-left-${esc(team.id)}"></span></button>
+            </span>
           </div>
-          <div class="lt-floor" id="lt-floor-${esc(homeTeam.id)}"></div>
+          <div class="lt-floor" id="lt-floor-${esc(team.id)}"></div>
           <div class="lt-bench-title">Bench</div>
-          <div class="lt-bench" id="lt-bench-${esc(homeTeam.id)}"></div>
-        </div>
-        <div class="lt-court" data-team="${esc(awayTeam.id)}">
-          <div class="lt-court-title">
-            <span class="lt-court-head"><span class="lt-court-team">${esc(awayTeam.name)}</span><span class="lt-bonus" id="lt-bonus-${esc(awayTeam.id)}" hidden></span></span>
-            <span class="lt-team-fouls" id="lt-fouls-${esc(awayTeam.id)}"></span>
-          </div>
-          <div class="lt-floor" id="lt-floor-${esc(awayTeam.id)}"></div>
-          <div class="lt-bench-title">Bench</div>
-          <div class="lt-bench" id="lt-bench-${esc(awayTeam.id)}"></div>
-        </div>
+          <div class="lt-bench" id="lt-bench-${esc(team.id)}"></div>
+        </div>`).join('')}
       </div>
 
-      <p class="lt-hint">Tap a player for +1, +2, +3, a foul or −Foul. Tap someone on the bench to sub them in, or drag them onto whoever is coming off.</p>
+      <p class="lt-hint">Tap a player for +1, +2, +3, a foul or −Foul. Tap someone on the bench to sub them in, or drag them onto whoever is coming off. Timeout records one for that team and stops the clock (${esc(timeoutRuleText(rules))}). ◀ ▶ under the clock is the possession arrow: tap the side it points to.</p>
 
       <div class="lt-log-wrap">
         <div class="lt-log-title">Play log</div>
@@ -500,6 +511,14 @@ export function openLiveTracker(game, ctx) {
         flash(`${team.name} — ${bonusLabel(bonus)}.`);
       }
 
+      const to = timeoutsLeft(derived, team.id, rules);
+      const toBtn = $(`lt-to-${team.id}`);
+      $(`lt-to-left-${team.id}`).textContent = timeoutPips(to);
+      toBtn.classList.toggle('lt-timeout-none', !to.left);
+      const toText = `${to.left} of ${to.allowed} timeout${to.allowed === 1 ? '' : 's'} left ${scopeText(to.scope)}`;
+      toBtn.title = `Call a timeout for ${team.name} (${toText}). Stops the clock.`;
+      toBtn.setAttribute('aria-label', `Timeout for ${team.name}: ${toText}`);
+
       if (!onCourt.length) {
         floor.innerHTML = `<div class="lt-pick-five">Pick the starting ${LINEUP_SIZE} — tap players below.</div>`;
         bench.innerHTML = roster.map(p => playerTile(p, derived, { onCourt: false })).join('')
@@ -516,15 +535,34 @@ export function openLiveTracker(game, ctx) {
         || '<span class="lt-empty">Everyone is on the floor.</span>';
     });
 
+    // The possession arrow: the side it points to is lit in that team's colour.
+    wrap.querySelectorAll('.lt-arrow-btn').forEach(b => {
+      const on = derived.arrow === b.dataset.arrow;
+      b.dataset.color = teamColor(b.dataset.arrow);
+      b.classList.toggle('lt-arrow-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    $('lt-arrow').classList.toggle('lt-arrow-unset', !derived.arrow);
+    // Named as well as pointed at: on a phone held upright the away team sits
+    // under the clock rather than to its right.
+    $('lt-arrow-cap').textContent = derived.arrow ? 'Arrow' : 'Set';
+    $('lt-arrow-team').textContent = derived.arrow ? teamNameOf(derived.arrow) : 'arrow';
+    if (derived.arrow) $('lt-arrow-team').dataset.color = teamColor(derived.arrow);
+    else delete $('lt-arrow-team').dataset.color;
+    $('lt-arrow').title = derived.arrow
+      ? `Possession arrow: ${teamNameOf(derived.arrow)}'s ball at the next held ball. Tap the other side once it is used.`
+      : 'Possession arrow: after the opening tip, tap the side of the team that did not win it.';
+
     $('lt-undo').disabled = !canUndo(session.cursor);
     $('lt-redo').disabled = !canRedo(session.events, session.cursor);
     const last = session.events[session.cursor - 1];
-    $('lt-undo').title = last ? `Undo${describeEvent(last, nameOf) ? `: ${describeEvent(last, nameOf)}` : ''}` : 'Nothing to undo';
+    const lastText = describeEvent(last, nameOf, teamNameOf);
+    $('lt-undo').title = last ? `Undo${lastText ? `: ${lastText}` : ''}` : 'Nothing to undo';
 
     // An older game's rebounds, assists and the like have no description any more.
-    const shown = session.events.slice(0, session.cursor).filter(e => describeEvent(e, nameOf)).slice(-40).reverse();
+    const shown = session.events.slice(0, session.cursor).filter(e => describeEvent(e, nameOf, teamNameOf)).slice(-40).reverse();
     $('lt-log').innerHTML = shown.length
-      ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${periodLabel(e.period)} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf))}</div>`).join('')
+      ? shown.map(e => `<div class="lt-log-row"><span class="lt-log-clock">${esc(`${periodLabel(e.period)} ${formatClock(e.clock)}`)}</span>${esc(describeEvent(e, nameOf, teamNameOf))}</div>`).join('')
       : '<div class="lt-empty">Nothing recorded yet.</div>';
 
     bonusPrimed = true;
@@ -607,6 +645,44 @@ export function openLiveTracker(game, ctx) {
     clearTimeout(flash._t);
     flash._t = setTimeout(() => { el.textContent = ''; }, 2600);
   }
+
+  // ---- timeouts and the possession arrow -----------------------------------
+  /** ●●○ for what a team has left, or "2 left" where there are too many to show as dots. */
+  function timeoutPips({ allowed, left }) {
+    if (!allowed) return 'none';
+    if (allowed > 6) return `${left} left`;
+    return '●'.repeat(left) + '○'.repeat(allowed - left);
+  }
+
+  /**
+   * A timeout for one team. It stops the clock, as a timeout does, and viewers
+   * see it stopped. A team with none left can still be given one — the tracker
+   * records what happened — but only once the scorekeeper confirms it.
+   */
+  function callTimeout(teamId) {
+    if (resetting) return;
+    const team = teamById[teamId];
+    if (!team) return;
+    const before = timeoutsLeft(state(), teamId, rules);
+    if (!before.left && !confirm(`${team.name} ${before.allowed ? 'has no timeouts left' : 'gets no timeouts'} ${scopeText(before.scope)}.\n\nRecord one anyway?`)) return;
+    const wasRunning = session.running;
+    if (wasRunning) stopClock();
+    record({ type: 'timeout', teamId });
+    if (wasRunning) pushGameState('live');
+    const after = timeoutsLeft(state(), teamId, rules);
+    flash(`Timeout — ${team.name}. ${after.left} left ${scopeText(after.scope)}.${wasRunning ? ' Clock stopped.' : ''}`);
+  }
+
+  /** Point the possession arrow at a team: after the opening tip, and each time it is used. */
+  function pointArrow(teamId) {
+    if (resetting || !teamById[teamId]) return;
+    if (state().arrow === teamId) { flash(`The arrow already points to ${teamNameOf(teamId)}.`); return; }
+    record({ type: 'arrow', teamId });
+    flash(`Possession arrow → ${teamNameOf(teamId)}.`);
+  }
+
+  wrap.querySelectorAll('.lt-timeout').forEach(b => { b.onclick = () => callTimeout(b.dataset.team); });
+  wrap.querySelectorAll('.lt-arrow-btn').forEach(b => { b.onclick = () => pointArrow(b.dataset.arrow); });
 
   // Pointer-based: works with touch, pen and mouse alike. A press on a player
   // that never moves far is a tap; one that does is a drag, which is how a

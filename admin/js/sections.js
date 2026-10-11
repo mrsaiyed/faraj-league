@@ -43,6 +43,7 @@ async function showStatSheetLog(el, game, supabase) {
     homeTeamId: game.t1Id,
     awayTeamId: game.t2Id,
     nameOf: (id) => names[id] || log.names?.[id] || '—',
+    teamNameOf: teamName,
   });
   el.innerHTML = gameLogHtml(rows, { homeTeamId: game.t1Id, homeName: teamName(game.t1Id) || 'Home', awayName: teamName(game.t2Id) || 'Away' })
     || '<p class="msg" style="font-size:0.85rem;">The saved game log has no plays in it.</p>';

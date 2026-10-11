@@ -256,11 +256,20 @@ function openDrawer() {
   document.getElementById('admin-drawer-backdrop').classList.add('open');
   document.getElementById('admin-drawer').classList.add('open');
   renderSeasonSettingsInDrawer();
+  renderLeagueRulesInDrawer();
 }
 
 function closeDrawer() {
   document.getElementById('admin-drawer-backdrop').classList.remove('open');
   document.getElementById('admin-drawer').classList.remove('open');
+}
+
+/** League-wide rules the live tracker plays by (timeouts), under the season settings. */
+async function renderLeagueRulesInDrawer() {
+  const content = document.getElementById('admin-league-rules-content');
+  if (!content) return;
+  const { renderLeagueRules } = await import('./league-rules.js');
+  renderLeagueRules(content, { adminFetch, supabase, config });
 }
 
 async function renderSeasonSettingsInDrawer() {

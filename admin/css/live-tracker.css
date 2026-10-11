@@ -18,6 +18,17 @@
 /* The period jumper is a native <select> so touch devices get the OS's own
    big-target picker; only the alignment needs matching to the buttons beside it. */
 .lt-period-select{font-family:inherit;text-align:center;text-align-last:center;}
+/* The possession arrow: the side it points to is lit in that team's colour
+   (data-color on each button). Unset, both sides wait in gold. */
+.lt-arrow{display:flex;align-items:center;gap:0.4rem;}
+.lt-arrow-label{display:flex;flex-direction:column;align-items:center;min-width:4.6rem;max-width:7rem;line-height:1.2;
+  font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#8a8580;}
+.lt-arrow-team{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--team,#8a8580);}
+.lt-arrow-btn{min-width:52px;min-height:40px;padding:0 0.6rem;font-size:1.3rem;line-height:1;border-radius:6px;cursor:pointer;
+  background:#0e2535;color:var(--team,#f5f0e8);border:2px solid var(--team-dim,rgba(200,168,75,0.35));opacity:0.55;}
+.lt-arrow-btn.lt-arrow-on{background:var(--team);color:#04101a;border-color:var(--team);opacity:1;}
+.lt-arrow-unset .lt-arrow-btn{opacity:1;color:#c8a84b;border-color:rgba(200,168,75,0.6);}
+.lt-arrow-unset .lt-arrow-label,.lt-arrow-unset .lt-arrow-team{color:#c8a84b;}
 
 .lt-actions{display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.6rem;}
 .lt-btn{min-height:44px;padding:0.5rem 1rem;font-size:0.95rem;border-radius:6px;cursor:pointer;
@@ -52,9 +63,16 @@
 .lt-court[data-color]{border:3px solid var(--team);}
 .lt-court[data-color] .lt-court-team{color:var(--team);}
 .lt-court-title{font-family:'Cinzel',serif;font-size:0.85rem;letter-spacing:0.12em;text-transform:uppercase;
-  color:#c8a84b;margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;
+  color:#c8a84b;margin-bottom:0.6rem;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:0.5rem;
   min-height:2rem;}
 .lt-court-head{display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;}
+.lt-court-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:0.5rem;}
+/* Timeout, with what the team has left as dots (●●○). */
+.lt-timeout{min-height:40px;padding:0.3rem 0.75rem;font-family:'Lato',sans-serif;font-size:0.85rem;font-weight:700;
+  letter-spacing:0.03em;text-transform:none;color:var(--team,#f5f0e8);border:2px solid var(--team-dim,rgba(200,168,75,0.35));}
+.lt-to-left{margin-left:0.45rem;letter-spacing:0.12em;color:#c8a84b;font-weight:400;}
+.lt-timeout.lt-timeout-none{border-color:rgba(224,86,78,0.7);}
+.lt-timeout.lt-timeout-none .lt-to-left{color:#e06a6a;}
 .lt-team-fouls{color:#c87070;font-size:0.78rem;letter-spacing:0.05em;text-transform:none;
   white-space:nowrap;transition:font-size 0.15s ease;}
 /* A team in foul trouble has to be readable from the bench without squinting,
@@ -224,6 +242,12 @@
   .lt-clock{font-size:1.2rem;padding:0 0.3rem;}
   .lt-clock-controls{gap:0.3rem;}
   .lt-clock-controls .lt-btn{min-height:30px;padding:0.2rem 0.5rem;font-size:0.72rem;}
+  /* The arrow beside Start and the period, not under them: height is what is short here. */
+  .lt-clock-wrap{display:grid;grid-template-columns:auto auto;justify-items:center;align-items:center;column-gap:0.5rem;}
+  .lt-clock{grid-column:1 / -1;}
+  .lt-arrow{gap:0.25rem;}
+  .lt-arrow-btn{min-width:38px;min-height:30px;padding:0 0.4rem;font-size:0.9rem;border-width:1px;}
+  .lt-arrow-label{min-width:3.4rem;font-size:0.55rem;line-height:1.15;}
   .lt-actions{margin-top:0.25rem;gap:0.3rem;}
   .lt-actions .lt-btn{min-height:30px;padding:0.25rem 0.55rem;font-size:0.72rem;}
   .lt-sync{margin-top:0.15rem;font-size:0.65rem;}
@@ -231,6 +255,9 @@
   .lt-courts{flex:1;min-height:0;grid-template-columns:1fr 1fr;gap:0.35rem;margin-top:0.25rem;}
   .lt-court{overflow-y:auto;padding:0.35rem;min-height:0;}
   .lt-court-title{font-size:0.66rem;margin-bottom:0.25rem;min-height:auto;}
+  .lt-court-tools{gap:0.3rem;}
+  .lt-timeout{min-height:28px;padding:0.1rem 0.45rem;font-size:0.68rem;border-width:1px;}
+  .lt-to-left{margin-left:0.3rem;}
   .lt-floor{grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:0.25rem;min-height:auto;}
   .lt-bench-title{margin:0.35rem 0 0.2rem;font-size:0.58rem;}
   .lt-bench{gap:0.22rem;}

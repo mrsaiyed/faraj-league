@@ -76,6 +76,18 @@ describe('gameLogRows', () => {
       .toEqual(['First Half', 'Second Half', 'Overtime']);
   });
 
+  it('lists timeouts and the possession arrow in the admin, named by team, and leaves them off the public log', () => {
+    const more = [...events, { type: 'timeout', teamId: A, period: 2, clock: 1000 }, { type: 'arrow', teamId: H, period: 2, clock: 990 }];
+    const teamNameOf = (id) => ({ [H]: 'Noor', [A]: 'Ansar' }[id]);
+    const rows = gameLogRows(more, { ...opts, teamNameOf });
+    expect(rows.slice(-2)).toMatchObject([
+      { kind: 'play', type: 'timeout', teamId: A, text: 'Timeout — Ansar', clock: '16:40', home: 3, away: 3 },
+      { kind: 'play', type: 'arrow', teamId: H, text: 'Possession arrow → Noor', clock: '16:30' },
+    ]);
+    const pub = gameLogRows(more, { ...opts, teamNameOf, types: visibleLogTypes(['points']) });
+    expect(pub.some(r => r.type === 'timeout' || r.type === 'arrow')).toBe(false);
+  });
+
   it('copes with an empty or missing log, and with events that have no clock', () => {
     expect(gameLogRows([], opts)).toEqual([]);
     expect(gameLogRows(undefined, opts)).toEqual([]);

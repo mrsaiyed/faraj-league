@@ -404,8 +404,58 @@ describe('describeEvent', () => {
     expect(describeEvent({ type: 'period', period: 3 })).toBe('Now OT1');
   });
 
+  it('names the team on a timeout or the possession arrow when it can', () => {
+    const teamNameOf = (id) => ({ H: 'Noor', A: 'Ansar' }[id]);
+    expect(describeEvent({ type: 'timeout', teamId: 'H' }, nameOf, teamNameOf)).toBe('Timeout — Noor');
+    expect(describeEvent({ type: 'arrow', teamId: 'A' }, nameOf, teamNameOf)).toBe('Possession arrow → Ansar');
+    expect(describeEvent({ type: 'timeout', teamId: 'H' }, nameOf)).toBe('Timeout');
+    expect(describeEvent({ type: 'arrow', teamId: 'A' }, nameOf)).toBe('Possession arrow');
+  });
+
   it('survives a missing event', () => {
     expect(describeEvent(null)).toBe('');
+  });
+});
+
+describe('deriveState — timeouts and the possession arrow', () => {
+  const timeout = (teamId) => ({ type: 'timeout', teamId });
+  const arrow = (teamId) => ({ type: 'arrow', teamId });
+
+  it('notes the period each timeout was taken in', () => {
+    const s = all([timeout('H'), { type: 'period', period: 2 }, timeout('H'), timeout('A')]);
+    expect(s.teams.H.timeoutPeriods).toEqual([1, 2]);
+    expect(s.teams.A.timeoutPeriods).toEqual([2]);
+    expect(s.warnings).toEqual([]);
+  });
+
+  it('starts with no timeouts taken and no arrow', () => {
+    const s = all([]);
+    expect(s.teams.H.timeoutPeriods).toEqual([]);
+    expect(s.arrow).toBeNull();
+  });
+
+  it('points the arrow at the team named last, so setting and flipping are the same event', () => {
+    expect(all([arrow('A')]).arrow).toBe('A');
+    expect(all([arrow('A'), arrow('H')]).arrow).toBe('H');
+  });
+
+  it('undo takes a timeout or a flip back', () => {
+    const events = [arrow('A'), timeout('H'), arrow('H')];
+    const back = deriveState(events, 1, CFG);
+    expect(back.arrow).toBe('A');
+    expect(back.teams.H.timeoutPeriods).toEqual([]);
+  });
+
+  it('refuses a timeout or an arrow with no team, as it does a foul with no player', () => {
+    const s = all([{ type: 'timeout' }, { type: 'arrow' }]);
+    expect(s.warnings).toHaveLength(2);
+    expect(s.arrow).toBeNull();
+  });
+
+  it('leaves the score, fouls and lineups alone', () => {
+    const s = all([lineup('H', ['p1', 'p2', 'p3', 'p4', 'p5']), score('p1', 2), timeout('H'), arrow('A')]);
+    expect(s.teams.H).toMatchObject({ score: 2, fouls: 0, halfFouls: 0 });
+    expect(s.teams.H.onCourt).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
   });
 });
 

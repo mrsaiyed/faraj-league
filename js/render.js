@@ -618,6 +618,7 @@ async function showGameLog(game, container) {
     awayTeamId: game.t2Id,
     types: visibleLogTypes(config.PUBLIC_STAT_SLUGS, config.SHOW_ALL_STATS),
     nameOf,
+    teamNameOf: (id) => (id === game.t1Id ? game.t1 : id === game.t2Id ? game.t2 : ''),
   });
   const html = gameLogHtml(rows, { homeTeamId: game.t1Id, homeName: game.t1 || 'Home', awayName: game.t2 || 'Away' });
   if (html) slot.innerHTML = html; else slot.remove();
