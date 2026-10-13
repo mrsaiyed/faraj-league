@@ -178,6 +178,7 @@ async function youtubeInfo(source) {
 /** Metadata for the source, and where its run lives. */
 async function describeSource(source) {
   if (/^https?:\/\//.test(source)) {
+    await freshenYtDlp();
     const [id, title] = await youtubeInfo(source);
     return { youtubeId: id, title, slug: slugify(title || id) };
   }
@@ -186,16 +187,56 @@ async function describeSource(source) {
   return { youtubeId: null, title, slug: slugify(title) };
 }
 
+/**
+ * YouTube changes often and an old yt-dlp is the usual reason it refuses a
+ * download partway ("HTTP Error 403: Forbidden"), so one more than a month
+ * old is updated first. Best effort: a failed update still tries the old one.
+ */
+async function freshenYtDlp() {
+  let version;
+  try {
+    version = capture('yt-dlp', ['--version']).trim();
+  } catch {
+    return; // not installed: the next yt-dlp call says so
+  }
+  const [y, m, d] = version.split('.').map(Number);
+  const ageDays = (Date.now() - Date.UTC(y, (m || 1) - 1, d || 1)) / 86_400_000;
+  if (!(ageDays > 30)) return;
+  console.log(`Updating yt-dlp (yours is ${version}; YouTube changes often)…`);
+  try {
+    await run('yt-dlp', ['-U']);
+  } catch {
+    if (process.platform !== 'win32') return;
+    // A copy winget installed may want winget to update it.
+    await run('winget', ['upgrade', '--id', 'yt-dlp.yt-dlp', '--exact', '--silent',
+      '--accept-source-agreements', '--accept-package-agreements']).catch(() => {});
+  }
+}
+
 async function download(source, outDir) {
   const file = join(outDir, 'source.mp4');
   if (existsSync(file)) return file;
   console.log('Downloading from YouTube (1080p at most, as Hooper requires)…');
-  await run('yt-dlp', [
-    ...cookieArgs,
-    '-f', 'bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba',
-    '--merge-output-format', 'mp4', '-o', file, source,
-  ]);
-  return file;
+  // YouTube sometimes cuts a download off partway. Each attempt asks it for
+  // fresh links and carries on from the part already saved.
+  const attempts = 5;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await run('yt-dlp', [
+        ...cookieArgs,
+        '-f', 'bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba',
+        '--merge-output-format', 'mp4', '-o', file, source,
+      ]);
+      return file;
+    } catch (err) {
+      if (attempt === attempts) {
+        throw new Error(`YouTube kept stopping the download (${err.message}). Run the same command again later;`
+          + ' what has downloaded so far is kept.');
+      }
+      console.log(`YouTube stopped the download; carrying on from where it got to (try ${attempt + 1} of ${attempts})…`);
+      await sleep(3000 * attempt);
+    }
+  }
 }
 
 function probe(file) {
