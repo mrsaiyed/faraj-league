@@ -86,11 +86,15 @@ function run(cmd, args) {
   });
 }
 
-/** Run a command and return its stdout; throws on a non-zero exit. */
+/** Run a command and return its stdout; throws on a non-zero exit, carrying its stderr. */
 function capture(cmd, args) {
   const r = spawnSync(cmd, args, { encoding: 'utf8' });
   if (r.error) throw r.error.code === 'ENOENT' ? new Error(`${cmd} is not installed`) : r.error;
-  if (r.status !== 0) throw new Error(`${cmd} failed: ${r.stderr.trim().split('\n').pop()}`);
+  if (r.status !== 0) {
+    const err = new Error(`${cmd} failed: ${r.stderr.trim().split('\n').pop()}`);
+    err.stderr = r.stderr;
+    throw err;
+  }
   return r.stdout;
 }
 
@@ -100,11 +104,47 @@ const dollars = (cents) => `$${(cents / 100).toFixed(2)}`;
 
 // ---- source ---------------------------------------------------------------
 
+// YouTube sometimes answers yt-dlp with "Sign in to confirm you're not a bot",
+// even on a home connection. A signed-in browser's cookies get past it:
+// yt-dlp reads them from that browser on this computer and sends them only to
+// YouTube. Firefox goes first because it is the one yt-dlp reads reliably on
+// Windows; Chrome's cookie store there is often locked or unreadable to it.
+const COOKIE_BROWSERS = ['firefox', 'edge', 'chrome', 'brave', 'safari'];
+const isBotCheck = (text) => /not a bot|sign in to confirm/i.test(text || '');
+let cookieArgs = [];
+
+/** The video's id and title, finding a browser sign-in first if YouTube asks for one. */
+function youtubeInfo(source) {
+  const args = ['--skip-download', '--no-warnings', '--print', '%(id)s\t%(title)s', source];
+  const forced = process.env.YTDLP_BROWSER;
+  const attempts = forced ? [forced] : [null, ...COOKIE_BROWSERS];
+  const tried = [];
+  for (const browser of attempts) {
+    const extra = browser ? ['--cookies-from-browser', browser] : [];
+    try {
+      const out = capture('yt-dlp', [...extra, ...args]);
+      if (browser) console.log(`Using ${browser}'s YouTube sign-in.`);
+      cookieArgs = extra;
+      return out.trim().split('\t');
+    } catch (err) {
+      // Anything but the bot check (a typo'd link, a private video) is not
+      // something a browser's cookies would fix.
+      if (!browser && !isBotCheck(err.stderr || err.message)) throw err;
+      if (!browser) console.log('YouTube wants a signed-in browser; trying the browsers on this computer…');
+      else tried.push(`  ${browser}: ${(err.stderr || err.message).trim().split('\n').pop()}`);
+    }
+  }
+  fail('YouTube asked to confirm this is not a bot, and no browser here got past it:\n'
+    + `${tried.join('\n')}\n\n`
+    + 'Sign in to YouTube in Firefox (any Google account will do) and run the same command again.\n'
+    + 'To use a different browser you are signed in with, set YTDLP_BROWSER first'
+    + " (PowerShell: $env:YTDLP_BROWSER='edge'; then the command).");
+}
+
 /** Metadata for the source, and where its run lives. */
 function describeSource(source) {
   if (/^https?:\/\//.test(source)) {
-    const [id, title] = capture('yt-dlp', ['--skip-download', '--no-warnings', '--print', '%(id)s\t%(title)s', source])
-      .trim().split('\t');
+    const [id, title] = youtubeInfo(source);
     return { youtubeId: id, title, slug: slugify(title || id) };
   }
   if (!existsSync(source)) fail(`No such file: ${source}`);
@@ -117,6 +157,7 @@ async function download(source, outDir) {
   if (existsSync(file)) return file;
   console.log('Downloading from YouTube (1080p at most, as Hooper requires)…');
   await run('yt-dlp', [
+    ...cookieArgs,
     '-f', 'bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba',
     '--merge-output-format', 'mp4', '-o', file, source,
   ]);
