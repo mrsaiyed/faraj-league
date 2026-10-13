@@ -110,41 +110,75 @@ const dollars = (cents) => `$${(cents / 100).toFixed(2)}`;
 // YouTube. Firefox goes first because it is the one yt-dlp reads reliably on
 // Windows; Chrome's cookie store there is often locked or unreadable to it.
 const COOKIE_BROWSERS = ['firefox', 'edge', 'chrome', 'brave', 'safari'];
+// A running Chromium browser on Windows locks its cookie file, so yt-dlp
+// cannot copy it ("Could not copy Chrome cookie database"). These can be
+// closed and tried again. Not Chrome: closing it would not help, as yt-dlp
+// cannot decrypt the cookies current Chrome writes on Windows.
+const CLOSE_TO_READ = { edge: { exe: 'msedge.exe', name: 'Edge' }, brave: { exe: 'brave.exe', name: 'Brave' } };
 const isBotCheck = (text) => /not a bot|sign in to confirm/i.test(text || '');
+const isLocked = (text) => /could not copy .*cookie database/i.test(text || '');
 let cookieArgs = [];
 
+async function askYesNo(question) {
+  if (!process.stdin.isTTY) return false;
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return /^y(es)?$/i.test((await rl.question(`${question} [y/N] `)).trim());
+  } finally {
+    rl.close();
+  }
+}
+
 /** The video's id and title, finding a browser sign-in first if YouTube asks for one. */
-function youtubeInfo(source) {
+async function youtubeInfo(source) {
   const args = ['--skip-download', '--no-warnings', '--print', '%(id)s\t%(title)s', source];
   const forced = process.env.YTDLP_BROWSER;
   const attempts = forced ? [forced] : [null, ...COOKIE_BROWSERS];
   const tried = [];
   for (const browser of attempts) {
     const extra = browser ? ['--cookies-from-browser', browser] : [];
-    try {
-      const out = capture('yt-dlp', [...extra, ...args]);
-      if (browser) console.log(`Using ${browser}'s YouTube sign-in.`);
-      cookieArgs = extra;
-      return out.trim().split('\t');
-    } catch (err) {
-      // Anything but the bot check (a typo'd link, a private video) is not
-      // something a browser's cookies would fix.
-      if (!browser && !isBotCheck(err.stderr || err.message)) throw err;
-      if (!browser) console.log('YouTube wants a signed-in browser; trying the browsers on this computer…');
-      else tried.push(`  ${browser}: ${(err.stderr || err.message).trim().split('\n').pop()}`);
+    for (let retry = false; ; retry = true) {
+      try {
+        const out = capture('yt-dlp', [...extra, ...args]);
+        if (browser) console.log(`Using ${browser}'s YouTube sign-in.`);
+        cookieArgs = extra;
+        return out.trim().split('\t');
+      } catch (err) {
+        const text = err.stderr || err.message;
+        // Anything but the bot check (a typo'd link, a private video) is not
+        // something a browser's cookies would fix.
+        if (!browser && !isBotCheck(text)) throw err;
+        if (!browser) {
+          console.log('YouTube wants a signed-in browser; trying the browsers on this computer…');
+          break;
+        }
+        const closable = CLOSE_TO_READ[browser];
+        if (!retry && closable && isLocked(text) && process.platform === 'win32'
+          && await askYesNo(`${closable.name} is open, which locks its sign-in. Close ${closable.name} now and use it?`
+            + ` (It will offer to restore your tabs next time.)`)) {
+          spawnSync('taskkill', ['/F', '/T', '/IM', closable.exe], { stdio: 'ignore' });
+          await sleep(1500);
+          continue;
+        }
+        const last = text.trim().split('\n').pop();
+        tried.push(`  ${browser}: ${isBotCheck(last) ? 'read its sign-in, but YouTube still asked to confirm this is not a bot' : last}`);
+        break;
+      }
     }
   }
   fail('YouTube asked to confirm this is not a bot, and no browser here got past it:\n'
     + `${tried.join('\n')}\n\n`
-    + 'Sign in to YouTube in Firefox (any Google account will do) and run the same command again.\n'
-    + 'To use a different browser you are signed in with, set YTDLP_BROWSER first'
+    + 'The sure way: open Firefox, sign in to YouTube there (any Google account will do),'
+    + ' and run the same command again. yt-dlp reads Firefox even while it is open.\n'
+    + 'To use one particular browser, set YTDLP_BROWSER first'
     + " (PowerShell: $env:YTDLP_BROWSER='edge'; then the command).");
 }
 
 /** Metadata for the source, and where its run lives. */
-function describeSource(source) {
+async function describeSource(source) {
   if (/^https?:\/\//.test(source)) {
-    const [id, title] = youtubeInfo(source);
+    const [id, title] = await youtubeInfo(source);
     return { youtubeId: id, title, slug: slugify(title || id) };
   }
   if (!existsSync(source)) fail(`No such file: ${source}`);
@@ -398,7 +432,7 @@ async function main() {
   dotenv.config();
   const opts = parseArgs(process.argv);
 
-  const meta = describeSource(opts.source);
+  const meta = await describeSource(opts.source);
   const outDir = resolve(opts.out || join('hooper-runs', meta.slug));
   mkdirSync(outDir, { recursive: true });
   const statePath = join(outDir, 'state.json');
