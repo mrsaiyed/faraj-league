@@ -3,7 +3,9 @@
  * from the admin (admin/js/league-rules.js, against stubbed adminFetch and Supabase).
  */
 import { describe, it, expect } from 'vitest';
-import { gameRules, timeoutsLeft, timeoutRuleText, DEFAULT_GAME_RULES, MAX_TIMEOUTS } from '../lib/game-rules.js';
+import {
+  gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, DEFAULT_GAME_RULES, MAX_TIMEOUTS,
+} from '../lib/game-rules.js';
 import { deriveState } from '../lib/game-tracker.js';
 import { saveGameRules, rulesHint, RULES_KEY, RULES_NEED_DEPLOY } from '../admin/js/league-rules.js';
 
@@ -85,15 +87,30 @@ describe('timeoutsLeft — per half', () => {
   });
 });
 
-describe('timeoutRuleText and rulesHint', () => {
+describe('the rule in words', () => {
+  const halves = { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 };
+
   it('puts the rule in words', () => {
     expect(timeoutRuleText(DEFAULT_GAME_RULES)).toBe('3 a game');
-    expect(timeoutRuleText({ timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 })).toBe('2 a half, and 1 more each overtime');
+    expect(timeoutRuleText(halves)).toBe('2 a half, and 1 more each overtime');
   });
 
-  it('says whether what is left carries into overtime', () => {
-    expect(rulesHint({ timeoutsPer: 'game' })).toMatch(/carry over into overtime/);
-    expect(rulesHint({ timeoutsPer: 'half' })).toMatch(/starts afresh/);
+  it('puts it in a few characters for the tracker\'s button', () => {
+    expect(timeoutRuleShort(DEFAULT_GAME_RULES)).toBe('3/game');
+    expect(timeoutRuleShort(halves)).toBe('2/half +1 OT');
+  });
+
+  it('says whether what is left carries into overtime, in the tracker and the admin alike', () => {
+    expect(carryText({ timeoutsPer: 'game' })).toMatch(/carry over into overtime/);
+    expect(carryText({ timeoutsPer: 'half' })).toMatch(/starts afresh/);
+    expect(rulesHint({ timeoutsPer: 'half' })).toContain(carryText({ timeoutsPer: 'half' }));
+    expect(rulesHint({})).toMatch(/single game can be changed in the tracker/);
+  });
+
+  it('compares rules by what they say, not how they were written', () => {
+    expect(sameRules(DEFAULT_GAME_RULES, '{"timeouts":3}')).toBe(true);
+    expect(sameRules(DEFAULT_GAME_RULES, null)).toBe(true);
+    expect(sameRules(DEFAULT_GAME_RULES, halves)).toBe(false);
   });
 });
 

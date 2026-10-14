@@ -156,6 +156,23 @@
   box-shadow:10px 0 34px rgba(0,0,0,0.6);transform:translateX(-102%);visibility:hidden;
   transition:transform 0.2s ease,visibility 0s 0.2s;}
 .lt-drawer.lt-drawer-open{transform:none;visibility:visible;transition:transform 0.2s ease;}
+/* "Timeouts" — this game's rules: a small dialog over the same dimmed tracker. Its
+   boxes follow the numbers panel's rules: 16px+ type, text selection back on. */
+.lt-modal{position:fixed;left:50%;top:50%;z-index:21;width:min(430px,92vw);max-height:92vh;max-height:92dvh;overflow-y:auto;
+  box-sizing:border-box;padding:1rem 1.1rem;background:#04101a;color:#f5f0e8;font-family:'Lato',sans-serif;
+  border:2px solid #c8a84b;border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,0.65);
+  transform:translate(-50%,-48%);opacity:0;visibility:hidden;
+  transition:opacity 0.15s ease,transform 0.15s ease,visibility 0s 0.15s;}
+.lt-modal.lt-modal-open{transform:translate(-50%,-50%);opacity:1;visibility:visible;transition:opacity 0.15s ease,transform 0.15s ease;}
+.lt-rules-form{display:flex;flex-direction:column;gap:0.6rem;margin-top:0.7rem;}
+.lt-rules-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;font-size:0.95rem;}
+.lt-rules-input{flex:none;box-sizing:border-box;width:7rem;min-height:44px;padding:0.3rem 0.5rem;border-radius:8px;
+  font-family:inherit;font-size:1.1rem;font-weight:700;text-align:center;text-align-last:center;color:#f5f0e8;
+  background:#12303f;border:2px solid rgba(200,168,75,0.35);-webkit-user-select:text;user-select:text;}
+.lt-rules-input:invalid{border-color:#e06a6a;}
+.lt-rules-note{margin:0;font-size:0.82rem;line-height:1.4;color:#8a8580;}
+.lt-rules-actions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.2rem;}
+.lt-rules-actions [hidden]{display:none;}
 .lt-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex:none;}
 .lt-drawer-title{font-family:'Cinzel',serif;font-size:1.05rem;letter-spacing:0.12em;text-transform:uppercase;color:#c8a84b;}
 .lt-drawer-sub{margin-top:0.15rem;font-size:0.8rem;letter-spacing:0.06em;color:#8a8580;}
@@ -192,7 +209,7 @@
   .lt-drawer-typing .lt-drawer-body{padding-bottom:45vh;}
 }
 @media (prefers-reduced-motion:reduce){
-  .lt-drawer,.lt-drawer-scrim{transition:none;}
+  .lt-drawer,.lt-drawer-scrim,.lt-modal{transition:none;}
 }
 
 /* Drag ghost follows the pointer */
@@ -293,6 +310,13 @@
   .lt-jn-name{padding:0.25rem 0;font-size:0.78rem;}
   .lt-jn-state{width:1rem;font-size:0.8rem;}
   .lt-jn-msg{margin-top:0.2rem;min-height:0.9rem;font-size:0.7rem;}
+
+  .lt-modal{padding:0.5rem 0.9rem;}
+  .lt-modal .lt-drawer-hint{display:block;margin-top:0.25rem;font-size:0.72rem;}
+  .lt-rules-form{gap:0.3rem;margin-top:0.35rem;}
+  .lt-rules-row{font-size:0.82rem;}
+  .lt-rules-input{min-height:34px;font-size:1rem;}
+  .lt-rules-actions .lt-btn{min-height:34px;padding:0.25rem 0.7rem;font-size:0.8rem;}
 
   /* Secondary once you know the game: reclaim their space so the courts —
      what you are actually looking at mid-game — get the room. */

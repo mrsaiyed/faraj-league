@@ -18,7 +18,8 @@
  *    moment its box is left (or Enter is pressed) and shows on the tiles at once.
  *  - "Timeout" on a team's court records one for them and stops the clock. How
  *    many each team has left follows the league's rules (League rules, in the
- *    admin menu: so many a game or a half, and any extra in overtime).
+ *    admin menu: so many a game or a half, and any extra in overtime), which the
+ *    "Timeouts" button changes for this game alone — before tip-off, say.
  *  - The ◀ ▶ under the clock is the possession arrow: tap the side it points to.
  *    Setting it after the opening tip and flipping it once it is used are both
  *    a tap, and both go in the log, so Undo takes either back.
@@ -39,7 +40,7 @@ import { hasJersey, jerseyValue, typedJersey, numberDuplicates } from '../../lib
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 import { playBonusHorn } from './tracker-sound.js';
 import { trackerStorageKey, effectiveEvents, saveGameLog } from './game-log-store.js';
-import { gameRules, timeoutsLeft, timeoutRuleText, scopeText } from '../../lib/game-rules.js';
+import { gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, scopeText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
 
 const storageKey = trackerStorageKey;
 
@@ -92,7 +93,9 @@ export function openLiveTracker(game, ctx) {
   const teamById = { [homeTeam.id]: homeTeam, [awayTeam.id]: awayTeam };
   const teamNameOf = (id) => teamById[id]?.name || '—';
   /** The league's timeout rules (League rules in the admin menu), as loaded with the season. */
-  const rules = gameRules(config.DB.contentBlocks?.game_rules);
+  const leagueRules = gameRules(config.DB.contentBlocks?.game_rules);
+  /** This game's: the league's, unless changed for this game with the "Timeouts" button. */
+  const currentRules = () => (session.rules ? gameRules(session.rules) : leagueRules);
 
   // ---- persisted session -------------------------------------------------
   const blank = {
@@ -112,6 +115,10 @@ export function openLiveTracker(game, ctx) {
     // The schedule shows the home team blue and the away team white; teams
     // whose jerseys are the other way round get swapped here, per game.
     colorsSwapped: false,
+    // Timeout rules changed for this game alone ("Timeouts" button), or null
+    // for the league's. Like the period length, a deliberate choice: it
+    // survives the game being marked not started.
+    rules: null,
   };
   let session = blank;
   try {
@@ -153,6 +160,7 @@ export function openLiveTracker(game, ctx) {
           <button type="button" id="lt-undo" class="lt-btn">↶ Undo</button>
           <button type="button" id="lt-redo" class="lt-btn">↷ Redo</button>
           <button type="button" id="lt-swap-colors" class="lt-btn" title="Swap which team is white and which is blue">⇄ Swap colors</button>
+          <button type="button" id="lt-rules" class="lt-btn">Timeouts <span id="lt-rules-label"></span><span class="lt-badge" id="lt-rules-badge" hidden>this game</span></button>
           <button type="button" id="lt-numbers" class="lt-btn" title="Add or change the players' jersey numbers">Jersey numbers<span class="lt-badge" id="lt-numbers-badge" hidden></span></button>
           <button type="button" id="lt-not-started" class="lt-btn" title="Put this game back to not started: no score, not live">Mark not started</button>
           <button type="button" id="lt-end" class="lt-btn">End game</button>
@@ -179,7 +187,7 @@ export function openLiveTracker(game, ctx) {
         </div>`).join('')}
       </div>
 
-      <p class="lt-hint">Tap a player for +1, +2, +3, a foul or −Foul. Tap someone on the bench to sub them in, or drag them onto whoever is coming off. Timeout records one for that team and stops the clock (${esc(timeoutRuleText(rules))}). ◀ ▶ under the clock is the possession arrow: tap the side it points to.</p>
+      <p class="lt-hint">Tap a player for +1, +2, +3, a foul or −Foul. Tap someone on the bench to sub them in, or drag them onto whoever is coming off. Timeout records one for that team and stops the clock (<span id="lt-hint-rule"></span>). ◀ ▶ under the clock is the possession arrow: tap the side it points to.</p>
 
       <div class="lt-log-wrap">
         <div class="lt-log-title">Play log</div>
@@ -214,7 +222,27 @@ export function openLiveTracker(game, ctx) {
           </div>`).join('') || '<div class="lt-empty">No players on this team yet.</div>'}
         </section>`).join('')}
       </div>
-    </aside>`;
+    </aside>
+
+    <div class="lt-drawer-scrim" id="lt-rules-scrim"></div>
+    <div class="lt-modal" id="lt-rules-dialog" role="dialog" aria-modal="true" aria-labelledby="lt-rules-title" aria-hidden="true">
+      <div class="lt-drawer-title" id="lt-rules-title">Timeouts this game</div>
+      <p class="lt-drawer-hint" id="lt-rules-league"></p>
+      <form class="lt-rules-form" id="lt-rules-form">
+        <label class="lt-rules-row"><span>Timeouts per team</span>
+          <input class="lt-rules-input" id="lt-rules-timeouts" type="number" inputmode="numeric" min="0" max="${MAX_TIMEOUTS}" step="1" required></label>
+        <label class="lt-rules-row"><span>Counted per</span>
+          <select class="lt-rules-input" id="lt-rules-per"><option value="game">Game</option><option value="half">Half</option></select></label>
+        <label class="lt-rules-row"><span>Extra each overtime</span>
+          <input class="lt-rules-input" id="lt-rules-ot" type="number" inputmode="numeric" min="0" max="${MAX_TIMEOUTS}" step="1" required></label>
+        <p class="lt-rules-note" id="lt-rules-note"></p>
+        <div class="lt-rules-actions">
+          <button type="submit" class="lt-btn lt-btn-save">Use for this game</button>
+          <button type="button" class="lt-btn" id="lt-rules-reset">Back to league rules</button>
+          <button type="button" class="lt-btn" id="lt-rules-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>`;
   document.body.appendChild(wrap);
 
   const $ = (id) => wrap.querySelector('#' + id);
@@ -511,7 +539,7 @@ export function openLiveTracker(game, ctx) {
         flash(`${team.name} — ${bonusLabel(bonus)}.`);
       }
 
-      const to = timeoutsLeft(derived, team.id, rules);
+      const to = timeoutsLeft(derived, team.id, currentRules());
       const toBtn = $(`lt-to-${team.id}`);
       $(`lt-to-left-${team.id}`).textContent = timeoutPips(to);
       toBtn.classList.toggle('lt-timeout-none', !to.left);
@@ -534,6 +562,13 @@ export function openLiveTracker(game, ctx) {
         .map(p => playerTile(p, derived, { onCourt: false, floor: onCourt })).join('')
         || '<span class="lt-empty">Everyone is on the floor.</span>';
     });
+
+    // This game's timeout rule, on its button and in the hint.
+    const ruleNow = currentRules();
+    $('lt-rules-label').textContent = timeoutRuleShort(ruleNow);
+    $('lt-rules-badge').hidden = !session.rules;
+    $('lt-rules').title = `Timeouts this game: ${timeoutRuleText(ruleNow)}${session.rules ? ' (changed for this game)' : ' (league rules)'}. Tap to change them for this game.`;
+    $('lt-hint-rule').textContent = timeoutRuleText(ruleNow);
 
     // The possession arrow: the side it points to is lit in that team's colour.
     wrap.querySelectorAll('.lt-arrow-btn').forEach(b => {
@@ -663,13 +698,13 @@ export function openLiveTracker(game, ctx) {
     if (resetting) return;
     const team = teamById[teamId];
     if (!team) return;
-    const before = timeoutsLeft(state(), teamId, rules);
+    const before = timeoutsLeft(state(), teamId, currentRules());
     if (!before.left && !confirm(`${team.name} ${before.allowed ? 'has no timeouts left' : 'gets no timeouts'} ${scopeText(before.scope)}.\n\nRecord one anyway?`)) return;
     const wasRunning = session.running;
     if (wasRunning) stopClock();
     record({ type: 'timeout', teamId });
     if (wasRunning) pushGameState('live');
-    const after = timeoutsLeft(state(), teamId, rules);
+    const after = timeoutsLeft(state(), teamId, currentRules());
     flash(`Timeout — ${team.name}. ${after.left} left ${scopeText(after.scope)}.${wasRunning ? ' Clock stopped.' : ''}`);
   }
 
@@ -683,6 +718,66 @@ export function openLiveTracker(game, ctx) {
 
   wrap.querySelectorAll('.lt-timeout').forEach(b => { b.onclick = () => callTimeout(b.dataset.team); });
   wrap.querySelectorAll('.lt-arrow-btn').forEach(b => { b.onclick = () => pointArrow(b.dataset.arrow); });
+
+  // ---- timeouts for this game --------------------------------------------
+  // The league's rule, changed for one game — before tip-off, typically. It is
+  // kept in this game's session (this device), not in the league's settings.
+  const rulesDialog = $('lt-rules-dialog');
+  const rulesScrim = $('lt-rules-scrim');
+  let rulesOpen = false;
+  const readRules = () => gameRules({
+    timeouts: $('lt-rules-timeouts').value === '' ? NaN : Number($('lt-rules-timeouts').value),
+    timeoutsPer: $('lt-rules-per').value,
+    overtimeTimeouts: $('lt-rules-ot').value === '' ? NaN : Number($('lt-rules-ot').value),
+  });
+  const showRulesNote = () => { $('lt-rules-note').textContent = carryText(readRules()); };
+
+  function openRules() {
+    if (rulesOpen) return;
+    menuFor = null;
+    render();
+    const r = currentRules();
+    $('lt-rules-timeouts').value = r.timeouts;
+    $('lt-rules-per').value = r.timeoutsPer;
+    $('lt-rules-ot').value = r.overtimeTimeouts;
+    $('lt-rules-league').textContent = `League rules: ${timeoutRuleText(leagueRules)}. A change here is for this game only.`;
+    $('lt-rules-reset').hidden = !session.rules;
+    showRulesNote();
+    rulesOpen = true;
+    rulesDialog.classList.add('lt-modal-open');
+    rulesScrim.classList.add('lt-drawer-open');
+    rulesDialog.removeAttribute('aria-hidden');
+    panelEl.inert = true;
+    $('lt-rules-timeouts').focus();
+    $('lt-rules-timeouts').select();
+  }
+
+  function closeRules() {
+    if (!rulesOpen) return;
+    rulesOpen = false;
+    rulesDialog.classList.remove('lt-modal-open');
+    rulesScrim.classList.remove('lt-drawer-open');
+    rulesDialog.setAttribute('aria-hidden', 'true');
+    panelEl.inert = false;
+    if (rulesDialog.contains(document.activeElement)) document.activeElement.blur();
+    $('lt-rules').focus({ preventScroll: true });
+  }
+
+  /** Keep a rule for this game; one that matches the league's is no change at all. */
+  function setGameRules(next) {
+    session.rules = next && !sameRules(next, leagueRules) ? next : null;
+    persist();
+    closeRules();
+    render();
+    flash(`Timeouts this game: ${timeoutRuleText(currentRules())}${session.rules ? '' : ' (league rules)'}.`);
+  }
+
+  $('lt-rules').onclick = openRules;
+  $('lt-rules-cancel').onclick = closeRules;
+  rulesScrim.onclick = closeRules;
+  $('lt-rules-reset').onclick = () => setGameRules(null);
+  $('lt-rules-form').addEventListener('input', showRulesNote);
+  $('lt-rules-form').addEventListener('submit', (e) => { e.preventDefault(); setGameRules(readRules()); });
 
   // Pointer-based: works with touch, pen and mouse alike. A press on a player
   // that never moves far is a tap; one that does is a drag, which is how a
@@ -764,6 +859,7 @@ export function openLiveTracker(game, ctx) {
   });
   const onKeydown = (e) => {
     if (e.key !== 'Escape') return;
+    if (rulesOpen) { closeRules(); return; }
     if (numbersOpen) { closeNumbers(); return; }
     if (!menuFor) return;
     const id = menuFor;
@@ -1079,9 +1175,9 @@ export function openLiveTracker(game, ctx) {
       // scheduled) — reset the local session to match, or the picker and
       // clock stay wherever they were left (e.g. still showing "OT1"),
       // which reads as if the reset hadn't really worked. The period
-      // length and the team colours are deliberate choices, so they — and
-      // only they — survive it.
-      session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds, colorsSwapped: session.colorsSwapped };
+      // length, the team colours and this game's timeout rules are
+      // deliberate choices, so they — and only they — survive it.
+      session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds, colorsSwapped: session.colorsSwapped, rules: session.rules };
       persist();
       render();
       const sync = $('lt-sync');

@@ -7,7 +7,7 @@
  * blocks. Edited in the admin menu's drawer, under the season settings.
  */
 
-import { gameRules, timeoutRuleText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
+import { gameRules, timeoutRuleText, carryText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
 
 export const RULES_KEY = 'game_rules';
 
@@ -56,11 +56,7 @@ export async function saveGameRules({ adminFetch, supabase, rules }) {
 
 /** What the drawer says under the form about the window chosen. */
 export function rulesHint(rules) {
-  const r = gameRules(rules);
-  const carry = r.timeoutsPer === 'half'
-    ? 'Each half starts afresh, and so does each overtime.'
-    : 'Timeouts not used carry over into overtime.';
-  return `${carry} Applies to every season; the live tracker uses it the next time it is opened.`;
+  return `${carryText(rules)} Applies to every season, and the live tracker uses it the next time it is opened. A single game can be changed in the tracker.`;
 }
 
 /**
