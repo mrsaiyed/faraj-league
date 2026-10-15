@@ -26,8 +26,9 @@
  *
  * The event log is the source of truth and lives in localStorage per game, so
  * a refresh, a locked tablet or a dropped connection mid-game loses nothing.
- * Saving derives totals and posts them through the existing admin-game-stats
- * function, which already recomputes the final score.
+ * Nothing waits for a button: the stats a moment after each tap (through the
+ * existing admin-game-stats function, which recomputes the score) and the
+ * play-by-play a moment after that, both retried until they land.
  */
 
 import {
@@ -39,7 +40,10 @@ import {
 import { hasJersey, jerseyValue, typedJersey, numberDuplicates } from '../../lib/jersey.js';
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 import { playBonusHorn } from './tracker-sound.js';
-import { trackerStorageKey, effectiveEvents, saveGameLog } from './game-log-store.js';
+import { trackerStorageKey, effectiveEvents, extendsSavedLog, saveGameLog } from './game-log-store.js';
+import { createAutosave } from './autosave.js';
+import { gameStatus } from '../../lib/game-clock.js';
+import { getGameLog } from '../../lib/api.js';
 import { gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, scopeText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
 
 const storageKey = trackerStorageKey;
@@ -49,6 +53,16 @@ const storageKey = trackerStorageKey;
  * long enough that a quick correction (tap, undo) is a single write.
  */
 const AUTO_SYNC_MS = 900;
+
+/**
+ * The play-by-play saves this long after the last change: after the score
+ * push, which viewers are waiting on, and late enough that a run of taps is
+ * one save.
+ */
+const LOG_SAVE_MS = 1500;
+
+/** A failed save — stats or play-by-play — is tried again this long after, or with the next tap. */
+const RETRY_MS = 10000;
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -169,6 +183,7 @@ export function openLiveTracker(game, ctx) {
         </div>
         <div class="lt-sync" id="lt-sync">Live · not yet saved</div>
         <div class="lt-sync lt-sync-note" id="lt-clock-note" hidden></div>
+        <div class="lt-sync lt-sync-error" id="lt-log-note" role="status" hidden></div>
       </div>
 
       <div class="lt-courts">
@@ -269,6 +284,7 @@ export function openLiveTracker(game, ctx) {
     persist();
     render();
     queueAutoSync();
+    logSave.changed();
     // The first thing recorded is what makes a game live for viewers.
     if (!session.status || session.status === 'scheduled') pushGameState('live');
   }
@@ -286,6 +302,8 @@ export function openLiveTracker(game, ctx) {
   let lastSent = new Map();
   /** The push on its way, for End game to wait out before sending minutes. */
   let syncInFlight = null;
+  /** Set on Close: a failed push is no longer retried on a timer. */
+  let closed = false;
 
   function queueAutoSync() {
     if (autoSync === false || resetting) return;
@@ -299,7 +317,7 @@ export function openLiveTracker(game, ctx) {
    *   would slow the push viewers are waiting on (see `toStatValues`).
    */
   async function runAutoSync({ withMinutes = false } = {}) {
-    if (autoSync === false) return;
+    if (autoSync === false || resetting) return;
     if (syncing) { syncPending = true; return; }       // fold into the next run
     const defs = config.DB.statDefinitions || [];
     if (!defs.length) return;
@@ -317,6 +335,7 @@ export function openLiveTracker(game, ctx) {
     if (!changed.length) { setSyncState('saved'); return; }
 
     syncing = true;
+    let failed = false;
     setSyncState('saving');
     try {
       // No DNP list mid-game — players simply may not have come on yet.
@@ -329,11 +348,14 @@ export function openLiveTracker(game, ctx) {
       changed.forEach(v => lastSent.set(statValueKey(v), v.value));
       setSyncState('saved');
     } catch (err) {
-      // Keep scoring; the next event retries and Save is still the backstop.
+      // Keep scoring: the next tap retries, or a timer does if none comes —
+      // the last basket of a game must not wait for a tap that never comes.
+      failed = true;
       setSyncState('error', err.message);
     } finally {
       syncing = false;
       if (syncPending) { syncPending = false; queueAutoSync(); }
+      else if (failed && !closed && !resetting) { clearTimeout(syncTimer); syncTimer = setTimeout(runAutoSync, RETRY_MS); }
     }
   }
 
@@ -411,40 +433,53 @@ export function openLiveTracker(game, ctx) {
   }
 
   /**
-   * Save the play-by-play (`game_logs`, migration 013) so a final game's box
-   * score can show it. Sent whole at the natural breaks — period changes, the
-   * half-time buzzer, End game, Save and closing — never per tap: it is only
-   * shown once the game is over, and the device keeps the log meanwhile.
-   * Never blocks scoring; a failure is named once, then retried at the next break.
-   * Sends run one after another, each taking the log as it is when its turn
-   * comes, so an earlier send can never land after a later one and overwrite it.
-   *
-   * @returns {Promise<{ ok: boolean, error?: string }>}
+   * Save the play-by-play (`game_logs`, migration 013) as it happens, like the
+   * stats: every change to the log — a play, an undo or redo, the clock set
+   * back — saves it whole a moment later (`LOG_SAVE_MS`). Saves run one after
+   * another, each sending the log as it is when its turn comes, so an older
+   * one never lands after a newer one. One that fails is retried until it
+   * lands, and a line under the scoreboard says so meanwhile. End game and
+   * Save wait for it and say how it went; the device keeps the log
+   * regardless, and opening the game again sends whatever never arrived.
    */
-  let logWarned = false;
-  let logPush = Promise.resolve();
-  function pushGameLog() {
-    const run = logPush.then(sendGameLog);
-    logPush = run;
-    return run;
-  }
-  async function sendGameLog() {
-    const events = effectiveEvents(session);
-    if (!events.length) return { ok: true };
-    try {
+  const logSave = createAutosave({
+    delay: LOG_SAVE_MS,
+    retryDelay: RETRY_MS,
+    auto: autoSync !== false,
+    save: async () => {
+      const events = effectiveEvents(session);
+      // Nothing to show (everything undone): leave what is saved. Marking the
+      // game not started is what removes a saved log.
+      if (!events.length) return;
       await saveGameLog({ adminFetch, gameId: game.gameId, events, names: nameById });
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: err?.message || String(err) };
-    }
-  }
-  /** For the breaks that do not say anything themselves: report a failure once. */
-  function pushGameLogQuietly() {
-    pushGameLog().then((r) => {
-      if (r.ok || logWarned) return;
-      logWarned = true;
-      flash(`Game log not saved yet: ${r.error}`);
-    });
+    },
+    onState: ({ ok, error }) => {
+      const note = $('lt-log-note');
+      if (!note) return;
+      note.hidden = ok;
+      if (!ok) note.textContent = `Play-by-play not saved yet — retrying (${error}). This device keeps it meanwhile.`;
+    },
+  });
+
+  /**
+   * On opening: if this device holds plays the database does not — tracked
+   * offline, or before the play-by-play was saved as it happens — send them
+   * now. Only when nothing is saved for the game or the saved log is the
+   * start of this one, so a log another device saved is never replaced by
+   * opening an old one here; and only for a game that is under way or over,
+   * not one since put back to not started elsewhere.
+   */
+  async function sendUnsavedLog() {
+    const events = effectiveEvents(session);
+    if (!events.length || !ctx.supabase || gameStatus(game) === 'scheduled') return;
+    try {
+      const { data: saved, error } = await getGameLog(ctx.supabase, game.gameId);
+      if (error) return;   // no migration 013, or offline: the next tap tries anyway
+      if (!extendsSavedLog(saved?.events, events)) return;
+      logSave.changed();
+      const res = await logSave.flush();
+      if (res.ok) flash('Play-by-play kept on this device is now saved.');
+    } catch (_) { /* the device still holds it; the next tap sends it */ }
   }
 
   function setSyncState(kind, detail) {
@@ -1115,7 +1150,7 @@ export function openLiveTracker(game, ctx) {
         // scorekeeper to call the game.
         const atBreak = session.period < 2;
         pushGameState(atBreak ? 'halftime' : 'live');
-        pushGameLogQuietly();
+        logSave.flush();
         flash(atBreak ? 'Half time.' : 'Period over.');
       }
     }, 1000);
@@ -1144,6 +1179,7 @@ export function openLiveTracker(game, ctx) {
       });
       session.events = events;
       session.elapsed = elapsed;
+      if (rewound) logSave.changed();
       if (rewound) flash(`Clock set back ${formatClock(rewound)} — taken off the minutes of whoever was on the floor.`);
     }
     session.clock = secs;
@@ -1165,12 +1201,18 @@ export function openLiveTracker(game, ctx) {
     session.clock = session.periodSeconds;
     record({ type: 'period', period: next });
     pushGameState('live');
-    pushGameLogQuietly();
+    logSave.flush();
   };
 
   // ---- undo / redo / save ------------------------------------------------
-  $('lt-undo').onclick = () => { session.cursor = undo(session.cursor); persist(); render(); queueAutoSync(); };
-  $('lt-redo').onclick = () => { session.cursor = redo(session.events, session.cursor); persist(); render(); queueAutoSync(); };
+  $('lt-undo').onclick = () => {
+    if (resetting) return;
+    session.cursor = undo(session.cursor); persist(); render(); queueAutoSync(); logSave.changed();
+  };
+  $('lt-redo').onclick = () => {
+    if (resetting) return;
+    session.cursor = redo(session.events, session.cursor); persist(); render(); queueAutoSync(); logSave.changed();
+  };
   $('lt-swap-colors').onclick = () => { session.colorsSwapped = !session.colorsSwapped; persist(); render(); };
 
   // ---- mark not started --------------------------------------------------
@@ -1186,8 +1228,13 @@ export function openLiveTracker(game, ctx) {
     try {
       clearTimeout(syncTimer);
       syncPending = false;
+      logSave.cancel();
       while (syncing) await new Promise(r => setTimeout(r, 100));
       await statePush;
+      // A log save on its way would put the log back after clearGame deletes
+      // it; one that failed meanwhile has queued a retry, so cancel again.
+      await logSave.idle();
+      logSave.cancel();
       const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
       const { clearGame } = await import('./game-reset.js');
       await clearGame({ adminFetch, gameId: game.gameId, rosterPlayerIds: rosterIds });
@@ -1200,6 +1247,7 @@ export function openLiveTracker(game, ctx) {
       // length, the team colours and this game's timeout rules are
       // deliberate choices, so they — and only they — survive it.
       session = { ...blank, periodSeconds: session.periodSeconds, clock: session.periodSeconds, colorsSwapped: session.colorsSwapped, rules: session.rules };
+      logSave.reset();
       persist();
       render();
       const sync = $('lt-sync');
@@ -1239,7 +1287,10 @@ export function openLiveTracker(game, ctx) {
     await runAutoSync({ withMinutes: true });   // the last baskets, and everyone's minutes
     await sendDidNotPlay();
     await pushGameState('final');
-    const log = await pushGameLog();
+    // Sent even if nothing changed since the last save: ending the game says
+    // this is the game, so the database gets this log whatever it held.
+    logSave.changed();
+    const log = await logSave.flush();
     flash(`Game ended — viewers now see the final score${log.ok ? ' and the game log' : ''}.`
       + (log.ok ? '' : ` Game log not saved: ${log.error}`));
   };
@@ -1247,9 +1298,13 @@ export function openLiveTracker(game, ctx) {
   $('lt-close').onclick = () => {
     stopClock();
     persist();
-    // The last chance this session has to send the log; nobody is left to tell.
-    pushGameLog();
+    // Send anything not yet saved; nobody is left to tell if it fails, but the
+    // device keeps it and opening the game again sends it.
+    logSave.flush();
+    logSave.stop();
+    closed = true;
     document.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('visibilitychange', onHidden);
     wrap.remove();
   };
 
@@ -1297,7 +1352,8 @@ export function openLiveTracker(game, ctx) {
         method: 'POST',
         body: JSON.stringify({ game_id: game.gameId, values, dnp_player_ids: dnp }),
       });
-      const log = await pushGameLog();
+      logSave.changed();
+      const log = await logSave.flush();
       flash(`Saved. ${missing.length ? `Not recorded (no stat column yet): ${missing.join(', ')}. ` : ''}`
         + (log.ok ? '' : `Game log not saved: ${log.error}`));
       if (ctx.onSaved) await ctx.onSaved();
@@ -1308,8 +1364,19 @@ export function openLiveTracker(game, ctx) {
     }
   };
 
+  // A tablet locked or a tab switched away may never run the timers again:
+  // send what is waiting now.
+  const onHidden = () => {
+    // While the game is being cleared, a save would undo the clear.
+    if (document.visibilityState !== 'hidden' || resetting) return;
+    if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; runAutoSync(); }
+    logSave.flush();
+  };
+  document.addEventListener('visibilitychange', onHidden);
+
   render();
   refreshNumbersUi();
+  sendUnsavedLog();
   if (missingStatSlugs(config.DB.statDefinitions || []).length) {
     flash(`Heads up: no stat column for ${missingStatSlugs(config.DB.statDefinitions || []).join(', ')} — those will not be saved.`);
   }

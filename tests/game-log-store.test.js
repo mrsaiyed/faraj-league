@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  trackerStorageKey, effectiveEvents, logMatchesScore, saveGameLog, deleteGameLog, uploadStoredGameLogs,
+  trackerStorageKey, effectiveEvents, extendsSavedLog, logMatchesScore, saveGameLog, deleteGameLog, uploadStoredGameLogs,
 } from '../admin/js/game-log-store.js';
 
 const score = (playerId, teamId, points) => ({ type: 'score', playerId, teamId, points });
@@ -62,6 +62,31 @@ describe('effectiveEvents', () => {
   });
 });
 
+describe('extendsSavedLog', () => {
+  const at = (e, t) => ({ ...e, at: t });
+  const mine = [at(score('h1', 'H', 2), 1), at(score('a1', 'A', 2), 2), at(score('h1', 'H', 1), 3)];
+
+  it('is true when nothing is saved, or the saved log is the start of this one', () => {
+    expect(extendsSavedLog(null, mine)).toBe(true);
+    expect(extendsSavedLog(undefined, mine)).toBe(true);
+    expect(extendsSavedLog([], mine)).toBe(true);
+    expect(extendsSavedLog(mine.slice(0, 2), mine)).toBe(true);
+  });
+
+  it('counts a play restamped by the clock being set back as the same play', () => {
+    const saved = [{ ...mine[0], elapsed: 90, clock: 1110 }];
+    expect(extendsSavedLog(saved, mine)).toBe(true);
+  });
+
+  it('is false when the saved log is as long or longer, went another way, or this one is empty', () => {
+    expect(extendsSavedLog(mine, mine)).toBe(false);
+    expect(extendsSavedLog([...mine, at(score('a1', 'A', 3), 4)], mine)).toBe(false);
+    expect(extendsSavedLog([at(score('a1', 'A', 2), 1)], mine)).toBe(false);   // another player
+    expect(extendsSavedLog([at(score('h1', 'H', 2), 9)], mine)).toBe(false);   // recorded at another moment
+    expect(extendsSavedLog(null, [])).toBe(false);
+  });
+});
+
 describe('logMatchesScore', () => {
   it('is true when the log replays to the recorded score', () => {
     expect(logMatchesScore(fullLog, game('G1'))).toBe(true);
@@ -105,22 +130,50 @@ describe('uploadStoredGameLogs', () => {
     expect(calls).toEqual([{ fn: 'admin-game-log', body: { game_id: 'G1', events: fullLog, names: { h1: 'Hamza', a1: 'Omar' } } }]);
   });
 
-  it('leaves alone games that are not final, have no log here, or whose log does not match the score', async () => {
+  it('uploads a log that does not match the score when nothing is saved: it beats none', async () => {
+    // The stat sheet was corrected after the game, say, so the log gives 2–2
+    // where the game is recorded 3–2. Skipping it is how logs were lost.
+    const { calls, adminFetch } = fetchStub();
+    const res = await uploadStoredGameLogs({
+      adminFetch, supabase: supabaseWith([]), teams, games: [game('G1')],
+      storage: storageWith({ G1: { events: fullLog, cursor: 2 } }),
+    });
+    expect(res).toEqual({ uploaded: 1, errors: [] });
+    expect(calls[0].body.events).toEqual(fullLog.slice(0, 2));   // up to the undo cursor
+  });
+
+  it('leaves alone games that are not final, or have no log here', async () => {
     const { calls, adminFetch } = fetchStub();
     const supabase = supabaseWith([]);
     const res = await uploadStoredGameLogs({
       adminFetch, supabase, teams,
-      games: [game('LIVE', { status: 'live' }), game('NOLOG'), game('PARTIAL'), game('UNDONE')],
+      games: [game('LIVE', { status: 'live' }), game('NOLOG'), game('EMPTY')],
       storage: storageWith({
         LIVE: { events: fullLog, cursor: 3 },
-        PARTIAL: { events: fullLog.slice(0, 2), cursor: 2 },
-        // The last basket was undone, so this log no longer gives 3–2.
-        UNDONE: { events: fullLog, cursor: 2 },
+        EMPTY: { events: fullLog, cursor: 0 },   // everything undone
       }),
     });
     expect(res).toEqual({ uploaded: 0, errors: [] });
     expect(calls).toEqual([]);
     expect(supabase.asked).toEqual([]);   // nothing worth asking about
+  });
+
+  it('never replaces a saved log that holds plays this device does not have', async () => {
+    const { calls, adminFetch } = fetchStub();
+    const other = [score('a1', 'A', 3)];
+    const res = await uploadStoredGameLogs({
+      adminFetch, teams, games: [game('G1'), game('G2')],
+      supabase: supabaseWith([
+        { game_id: 'G1', log: { events: fullLog } },          // further than this device got
+        { game_id: 'G2', log: { events: other } },            // went another way
+      ]),
+      storage: storageWith({
+        G1: { events: fullLog, cursor: 2 },
+        G2: { events: fullLog, cursor: 2 },                   // matches the score neither
+      }),
+    });
+    expect(res.uploaded).toBe(0);
+    expect(calls).toEqual([]);
   });
 
   it('never replaces a saved log that already matches the score', async () => {

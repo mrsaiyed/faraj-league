@@ -3,8 +3,8 @@ import { verifyAdminToken, corsHeaders, jsonResponse, createServiceClient } from
 /**
  * Save or delete a game's play-by-play (`game_logs`, migration 013).
  *
- * POST { game_id, events, names }   upserts the log (the tracker sends it on
- *                                   End game, Save, period changes and close)
+ * POST { game_id, events, names }   upserts the log (the tracker sends it a
+ *                                   moment after every play, and on End game)
  * POST { game_id, delete: true }    removes it (clearing a game does this)
  *
  * The log is replaced whole each time: the tracker always holds the complete

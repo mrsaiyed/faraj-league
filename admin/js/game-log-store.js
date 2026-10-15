@@ -4,9 +4,10 @@
  * The tracker's event log is its source of truth, kept in this browser's
  * localStorage per game. Since migration 013 it is also saved to `game_logs`
  * through the `admin-game-log` function, so a final game's box score can show
- * it on both sites. Games tracked before then kept their log on the device
- * that tracked them only; `uploadStoredGameLogs()` puts those in the database
- * the next time the admin is opened on that device.
+ * it on both sites. The tracker saves it a moment after every play; a log
+ * that still never reached the database (tracked before then, or on a device
+ * that went offline) is put there the next time that device opens the game in
+ * the tracker, or the admin (`uploadStoredGameLogs()`).
  */
 
 import { deriveState } from '../../lib/game-tracker.js';
@@ -27,6 +28,28 @@ export function effectiveEvents(session) {
   const cursor = Number(session?.cursor);
   const upTo = Number.isFinite(cursor) ? Math.max(0, Math.min(cursor, events.length)) : events.length;
   return events.slice(0, upTo);
+}
+
+/** The same play: what it was, who it was for, and the moment it was recorded. */
+const samePlay = (a, b) => !!a && !!b && a.type === b.type && a.at === b.at
+  && a.playerId === b.playerId && a.teamId === b.teamId;
+
+/**
+ * Would saving `events` lose nothing the database holds? True when nothing is
+ * saved yet, or the saved log is the start of this one — the same plays in
+ * the same order, and this one has more (it was sent at half time, say, or
+ * when the device lost its connection). A saved log that went further, or a
+ * different way, is someone else's to keep.
+ *
+ * @param {object[]|null|undefined} saved the saved log's events
+ * @param {object[]} events this device's, cut at the undo cursor
+ * @returns {boolean}
+ */
+export function extendsSavedLog(saved, events) {
+  const mine = Array.isArray(events) ? events : [];
+  const theirs = Array.isArray(saved) ? saved : [];
+  if (!mine.length || theirs.length >= mine.length) return false;
+  return theirs.every((e, i) => samePlay(e, mine[i]));
 }
 
 /**
@@ -74,12 +97,16 @@ export async function deleteGameLog({ adminFetch, gameId }) {
 }
 
 /**
- * Upload the logs this device still holds for final games that have no
- * complete log saved.
+ * Upload the logs this device still holds for final games whose saved log is
+ * missing or behind.
  *
- * Careful by design, because the device may hold an old or partial log:
- * - only final games, and only a log that replays to the game's recorded score;
- * - never over a saved log that already does — another device's may be truer.
+ * A device's log goes in when:
+ * - nothing is saved for the game — a log that is not quite right (the stat
+ *   sheet was corrected after the game, say) still beats none;
+ * - the saved log is the start of this one (`extendsSavedLog`);
+ * - this one replays to the game's recorded score and the saved one does not.
+ * Anything else stays as saved — one that matches the score, or that holds
+ * plays this device does not have, may be another device's and truer.
  *
  * @param {object} opts
  * @param {Function} opts.adminFetch
@@ -105,7 +132,7 @@ export async function uploadStoredGameLogs({ adminFetch, supabase, games, teams,
     let session = null;
     try { session = JSON.parse(store.getItem(trackerStorageKey(game.gameId)) || 'null'); } catch (_) { continue; }
     const events = effectiveEvents(session);
-    if (!events.length || !logMatchesScore(events, game)) continue;
+    if (!events.length) continue;
     candidates.push({ game, events, names: { ...namesByTeam[game.t1Id], ...namesByTeam[game.t2Id] } });
   }
   if (!candidates.length) return { uploaded: 0, errors: [] };
@@ -121,8 +148,10 @@ export async function uploadStoredGameLogs({ adminFetch, supabase, games, teams,
   let uploaded = 0;
   const errors = [];
   for (const c of candidates) {
-    const existing = saved.get(c.game.gameId);
-    if (existing && logMatchesScore(existing.events, c.game)) continue;
+    const existing = saved.get(c.game.gameId)?.events;
+    const better = extendsSavedLog(existing, c.events)
+      || (logMatchesScore(c.events, c.game) && !logMatchesScore(existing, c.game));
+    if (!better) continue;
     try {
       await saveGameLog({ adminFetch, gameId: c.game.gameId, events: c.events, names: c.names });
       uploaded += 1;
