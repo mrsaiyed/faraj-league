@@ -1,5 +1,33 @@
 import { verifyAdminToken, corsHeaders, jsonResponse, createServiceClient } from '../_shared/auth.ts';
 
+type Supa = Awaited<ReturnType<typeof createServiceClient>>;
+
+/**
+ * Write one content block: update the row(s) holding the key, or insert one.
+ *
+ * It used to look the key up as "exactly one row", so a key that ever got two
+ * rows (two saves at once) found none and inserted another on every save — the
+ * draft settings reached 63 copies. Migration 015 removes the copies and allows
+ * one row per key per season; updating first works either side of it, and an
+ * insert that loses a race to another save updates that row instead.
+ */
+async function saveBlock(supabase: Supa, key: string, value: string, seasonId: string | null) {
+  const update = () => {
+    const q = supabase.from('content_blocks').update({ value }).eq('key', key);
+    return seasonId ? q.eq('season_id', seasonId) : q.is('season_id', null);
+  };
+  const { data: updated, error: updateErr } = await update().select('id');
+  if (updateErr) return updateErr;
+  if (updated && updated.length) return null;
+
+  const { error: insertErr } = await supabase.from('content_blocks').insert({ key, value, season_id: seasonId });
+  if (insertErr?.code === '23505') {
+    const { error } = await update();
+    return error;
+  }
+  return insertErr;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders() });
 
@@ -16,17 +44,8 @@ Deno.serve(async (req) => {
     for (const item of items) {
       const { key, value, season_id } = item;
       if (!key || !validKeys.includes(key)) continue;
-
-      const q = supabase.from('content_blocks').select('id').eq('key', key);
-      const { data: existing } = season_id
-        ? await q.eq('season_id', season_id).maybeSingle()
-        : await q.is('season_id', null).maybeSingle();
-
-      if (existing) {
-        await supabase.from('content_blocks').update({ value: value ?? '' }).eq('id', existing.id);
-      } else {
-        await supabase.from('content_blocks').insert({ key, value: value ?? '', season_id: season_id || null });
-      }
+      const err = await saveBlock(supabase, key, value ?? '', season_id || null);
+      if (err) return jsonResponse({ error: err.message }, 400);
     }
 
     return jsonResponse({ ok: true });

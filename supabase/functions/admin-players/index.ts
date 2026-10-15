@@ -12,7 +12,12 @@ Deno.serve(async (req) => {
 
     if (body.delete && body.id) {
       const { data: player } = await supabase.from('players').select('name, season_id').eq('id', body.id).single();
-      await supabase.from('rosters').delete().eq('player_id', body.id);
+      // The player goes first, and their roster row with them (ON DELETE CASCADE).
+      // A player with recorded stats cannot be deleted (migration 015); doing this
+      // first means a refused delete leaves them exactly as they were, rather than
+      // off their team but still there.
+      const { error } = await supabase.from('players').delete().eq('id', body.id);
+      if (error) return jsonResponse({ error: error.message }, 400);
       if (player?.name && player?.season_id) {
         const { data: teamsWithCaptain } = await supabase.from('teams').select('id').eq('season_id', player.season_id).eq('captain', player.name);
         if (teamsWithCaptain?.length) {
@@ -21,8 +26,6 @@ Deno.serve(async (req) => {
           }
         }
       }
-      const { error } = await supabase.from('players').delete().eq('id', body.id);
-      if (error) return jsonResponse({ error: error.message }, 400);
       return jsonResponse({ ok: true });
     }
 

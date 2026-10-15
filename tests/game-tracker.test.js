@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats, didNotPlay,
   changedStatValues, bonusLevel, bonusLabel, bonusFor, periodLabel, rewindClock,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS, BONUS_FOULS, DOUBLE_BONUS_FOULS, PERIOD_OPTIONS, MAX_PERIOD,
 } from '../lib/game-tracker.js';
@@ -773,5 +773,31 @@ describe('changedStatValues', () => {
 
   it('survives missing input', () => {
     expect(changedStatValues(null, new Map())).toEqual([]);
+  });
+});
+
+describe('didNotPlay', () => {
+  const roster = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'a1'];
+  const events = [
+    lineup('H', ['h1', 'h2', 'h3', 'h4', 'h5']),
+    score('a1', 2, 'A'),
+    { type: 'sub', teamId: 'H', playerInId: 'h6', playerOutId: 'h2' },
+  ];
+
+  it('lists roster players never in a five, never subbed, with nothing recorded', () => {
+    expect(didNotPlay(events, events.length, roster)).toEqual(['h7']);
+  });
+
+  it('follows the undo cursor: an undone sub means the sub never came on', () => {
+    expect(didNotPlay(events, 2, roster)).toEqual(['h6', 'h7']);
+  });
+
+  it('counts a player with only a foul as having played', () => {
+    expect(didNotPlay([{ type: 'foul', playerId: 'h7', teamId: 'H' }], 1, ['h7'])).toEqual([]);
+  });
+
+  it('is everyone before anything is recorded, and copes with nothing', () => {
+    expect(didNotPlay([], 0, ['h1'])).toEqual(['h1']);
+    expect(didNotPlay(undefined, 3, undefined)).toEqual([]);
   });
 });

@@ -90,17 +90,27 @@ Deno.serve(async (req) => {
 
     // Score derivation: sum points per team, update games
     if (pointsDef && (homeRosterIds.size > 0 || awayRosterIds.size > 0)) {
+      // select('*'), not named columns: team_id exists only from migration 015.
       const { data: gsv } = await supabase
         .from('game_stat_values')
-        .select('player_id, value')
+        .select('*')
         .eq('game_id', game_id)
         .eq('stat_definition_id', pointsDef.id);
 
+      // Each row's own team (fixed when it was written), so a player moved to
+      // another team since still counts for the side they played for. Rows
+      // from before migration 015 fall back to the rosters as they are now.
+      const teamOf = (row: { player_id: string; team_id?: string | null }) =>
+        row.team_id
+        ?? (homeRosterIds.has(row.player_id) ? game.home_team_id
+          : awayRosterIds.has(row.player_id) ? game.away_team_id : null);
+
       let homeScore = 0;
       let awayScore = 0;
-      (gsv || []).forEach((row: { player_id: string; value: number }) => {
-        if (homeRosterIds.has(row.player_id)) homeScore += Number(row.value || 0);
-        if (awayRosterIds.has(row.player_id)) awayScore += Number(row.value || 0);
+      (gsv || []).forEach((row: { player_id: string; team_id?: string | null; value: number }) => {
+        const team = teamOf(row);
+        if (team === game.home_team_id) homeScore += Number(row.value || 0);
+        else if (team === game.away_team_id) awayScore += Number(row.value || 0);
       });
 
       const { error: updateErr } = await supabase

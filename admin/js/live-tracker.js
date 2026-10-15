@@ -32,7 +32,7 @@
 
 import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
-  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats,
+  toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats, didNotPlay,
   changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, rewindClock, PERIOD_OPTIONS, MAX_PERIOD,
   LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
 } from '../../lib/game-tracker.js';
@@ -334,6 +334,28 @@ export function openLiveTracker(game, ctx) {
     } finally {
       syncing = false;
       if (syncPending) { syncPending = false; queueAutoSync(); }
+    }
+  }
+
+  /**
+   * End game marks who never got on the floor as DNP, as Save does: the live
+   * push wrote a zero row for everyone on both rosters, and without this a game
+   * ended but never saved counts as a game played for everyone who sat on the
+   * bench (the site's games-played, and the career stats). The rows of anyone
+   * who sat out are deleted; lastSent keeps their zeros, so later pushes do not
+   * write them back.
+   */
+  async function sendDidNotPlay() {
+    if (autoSync === false || !hasRecordedStats(state().players)) return;
+    const rosterIds = [...rosterOf(homeTeam), ...rosterOf(awayTeam)].map(p => p.id);
+    const dnp = didNotPlay(session.events, session.cursor, rosterIds);
+    try {
+      await adminFetch('admin-game-stats', {
+        method: 'POST',
+        body: JSON.stringify({ game_id: game.gameId, values: [], dnp_player_ids: dnp }),
+      });
+    } catch (err) {
+      setSyncState('error', err.message);
     }
   }
 
@@ -1215,6 +1237,7 @@ export function openLiveTracker(game, ctx) {
     // before this does, so `syncing` is clear by the time we go on.
     if (syncing) await syncInFlight?.catch(() => {});
     await runAutoSync({ withMinutes: true });   // the last baskets, and everyone's minutes
+    await sendDidNotPlay();
     await pushGameState('final');
     const log = await pushGameLog();
     flash(`Game ended — viewers now see the final score${log.ok ? ' and the game log' : ''}.`
@@ -1265,12 +1288,7 @@ export function openLiveTracker(game, ctx) {
     if (!confirm('Save these stats? This replaces whatever is currently recorded for this game.')) return;
 
     // Anyone on the roster who never appeared is a DNP for this game.
-    const appeared = new Set(Object.keys(derived.players));
-    session.events.slice(0, session.cursor).forEach(e => {
-      if (e.type === 'lineup') (e.playerIds || []).forEach(id => appeared.add(id));
-      if (e.type === 'sub') { appeared.add(e.playerInId); appeared.add(e.playerOutId); }
-    });
-    const dnp = rosterIds.filter(id => !appeared.has(id));
+    const dnp = didNotPlay(session.events, session.cursor, rosterIds);
 
     $('lt-save').disabled = true;
     flash('Saving…');

@@ -30,7 +30,7 @@ Public site for the Faraj League (`farajleague.org`). A static web app backed by
 
 4. **Run migrations**
    - Open Supabase Dashboard → SQL Editor
-   - Run migrations in order: 001 through 014 (`supabase/migrations/`)
+   - Run migrations in order: 001 through 016 (`supabase/migrations/`)
    - Phase 5 adds `006_phase5_login_attempts.sql` for rate limiting
    - Or use Supabase CLI: `npx supabase db push`
 

@@ -83,6 +83,8 @@ Deno.serve(async (req) => {
 
     let playerStats: unknown[] = [];
     let gameStats: unknown[] = [];
+    let gameDnp: unknown[] = [];
+    let gameLogs: unknown[] = [];
     if (playerIds.length > 0) {
       const r = await supabase.from('player_stat_values').select('*').in('player_id', playerIds);
       playerStats = r.data || [];
@@ -90,7 +92,18 @@ Deno.serve(async (req) => {
     if (gameIds.length > 0) {
       const r = await supabase.from('game_stat_values').select('*').in('game_id', gameIds);
       gameStats = r.data || [];
+      gameDnp = (await supabase.from('game_dnp').select('*').in('game_id', gameIds)).data || [];
+      // Absent before migration 013; a failed read is just an empty file.
+      gameLogs = ((await supabase.from('game_logs').select('*').in('game_id', gameIds)).data || [])
+        .map((l: { log: unknown; [k: string]: unknown }) => ({ ...l, log: JSON.stringify(l.log) }));
     }
+
+    // The career ids this season's players and teams link to (migration 015);
+    // absent before it, when these are empty files.
+    const personIds = [...new Set(players.map((p: { person_id?: string }) => p.person_id).filter(Boolean))];
+    const franchiseIds = [...new Set(teams.map((t: { franchise_id?: string }) => t.franchise_id).filter(Boolean))];
+    const people = personIds.length ? (await supabase.from('people').select('*').in('id', personIds)).data || [] : [];
+    const franchises = franchiseIds.length ? (await supabase.from('franchises').select('*').in('id', franchiseIds)).data || [] : [];
 
     const teamMap: Record<string, { name: string }> = {};
     teams.forEach((t: { id: string; name: string }) => { teamMap[t.id] = { name: t.name }; });
@@ -119,6 +132,10 @@ Deno.serve(async (req) => {
     zip.file('games.csv', toCsv(gameRows));
     zip.file('awards.csv', toCsv(awardsRes.data || []));
     zip.file('game_stat_values.csv', toCsv(gameStats));
+    zip.file('game_dnp.csv', toCsv(gameDnp as Record<string, unknown>[]));
+    zip.file('game_logs.csv', toCsv(gameLogs as Record<string, unknown>[]));
+    zip.file('people.csv', toCsv(people));
+    zip.file('franchises.csv', toCsv(franchises));
     zip.file('player_stat_values.csv', toCsv(playerStats));
     zip.file('stat_definitions.csv', toCsv(statDefsRes.data || []));
     zip.file('media_items.csv', toCsv(mediaRes.data || []));

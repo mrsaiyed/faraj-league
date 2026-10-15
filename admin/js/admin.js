@@ -22,6 +22,7 @@ import {
   openBoxScoreFullscreen,
   closeBoxScoreFullscreen,
 } from '../../js/render.js';
+import { friendlyDbError } from '../../lib/db-errors.js';
 
 // The admin sees every stat the league records; the public site only PUBLIC_STAT_SLUGS.
 config.SHOW_ALL_STATS = true;
@@ -78,7 +79,9 @@ async function adminFetch(fnName, options = {}) {
     },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  // The database refuses some changes outright (a player with stats, a team with
+  // games): say those in plain words.
+  if (!res.ok) throw new Error(data.error ? friendlyDbError(data.error) : `Request failed: ${res.status}`);
   return data;
 }
 
