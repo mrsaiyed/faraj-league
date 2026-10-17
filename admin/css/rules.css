@@ -1,0 +1,47 @@
+/* The admin's Rules page (admin/js/league-rules.js): the league's tiebreakers,
+   timeouts, foul limits and clock, in four cards. Uses the site's .card. */
+
+.rules-intro{margin:0 0 1.25rem;font-size:0.92rem;line-height:1.5;color:#c8c0b0;max-width:62rem;}
+.rules-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.25rem;align-items:start;}
+.rules-card{display:flex;flex-direction:column;gap:0.7rem;min-width:0;}
+.rules-col{display:flex;flex-direction:column;gap:1.25rem;}
+.rules-row[hidden]{display:none;}
+.rules-card-title{margin:0 0 0.15rem;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;padding-bottom:0.35rem;border-bottom:1px solid rgba(200,168,75,0.2);}
+
+.rules-row{display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;}
+.rules-label{min-width:9.5rem;font-size:0.9rem;color:#c8c0b0;}
+.rules-tb-row .rules-label{min-width:2.5rem;font-family:'Cinzel',serif;color:#c8a84b;}
+.rules-after{font-size:0.85rem;color:#8a8580;}
+.rules-input{width:4.5rem;padding:0.5rem 0.55rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);border-radius:4px;color:#f5f0e8;font:inherit;font-size:0.95rem;}
+.rules-input:focus{outline:2px solid #c8a84b;outline-offset:1px;}
+.rules-input-mid{width:8rem;}
+/* A select is as wide as its longest option unless told otherwise; this one fits its card. */
+.rules-input-wide{flex:1 1 0;min-width:0;width:0;max-width:100%;}
+
+.rules-note{margin:0;font-size:0.82rem;line-height:1.45;color:#8a8580;}
+.rules-fine{font-size:0.78rem;}
+#rules-tb-summary{color:#c8c0b0;}
+
+.rules-preview{border-top:1px solid rgba(200,168,75,0.15);padding-top:0.7rem;}
+.rules-preview-title{font-size:0.75rem;letter-spacing:0.14em;text-transform:uppercase;color:#2fa89a;margin-bottom:0.45rem;}
+.rules-preview-list{margin:0 0 0.45rem;padding:0;list-style:none;counter-reset:pv;}
+.rules-preview-list li{display:grid;grid-template-columns:1.6rem minmax(0,1fr) 3rem 3.2rem 2.4rem;align-items:baseline;padding:0.22rem 0;font-size:0.88rem;color:#f5f0e8;counter-increment:pv;}
+.rules-preview-list li::before{content:counter(pv);color:#8a8580;font-size:0.8rem;}
+.rules-preview-list li.rules-moved .rules-pv-name{color:#c8a84b;}
+.rules-pv-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rules-pv-rec,.rules-pv-pd{text-align:right;color:#c8c0b0;font-variant-numeric:tabular-nums;}
+.rules-pv-move{text-align:right;font-size:0.8rem;color:#c8a84b;}
+
+.rules-actions{display:flex;align-items:center;gap:1rem;margin-top:1.4rem;flex-wrap:wrap;}
+.rules-save{padding:0.65rem 1.4rem;background:#c8a84b;color:#060f1a;border:none;border-radius:4px;font-weight:700;font-size:0.95rem;cursor:pointer;}
+.rules-save:hover{background:#d4b85c;}
+.rules-save:disabled{opacity:0.6;cursor:default;}
+.rules-dirty{font-size:0.85rem;color:#c8a84b;}
+.rules-dirty[hidden]{display:none;}
+
+@media(max-width:768px){
+  .rules-grid{grid-template-columns:minmax(0,1fr);}
+  .rules-label{min-width:7.5rem;}
+  /* 16px keeps iOS from zooming the page when a box is tapped. */
+  .rules-input{font-size:16px;}
+}

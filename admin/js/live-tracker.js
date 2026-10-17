@@ -17,9 +17,11 @@
  *    player's number, both teams at once. A number saves to that player the
  *    moment its box is left (or Enter is pressed) and shows on the tiles at once.
  *  - "Timeout" on a team's court records one for them and stops the clock. How
- *    many each team has left follows the league's rules (League rules, in the
- *    admin menu: so many a game or a half, and any extra in overtime), which the
- *    "Timeouts" button changes for this game alone — before tip-off, say.
+ *    many each team has left follows the league's rules (the admin's Rules
+ *    page: so many a game or a half, and any extra in overtime), which the
+ *    "Timeouts" button changes for this game alone — before tip-off, say. The
+ *    bonus, fouling out and the length of a half and an overtime follow the
+ *    Rules page too.
  *  - The ◀ ▶ under the clock is the possession arrow: tap the side it points to.
  *    Setting it after the opening tip and flipping it once it is used are both
  *    a tap, and both go in the log, so Undo takes either back.
@@ -35,16 +37,16 @@ import {
   deriveState, appendEvent, undo, redo, canUndo, canRedo,
   toStatValues, missingStatSlugs, describeEvent, formatClock, livePlayerSeconds, courtSeconds, hasRecordedStats, didNotPlay,
   changedStatValues, statValueKey, bonusFor, bonusLabel, periodLabel, rewindClock, PERIOD_OPTIONS, MAX_PERIOD,
-  LINEUP_SIZE, DEFAULT_PERIOD_SECONDS,
+  LINEUP_SIZE,
 } from '../../lib/game-tracker.js';
 import { hasJersey, jerseyValue, typedJersey, numberDuplicates } from '../../lib/jersey.js';
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 import { playBonusHorn } from './tracker-sound.js';
 import { trackerStorageKey, effectiveEvents, extendsSavedLog, saveGameLog } from './game-log-store.js';
 import { createAutosave } from './autosave.js';
-import { gameStatus } from '../../lib/game-clock.js';
+import { gameStatus, REGULATION_PERIODS } from '../../lib/game-clock.js';
 import { getGameLog } from '../../lib/api.js';
-import { gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, scopeText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
+import { gameRules, withGameTimeouts, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, scopeText, MAX_TIMEOUTS } from '../../lib/game-rules.js';
 
 const storageKey = trackerStorageKey;
 
@@ -106,17 +108,22 @@ export function openLiveTracker(game, ctx) {
   const cfg = { homeTeamId: homeTeam.id, awayTeamId: awayTeam.id };
   const teamById = { [homeTeam.id]: homeTeam, [awayTeam.id]: awayTeam };
   const teamNameOf = (id) => teamById[id]?.name || '—';
-  /** The league's timeout rules (League rules in the admin menu), as loaded with the season. */
+  /** The league's rules (the admin's Rules page), as loaded with the season. */
   const leagueRules = gameRules(config.DB.contentBlocks?.game_rules);
-  /** This game's: the league's, unless changed for this game with the "Timeouts" button. */
-  const currentRules = () => (session.rules ? gameRules(session.rules) : leagueRules);
+  /** This game's: the league's, with its timeouts changed if the "Timeouts" button changed them. */
+  const currentRules = () => withGameTimeouts(leagueRules, session.rules);
+  // Only the timeouts can be changed for one game: fouls and the clock are always the league's.
+  const halfSeconds = leagueRules.halfMinutes * 60;
+  const overtimeSeconds = leagueRules.overtimeMinutes * 60;
 
   // ---- persisted session -------------------------------------------------
   const blank = {
     events: [],
     cursor: 0,
-    periodSeconds: DEFAULT_PERIOD_SECONDS,
-    clock: DEFAULT_PERIOD_SECONDS,
+    // A half's length, from the league's rules; setting the clock longer for
+    // a game makes that game's halves longer.
+    periodSeconds: halfSeconds,
+    clock: halfSeconds,
     period: 1,
     running: false,
     /** Mirrors games.status so a reopened tracker knows where it left off. */
@@ -513,7 +520,7 @@ export function openLiveTracker(game, ctx) {
     const number = numberById[p.id];
     const open = menuFor === p.id;
     return `<div class="lt-slot${open ? ' lt-slot-open' : ''}">
-      <button type="button" class="lt-player${onCourt ? ' lt-on-court' : ' lt-bench-chip'}${fouls >= 5 ? ' lt-fouled-out' : ''}${open ? ' lt-menu-open' : ''}"
+      <button type="button" class="lt-player${onCourt ? ' lt-on-court' : ' lt-bench-chip'}${fouls >= leagueRules.foulOutFouls ? ' lt-fouled-out' : ''}${open ? ' lt-menu-open' : ''}"
         data-player="${esc(p.id)}" data-team="${esc(p.teamId)}" data-oncourt="${onCourt ? '1' : '0'}" aria-expanded="${open}">
         <span class="lt-player-num${number == null ? ' lt-player-num-none' : ''}">${number == null ? '–' : esc(number)}</span>
         <span class="lt-player-name">${esc(p.name)}</span>
@@ -574,7 +581,7 @@ export function openLiveTracker(game, ctx) {
       // The bonus is a per-half count, and it is the OPPONENT's fouls that
       // put this team in it — see `bonusFor`.
       const opponentId = team.id === homeTeam.id ? awayTeam.id : homeTeam.id;
-      const { halfFouls, penalty, bonus } = bonusFor(derived, team.id, opponentId);
+      const { halfFouls, penalty, bonus } = bonusFor(derived, team.id, opponentId, leagueRules);
 
       const foulsEl = $(`lt-fouls-${team.id}`);
       foulsEl.textContent = halfFouls ? `${halfFouls} team fouls` : '';
@@ -797,7 +804,7 @@ export function openLiveTracker(game, ctx) {
     $('lt-rules-timeouts').value = r.timeouts;
     $('lt-rules-per').value = r.timeoutsPer;
     $('lt-rules-ot').value = r.overtimeTimeouts;
-    $('lt-rules-league').textContent = `League rules: ${timeoutRuleText(leagueRules)}. A change here is for this game only.`;
+    $('lt-rules-league').textContent = `League rules (the admin's Rules page): ${timeoutRuleText(leagueRules)}. A change here is for this game only.`;
     $('lt-rules-reset').hidden = !session.rules;
     showRulesNote();
     rulesOpen = true;
@@ -1198,7 +1205,8 @@ export function openLiveTracker(game, ctx) {
     if (!Number.isFinite(next) || next === session.period) return;
     stopClock();
     session.period = next;
-    session.clock = session.periodSeconds;
+    // An overtime is the league's overtime length; a half, this game's half.
+    session.clock = next > REGULATION_PERIODS ? overtimeSeconds : session.periodSeconds;
     record({ type: 'period', period: next });
     pushGameState('live');
     logSave.flush();

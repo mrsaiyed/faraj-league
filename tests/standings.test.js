@@ -2,7 +2,9 @@
  * Unit tests for standings and seeding (lib/standings.js)
  */
 import { describe, it, expect } from 'vitest';
-import { calcStandings, calcSeeds, compareRecords, conferenceStandings } from '../lib/standings.js';
+import {
+  calcStandings, calcSeeds, conferenceStandings, rankTeams, tiebreakerList, tiebreakerText, TIEBREAKERS, DEFAULT_TIEBREAKERS,
+} from '../lib/standings.js';
 
 describe('calcStandings', () => {
   it('computes W/L and PF/PA for two teams each winning one game', () => {
@@ -60,63 +62,143 @@ describe('calcStandings', () => {
 // --- league-wide seeding -----------------------------------------------------
 
 const game = (t1, s1, t2, s2) => ({ t1, t2, s1: String(s1), s2: String(s2) });
+const teamsOf = (...names) => names.map(name => ({ name, conf: 'X' }));
+/** The old rule, for the tests about differential and points scored themselves. */
+const PD_ONLY = ['pd', 'pf'];
 const six = [
   { name: 'Jaysh', conf: 'Mecca', id: 'a' }, { name: 'Nasr', conf: 'Mecca', id: 'b' }, { name: 'Noor', conf: 'Mecca', id: 'c' },
   { name: 'Qamar', conf: 'Medina', id: 'd' }, { name: 'Raad', conf: 'Medina', id: 'e' }, { name: 'Sahab', conf: 'Medina', id: 'f' },
 ];
 // Jaysh 2-0 (+21). Sahab, Nasr, Raad and Noor are all 1-1, at +23, +5, -4 and -27. Qamar 0-2.
+// Between those four: Raad beat Nasr, Nasr beat Sahab, Sahab beat Noor — so head-to-head
+// has Raad 1-0, Nasr and Sahab 1-1 (Nasr won theirs) and Noor 0-1.
 const sixGames = [
   game('Jaysh', 55, 'Qamar', 40), game('Nasr', 48, 'Raad', 50), game('Noor', 30, 'Sahab', 60),
   game('Jaysh', 50, 'Raad', 44), game('Nasr', 52, 'Sahab', 45), game('Noor', 41, 'Qamar', 38),
 ];
 
-describe('compareRecords', () => {
-  it('ranks more wins first, whatever the rest says', () => {
-    expect(compareRecords({ w: 2, pf: 10, pa: 90 }, { w: 1, pf: 90, pa: 10 })).toBeLessThan(0);
-    expect(compareRecords({ w: 1, pf: 90, pa: 10 }, { w: 2, pf: 10, pa: 90 })).toBeGreaterThan(0);
+describe('tiebreakers', () => {
+  it('are head-to-head, then point differential, then points scored, unless the league says otherwise', () => {
+    expect(DEFAULT_TIEBREAKERS).toEqual(['h2h', 'pd', 'pf']);
+    expect(tiebreakerList(undefined)).toEqual(['h2h', 'pd', 'pf']);
+    expect(tiebreakerList('pd')).toEqual(['h2h', 'pd', 'pf']);
   });
 
-  it('ranks the better point differential first when wins are level', () => {
-    expect(compareRecords({ w: 1, pf: 50, pa: 40 }, { w: 1, pf: 70, pa: 65 })).toBeLessThan(0);
+  it('keep the order given, each once, and only the ones there are', () => {
+    expect(tiebreakerList(['pd', 'nonsense', 'h2h', 'pd'])).toEqual(['pd', 'h2h']);
+    expect(tiebreakerList([])).toEqual([]);
+    expect(Object.keys(TIEBREAKERS)).toEqual(['h2h', 'h2hpd', 'pd', 'pf', 'pa']);
   });
 
-  it('ranks more points for first when wins and differential are level', () => {
-    expect(compareRecords({ w: 1, pf: 70, pa: 60 }, { w: 1, pf: 50, pa: 40 })).toBeLessThan(0);
+  it('are put in words', () => {
+    expect(tiebreakerText(DEFAULT_TIEBREAKERS)).toBe('head-to-head record, then point differential, then points scored');
+    expect(tiebreakerText(['pa'])).toBe('fewest points allowed');
+    expect(tiebreakerText([])).toBe('');
+  });
+});
+
+describe('rankTeams', () => {
+  // C 2-0. A and B 1-1: A beat B by a point, but B has the far better differential.
+  const abcd = teamsOf('A', 'B', 'C', 'D');
+  const headToHeadGames = [game('A', 50, 'B', 49), game('C', 70, 'A', 40), game('B', 90, 'D', 40), game('C', 60, 'D', 50)];
+
+  it('puts the team that won their game ahead of one level on wins, whatever the differential', () => {
+    expect(rankTeams(abcd, headToHeadGames)).toEqual(['C', 'A', 'B', 'D']);
+    expect(rankTeams(abcd, headToHeadGames, PD_ONLY)).toEqual(['C', 'B', 'A', 'D']);
   });
 
-  it('is 0 when level on all three', () => {
-    expect(compareRecords({ w: 1, pf: 50, pa: 40 }, { w: 1, pf: 50, pa: 40 })).toBe(0);
+  it('goes to point differential when the two split their games', () => {
+    // A won by 10, B by 1; both lost to C, A by more. A is +9 against B but -21 overall, B -14.
+    const games = [game('A', 50, 'B', 40), game('B', 45, 'A', 44), game('C', 70, 'A', 40), game('C', 55, 'B', 50)];
+    expect(rankTeams(teamsOf('A', 'B', 'C'), games)).toEqual(['C', 'B', 'A']);
+    // Head-to-head differential, if the league uses it, says A.
+    expect(rankTeams(teamsOf('A', 'B', 'C'), games, ['h2h', 'h2hpd', 'pd'])).toEqual(['C', 'A', 'B']);
   });
 
-  it('counts a missing record as 0-0', () => {
-    expect(compareRecords(undefined, undefined)).toBe(0);
-    expect(compareRecords({ w: 1, pf: 5, pa: 3 }, undefined)).toBeLessThan(0);
+  it('goes to point differential when the two have not played each other', () => {
+    // X and Y both beat Z: X by 10, Y by 5.
+    expect(rankTeams(teamsOf('Y', 'X', 'Z'), [game('X', 50, 'Z', 40), game('Y', 70, 'Z', 65)])).toEqual(['X', 'Y', 'Z']);
+  });
+
+  it('breaks a three-way tie by head-to-head, then starts again for the two left level', () => {
+    // As in Fall 2026: D beat both N1 and N2, who have not played each other.
+    // X 4-0; D, N1 and N2 2-2; Y 0-4. By differential alone it would be N1, D, N2.
+    const games = [
+      game('D', 54, 'N1', 50), game('D', 67, 'N2', 46), game('X', 70, 'D', 40), game('X', 60, 'D', 50),
+      game('N1', 60, 'Y', 40), game('N1', 50, 'Y', 45), game('X', 50, 'N1', 40),
+      game('N2', 70, 'Y', 40), game('N2', 61, 'Y', 60), game('X', 60, 'N2', 30),
+    ];
+    const teams = teamsOf('X', 'N2', 'N1', 'D', 'Y');
+    expect(rankTeams(teams, games)).toEqual(['X', 'D', 'N1', 'N2', 'Y']);
+    expect(rankTeams(teams, games, PD_ONLY)).toEqual(['X', 'N1', 'D', 'N2', 'Y']);
+  });
+
+  it('when each of three beat one of the others, goes on to differential — and head-to-head settles the two still level', () => {
+    // A beat B, B beat C, C beat A; all three beat E. C has the best differential,
+    // A and B the same (+10), and B more points scored: A is ahead only by beating B.
+    const games = [
+      game('A', 50, 'B', 48), game('B', 60, 'C', 50), game('C', 70, 'A', 50),
+      game('A', 78, 'E', 50), game('B', 80, 'E', 78), game('C', 55, 'E', 50),
+    ];
+    expect(rankTeams(teamsOf('B', 'A', 'C', 'E'), games)).toEqual(['C', 'A', 'B', 'E']);
+  });
+
+  it('leaves head-to-head out when one of the tied teams has played none of the others', () => {
+    // D 2-2; A, B and C 1-1. A beat B, but C has played neither, so it is
+    // differential: B +29, then A and C both 0 — and they have not met, so points scored: C 120, A 90.
+    const games = [
+      game('A', 50, 'B', 49), game('D', 41, 'A', 40), game('B', 60, 'D', 30),
+      game('C', 70, 'D', 60), game('D', 60, 'C', 50),
+    ];
+    expect(rankTeams(teamsOf('A', 'B', 'C', 'D'), games)).toEqual(['D', 'B', 'C', 'A']);
+  });
+
+  it('counts a forfeit in head-to-head as it counts in the standings', () => {
+    // B forfeited to A, so A is ahead of B though B's differential is better.
+    const games = [{ t1: 'A', t2: 'B', s1: '', s2: '', forfeit: 't2' }, game('C', 60, 'A', 40), game('B', 50, 'C', 40), game('C', 50, 'D', 40)];
+    expect(rankTeams(teamsOf('B', 'A', 'C', 'D'), games)).toEqual(['C', 'A', 'B', 'D']);
+  });
+
+  it('ranks fewest points allowed first when asked to', () => {
+    const games = [game('X', 50, 'Z', 40), game('Y', 80, 'Z', 70)];
+    expect(rankTeams(teamsOf('Y', 'X', 'Z'), games, ['pa'])).toEqual(['X', 'Y', 'Z']);
+    expect(rankTeams(teamsOf('X', 'Y', 'Z'), games, ['pf'])).toEqual(['Y', 'X', 'Z']);
+  });
+
+  it('keeps the listed order for teams level on wins when there are no tiebreakers', () => {
+    expect(rankTeams(abcd, headToHeadGames, [])).toEqual(['C', 'A', 'B', 'D']);
+    expect(rankTeams(teamsOf('B', 'A', 'C', 'D'), headToHeadGames, [])).toEqual(['C', 'B', 'A', 'D']);
+  });
+
+  it('ranks wins before any tiebreaker', () => {
+    // A is 2-0 by one point a game; B is 1-1 having won by 50 and lost by 1; C is 0-2.
+    const games = [game('A', 41, 'C', 40), game('A', 41, 'C', 40), game('B', 90, 'C', 40), game('C', 41, 'B', 40)];
+    expect(rankTeams(teamsOf('C', 'B', 'A'), games)[0]).toBe('A');
   });
 });
 
 describe('calcSeeds', () => {
   it('numbers the whole league 1 to 6, not 1 to 3 in each conference', () => {
     const seeds = calcSeeds(six, sixGames);
-    expect(seeds).toEqual({ Jaysh: 1, Sahab: 2, Nasr: 3, Raad: 4, Noor: 5, Qamar: 6 });
+    // Jaysh 2-0; of the four at 1-1, Raad won its game between them, Nasr beat Sahab,
+    // and Noor lost its; Qamar 0-2.
+    expect(seeds).toEqual({ Jaysh: 1, Raad: 2, Nasr: 3, Sahab: 4, Noor: 5, Qamar: 6 });
     expect(Object.values(seeds).sort()).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('seeds by the tiebreakers it is given', () => {
+    expect(calcSeeds(six, sixGames, PD_ONLY)).toEqual({ Jaysh: 1, Sahab: 2, Nasr: 3, Raad: 4, Noor: 5, Qamar: 6 });
   });
 
   it('puts a team ahead of one in the other conference when its record is better', () => {
     const seeds = calcSeeds(six, sixGames);
-    expect(seeds.Sahab).toBeLessThan(seeds.Nasr);      // Medina ahead of Mecca
-    expect(seeds.Nasr).toBeLessThan(seeds.Raad);       // and back again
+    expect(seeds.Raad).toBeLessThan(seeds.Nasr);       // Medina ahead of Mecca
+    expect(seeds.Nasr).toBeLessThan(seeds.Sahab);      // and back again
   });
 
-  it('ranks wins before point differential', () => {
-    const teams = [{ name: 'A', conf: 'X' }, { name: 'B', conf: 'X' }, { name: 'C', conf: 'Y' }];
-    // A is 2-0 by one point a game; B is 1-1 having won by 50 and lost by 1; C is 0-2.
-    const seeds = calcSeeds(teams, [game('A', 41, 'C', 40), game('A', 41, 'C', 40), game('B', 90, 'C', 40), game('C', 41, 'B', 40)]);
-    expect(seeds.A).toBe(1);
-  });
-
-  it('breaks a tie on wins by point differential first, even against more points scored', () => {
+  it('breaks a tie on wins by point differential, even against more points scored', () => {
     const teams = [{ name: 'X', conf: 'M' }, { name: 'Y', conf: 'N' }, { name: 'Z', conf: 'N' }];
-    // X and Y both beat Z once: X by 10 having scored 50, Y by 5 having scored 70.
+    // X and Y both beat Z once, and have not met: X by 10 having scored 50, Y by 5 having scored 70.
     const seeds = calcSeeds(teams, [game('X', 50, 'Z', 40), game('Y', 70, 'Z', 65)]);
     expect(seeds).toEqual({ X: 1, Y: 2, Z: 3 });
   });
@@ -172,7 +254,12 @@ describe('conferenceStandings', () => {
     const mecca = conferenceStandings(six, sixGames, 'Mecca');
     const medina = conferenceStandings(six, sixGames, 'Medina');
     expect(mecca.map(r => [r.name, r.seed])).toEqual([['Jaysh', 1], ['Nasr', 3], ['Noor', 5]]);
-    expect(medina.map(r => [r.name, r.seed])).toEqual([['Sahab', 2], ['Raad', 4], ['Qamar', 6]]);
+    expect(medina.map(r => [r.name, r.seed])).toEqual([['Raad', 2], ['Sahab', 4], ['Qamar', 6]]);
+  });
+
+  it('orders the rows by the tiebreakers it is given', () => {
+    expect(conferenceStandings(six, sixGames, 'Medina', PD_ONLY).map(r => [r.name, r.seed]))
+      .toEqual([['Sahab', 2], ['Raad', 4], ['Qamar', 6]]);
   });
 
   it('puts the rows in seed order, not the order the teams are listed in', () => {

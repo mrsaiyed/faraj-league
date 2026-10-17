@@ -4,7 +4,8 @@
 
 import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
-import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure, compareRecords, conferenceStandings } from '../lib/standings.js';
+import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure, conferenceStandings, tiebreakerText } from '../lib/standings.js';
+import { gameRules } from '../lib/game-rules.js';
 import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
 import { orderRosterForDisplay } from '../lib/roster.js';
@@ -59,11 +60,19 @@ function regularSeasonScores() {
 export function calcStandings() {
   return calcStandingsPure(config.DB.teams, regularSeasonScores());
 }
+/** The league's tiebreakers for teams level on wins, from its Rules (the `game_rules` block). */
+function tiebreakers() {
+  return gameRules(config.DB.contentBlocks?.game_rules).tiebreakers;
+}
+/** League-wide seeds by the league's tiebreakers; 'TBD' for every team until a game is scored. */
+function leagueSeeds() {
+  return calcSeedsPure(config.DB.teams, regularSeasonScores(), tiebreakers());
+}
 // The standings tables stay grouped by conference, but the number beside each team is its
 // league-wide seed (1 to however many teams there are, across every conference), and the
 // rows are in that order. A dash stands in until a game has been scored.
 function confStandingRows(conf) {
-  return conferenceStandings(config.DB.teams, regularSeasonScores(), conf);
+  return conferenceStandings(config.DB.teams, regularSeasonScores(), conf, tiebreakers());
 }
 const seedCell = (r) => (r.seed ?? '–');
 function buildWeekDropdown(elId, includeAll, maxWeek) {
@@ -386,6 +395,10 @@ export function renderStandings() {
       tbody.innerHTML = rows.map(r => { const pd = (r.pf || 0) - (r.pa || 0); return `<tr><td style="color:#c8c0b0;font-size:0.82rem">${seedCell(r)}</td><td><span class="team-link" onclick="goToTeam(${idAttr(r.id)})">${r.name}</span></td><td>${r.w}</td><td>${r.l}</td><td>${r.pf || '—'}</td><td>${r.pa || '—'}</td><td>${pd > 0 ? '+' + pd : pd}</td></tr>`; }).join('');
     });
   }
+  // Head-to-head can put a team above one with a better differential, so say how ties are broken.
+  const note = document.getElementById('standings-tiebreak-note');
+  const ties = tiebreakerText(tiebreakers());
+  if (note) note.textContent = ties ? `Ranked by wins; teams level on wins by ${ties}.` : 'Ranked by wins.';
 }
 
 function formatScheduledAt(scheduledAt) {
@@ -804,7 +817,7 @@ export function renderTeams() {
   const teamsGrid = document.getElementById('teams-grid');
   if (!teamsGrid) return;
   const rec = calcStandings();
-  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
+  const seeds = leagueSeeds();
   const idAttr = (id) => typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
   const effectiveCaptain = (t) => {
     const cap = (t.captain || '').trim();
@@ -892,9 +905,11 @@ export function renderStats(teamFilter) {
   const totalRegGames = config.DB.totalRegGames || 0;
   const standingsRec = calcStandings();
 
-  // Team comparison across the whole league — wins → point differential → points for —
-  // the same rule the standings seed by (see compareRecords).
-  const compareTeams = (nameA, nameB) => compareRecords(standingsRec[nameA], standingsRec[nameB]);
+  // Team comparison across the whole league: the standings' own order, tiebreakers
+  // and all, so the stats page can never rank two teams the other way round.
+  const teamSeeds = leagueSeeds();
+  const seedOf = (name) => (typeof teamSeeds[name] === 'number' ? teamSeeds[name] : Infinity);
+  const compareTeams = (nameA, nameB) => (seedOf(nameA) === seedOf(nameB) ? 0 : seedOf(nameA) - seedOf(nameB));
 
   // Only the columns on show decide who is listed, so a player with minutes
   // but no points does not appear on the public table as a row of dashes.
@@ -1020,7 +1035,7 @@ export function renderMvpLadder(week) {
   if (!entries.length) { wrap.innerHTML = ''; return; }
 
   // Sort by MVP pts desc; tiebreaker = team seed (lower seed # = higher rank)
-  const seeds = calcSeedsPure(config.DB.teams, regularSeasonScores());
+  const seeds = leagueSeeds();
   entries.sort((a, b) => {
     if (a.mvpPts == null && b.mvpPts == null) return (seeds[a.team] ?? 999) - (seeds[b.team] ?? 999);
     if (a.mvpPts == null) return 1;

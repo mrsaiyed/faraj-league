@@ -112,6 +112,16 @@ describe('team fouls and the bonus', () => {
   it('survives a team it has never seen', () => {
     expect(bonusFor(all([]), 'nobody', 'also-nobody')).toEqual({ halfFouls: 0, penalty: 0, bonus: 0 });
   });
+
+  it('follows the league\'s own limits, and has no double bonus when the league has none', () => {
+    const fiveAndEight = { bonusFouls: 5, doubleBonusFouls: 8 };
+    expect(bonusLevel(4, fiveAndEight)).toBe(0);
+    expect(bonusLevel(5, fiveAndEight)).toBe(1);
+    expect(bonusLevel(8, fiveAndEight)).toBe(2);
+    expect(bonusLevel(20, { bonusFouls: 7, doubleBonusFouls: 0 })).toBe(1);
+    expect(bonusFor(all(fouls('H', 5)), 'A', 'H', fiveAndEight).bonus).toBe(1);
+    expect(bonusFor(all(fouls('H', 5)), 'A', 'H').bonus).toBe(0);   // 7 when the league says nothing
+  });
 });
 
 describe('deriveState — fouls and counting stats', () => {

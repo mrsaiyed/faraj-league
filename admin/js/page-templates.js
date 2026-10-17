@@ -68,6 +68,7 @@ export const STANDINGS_TEMPLATE = `
       <div class="card"><div class="conf-header" id="conf-header-mecca">Mecca Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="mecca-standings"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody></table></div>
       <div class="card"><div class="conf-header" id="conf-header-medina">Medina Conference</div><table class="standings-table"><thead><tr><th style="width:28px">#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody id="medina-standings"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody></table></div>
     </div>
+    <p class="standings-note" id="standings-tiebreak-note"></p>
     <hr class="section-divider">
     <p class="section-sub">Results by Week</p><h2 class="section-title">Scores</h2><div class="section-line"></div>
     <div class="week-dropdown-wrap"><span class="week-dropdown-label">Week</span><select class="week-dropdown" id="scores-week-select" onchange="renderScores(this.value)"></select></div>

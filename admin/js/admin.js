@@ -195,6 +195,21 @@ async function adminShowPage(id) {
       });
     }
   }
+  if (id === 'rules') await renderRulesPage();
+}
+
+/** The Rules page: the league's tiebreakers, timeouts, foul limits and clock, for every season. */
+async function renderRulesPage() {
+  const content = document.getElementById('rules-content');
+  if (!content) return;
+  const { renderLeagueRules } = await import('./league-rules.js');
+  renderLeagueRules(content, {
+    adminFetch,
+    supabase,
+    config,
+    // New tiebreakers reorder the standings, the seeds and everything ranked by them.
+    onSaved: () => { renderAll(true); initAdminOverlays(); },
+  });
 }
 
 /**
@@ -214,8 +229,9 @@ function uploadDeviceGameLogs(games, teams) {
 async function loadAdminSeason(slug) {
   const dataRes = await fetchSeasonData(slug);
   if (dataRes.error || !dataRes.data) return false;
-  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, sponsors, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, totalRegGames } = dataRes.data;
-  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], sponsors: sponsors || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, totalRegGames: totalRegGames || 0 };
+  const { season, teams, scores, awards, stats, gameStatValues, statDefinitions, sponsorOverrides, sponsors, mediaItems, mediaSlots, contentBlocks, draftBank, draftTeamOrder, scheduleWeekLabels, playoffWeeks, totalRegGames } = dataRes.data;
+  // playoffWeeks as the public site has it: without it the standings here counted playoff games.
+  config.DB = { teams, scores, awards, stats, gameStatValues: gameStatValues || {}, statDefinitions: statDefinitions || [], sponsors: sponsors || [], mediaItems: mediaItems || [], mediaSlots: mediaSlots || {}, contentBlocks: contentBlocks || {}, draftBank: draftBank || [], draftTeamOrder: draftTeamOrder || [], scheduleWeekLabels: scheduleWeekLabels || {}, playoffWeeks: playoffWeeks || {}, totalRegGames: totalRegGames || 0 };
   applySponsorOverrides(sponsorOverrides);
   const derived = deriveWeeks(scores, season);
   config.TOTAL_WEEKS = derived.TOTAL_WEEKS;
@@ -251,6 +267,8 @@ async function adminChangeSeason(slug) {
   if (ok) {
     renderAll(true);
     initAdminOverlays();
+    // The rules are league-wide, but the page previews the season's standings.
+    if (document.getElementById('page-rules')?.classList.contains('active')) await renderRulesPage();
   }
   return ok;
 }
@@ -259,20 +277,11 @@ function openDrawer() {
   document.getElementById('admin-drawer-backdrop').classList.add('open');
   document.getElementById('admin-drawer').classList.add('open');
   renderSeasonSettingsInDrawer();
-  renderLeagueRulesInDrawer();
 }
 
 function closeDrawer() {
   document.getElementById('admin-drawer-backdrop').classList.remove('open');
   document.getElementById('admin-drawer').classList.remove('open');
-}
-
-/** League-wide rules the live tracker plays by (timeouts), under the season settings. */
-async function renderLeagueRulesInDrawer() {
-  const content = document.getElementById('admin-league-rules-content');
-  if (!content) return;
-  const { renderLeagueRules } = await import('./league-rules.js');
-  renderLeagueRules(content, { adminFetch, supabase, config });
 }
 
 async function renderSeasonSettingsInDrawer() {

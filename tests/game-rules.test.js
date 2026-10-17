@@ -4,37 +4,75 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, DEFAULT_GAME_RULES, MAX_TIMEOUTS,
+  gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, withGameTimeouts, ruleProblems,
+  DEFAULT_GAME_RULES, MAX_TIMEOUTS,
 } from '../lib/game-rules.js';
 import { deriveState } from '../lib/game-tracker.js';
-import { saveGameRules, rulesHint, RULES_KEY, RULES_NEED_DEPLOY } from '../admin/js/league-rules.js';
+import {
+  saveGameRules, rulesHint, readRulesForm, standingsPreview, RULES_KEY, RULES_NEED_DEPLOY,
+} from '../admin/js/league-rules.js';
 
 const CFG = { homeTeamId: 'H', awayTeamId: 'A' };
 const timeout = (teamId) => ({ type: 'timeout', teamId });
 const period = (n) => ({ type: 'period', period: n });
 const at = (events) => deriveState(events, events.length, CFG);
 
+/** Every rule, as `gameRules` gives them with nothing set. */
+const DEFAULTS = {
+  timeouts: 3, timeoutsPer: 'game', overtimeTimeouts: 0,
+  tiebreakers: ['h2h', 'pd', 'pf'],
+  bonusFouls: 7, doubleBonusFouls: 10, foulOutFouls: 5,
+  halfMinutes: 20, overtimeMinutes: 5,
+};
+
 describe('gameRules', () => {
-  it('is three a game, nothing extra in overtime, when nothing is set', () => {
-    expect(gameRules(undefined)).toEqual({ timeouts: 3, timeoutsPer: 'game', overtimeTimeouts: 0 });
+  it('is three timeouts a game, head-to-head first, the bonus at 7, 20-minute halves, when nothing is set', () => {
+    expect(gameRules(undefined)).toEqual(DEFAULTS);
     expect(gameRules('')).toEqual(DEFAULT_GAME_RULES);
     expect(gameRules(null)).toEqual(DEFAULT_GAME_RULES);
   });
 
   it('reads the stored JSON text, or an object', () => {
-    const r = { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 };
+    const r = {
+      timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd'],
+      bonusFouls: 5, doubleBonusFouls: 0, foulOutFouls: 6, halfMinutes: 18, overtimeMinutes: 3,
+    };
     expect(gameRules(JSON.stringify(r))).toEqual(r);
     expect(gameRules(r)).toEqual(r);
+  });
+
+  it('gives a block saved before a rule existed that rule\'s default', () => {
+    expect(gameRules('{"timeouts":2,"timeoutsPer":"half","overtimeTimeouts":1}'))
+      .toEqual({ ...DEFAULTS, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 });
   });
 
   it('takes the default for anything damaged or out of range, field by field', () => {
     expect(gameRules('{not json')).toEqual(DEFAULT_GAME_RULES);
     expect(gameRules({ timeouts: -1, timeoutsPer: 'quarter', overtimeTimeouts: 2 }))
-      .toEqual({ timeouts: 3, timeoutsPer: 'game', overtimeTimeouts: 2 });
+      .toEqual({ ...DEFAULTS, overtimeTimeouts: 2 });
     expect(gameRules({ timeouts: 2.5 }).timeouts).toBe(3);
     expect(gameRules({ timeouts: MAX_TIMEOUTS + 1 }).timeouts).toBe(3);
     expect(gameRules({ timeouts: 0 }).timeouts).toBe(0);
     expect(gameRules({ timeouts: '4' }).timeouts).toBe(4);
+    expect(gameRules({ halfMinutes: 0, foulOutFouls: 0, bonusFouls: 0 })).toMatchObject({ halfMinutes: 20, foulOutFouls: 5, bonusFouls: 7 });
+    expect(gameRules({ doubleBonusFouls: 0 }).doubleBonusFouls).toBe(0);   // 0 is "no double bonus"
+    expect(gameRules({ tiebreakers: ['pd', 'bogus'] }).tiebreakers).toEqual(['pd']);
+    expect(gameRules({ tiebreakers: 'h2h' }).tiebreakers).toEqual(['h2h', 'pd', 'pf']);
+  });
+
+  it('names rules that contradict each other', () => {
+    expect(ruleProblems(DEFAULTS)).toEqual([]);
+    expect(ruleProblems({ bonusFouls: 7, doubleBonusFouls: 0 })).toEqual([]);
+    expect(ruleProblems({ bonusFouls: 7, doubleBonusFouls: 7 })[0]).toMatch(/double bonus.*after the bonus/i);
+  });
+});
+
+describe('withGameTimeouts', () => {
+  it('takes only the timeouts from a game\'s own rules, and the rest from the league\'s', () => {
+    const league = { ...DEFAULTS, bonusFouls: 5, tiebreakers: ['pd'] };
+    const game = withGameTimeouts(league, { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, bonusFouls: 9 });
+    expect(game).toEqual({ ...league, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 });
+    expect(withGameTimeouts(league, null)).toEqual(league);
   });
 });
 
@@ -112,6 +150,10 @@ describe('the rule in words', () => {
     expect(sameRules(DEFAULT_GAME_RULES, null)).toBe(true);
     expect(sameRules(DEFAULT_GAME_RULES, halves)).toBe(false);
   });
+
+  it('compares only the timeouts, all a single game can change', () => {
+    expect(sameRules({ ...DEFAULTS, bonusFouls: 5, halfMinutes: 18 }, { timeouts: 3 })).toBe(true);
+  });
 });
 
 describe('saveGameRules', () => {
@@ -145,10 +187,11 @@ describe('saveGameRules', () => {
 
   it('saves the rules league-wide, as tidy JSON text, and checks they were kept', async () => {
     const s = stub();
-    const out = await saveGameRules({ ...s, rules: { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 } });
-    expect(s.calls).toEqual([{ fn: 'admin-content', body: [{ key: RULES_KEY, value: '{"timeouts":2,"timeoutsPer":"half","overtimeTimeouts":1}', season_id: null }] }]);
+    const out = await saveGameRules({ ...s, rules: { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] } });
+    const sent = { ...DEFAULTS, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] };
+    expect(s.calls).toEqual([{ fn: 'admin-content', body: [{ key: RULES_KEY, value: JSON.stringify(sent), season_id: null }] }]);
     expect(s.reads[0]).toMatchObject({ table: 'content_blocks', eq: ['key', 'game_rules'], is: ['season_id', null] });
-    expect(out).toMatchObject({ verified: true, rules: { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 } });
+    expect(out).toMatchObject({ verified: true, rules: sent });
   });
 
   it('says the function needs redeploying when it passed the key over', async () => {
@@ -158,13 +201,13 @@ describe('saveGameRules', () => {
 
   it('says what the database still has when the save did not take', async () => {
     const s = stub({ keeps: false, stored: { value: '{"timeouts":4,"timeoutsPer":"game","overtimeTimeouts":0}' } });
-    await expect(saveGameRules({ ...s, rules: DEFAULT_GAME_RULES })).rejects.toThrow('the database still has 4 a game');
+    await expect(saveGameRules({ ...s, rules: DEFAULT_GAME_RULES })).rejects.toThrow('the database still has the rules from before');
   });
 
   it('tidies what it is given before sending it', async () => {
     const s = stub();
     const out = await saveGameRules({ ...s, rules: { timeouts: 99, timeoutsPer: 'quarter', overtimeTimeouts: 1 } });
-    expect(out.rules).toEqual({ timeouts: 3, timeoutsPer: 'game', overtimeTimeouts: 1 });
+    expect(out.rules).toEqual({ ...DEFAULTS, overtimeTimeouts: 1 });
   });
 
   it('takes the write as done when the check cannot be made', async () => {
@@ -176,5 +219,41 @@ describe('saveGameRules', () => {
   it('passes a failed request on', async () => {
     const adminFetch = async () => { throw new Error('Unauthorized'); };
     await expect(saveGameRules({ adminFetch, rules: DEFAULT_GAME_RULES })).rejects.toThrow('Unauthorized');
+  });
+});
+
+describe('the Rules page', () => {
+  const form = (over = {}) => ({
+    timeouts: '3', timeoutsPer: 'game', overtimeTimeouts: '0', tiebreakers: ['h2h', 'pd', 'pf'],
+    bonusFouls: '7', doubleBonusFouls: '10', foulOutFouls: '5', halfMinutes: '20', overtimeMinutes: '5', ...over,
+  });
+
+  it('reads the boxes into rules', () => {
+    expect(readRulesForm(form())).toEqual({ rules: DEFAULTS, problems: [] });
+    expect(readRulesForm(form({ tiebreakers: ['pd', 'pd', 'h2h'] })).rules.tiebreakers).toEqual(['pd', 'h2h']);
+  });
+
+  it('refuses a box left empty or out of range, by name, rather than saving the default', () => {
+    const { problems } = readRulesForm(form({ halfMinutes: '', foulOutFouls: '0', timeouts: '2.5' }));
+    expect(problems).toEqual([
+      'Timeouts per team: a whole number from 0 to 20.',
+      'Fouled out at: a whole number from 1 to 20.',
+      'Half: a whole number from 1 to 60.',
+    ]);
+  });
+
+  it('refuses a double bonus that comes before the bonus', () => {
+    expect(readRulesForm(form({ doubleBonusFouls: '6' })).problems[0]).toMatch(/double bonus/i);
+    expect(readRulesForm(form({ doubleBonusFouls: '0' })).problems).toEqual([]);
+  });
+
+  it('previews the standings with other tiebreakers, and how far each team moves', () => {
+    const g = (t1, s1, t2, s2) => ({ t1, t2, s1: String(s1), s2: String(s2) });
+    const teams = ['A', 'B', 'C', 'D'].map(name => ({ name }));
+    // C 2-0; A beat B by a point, B has the better differential.
+    const scores = [g('A', 50, 'B', 49), g('C', 70, 'A', 40), g('B', 90, 'D', 40), g('C', 60, 'D', 50)];
+    const rows = standingsPreview(teams, scores, ['h2h', 'pd'], ['pd']);
+    expect(rows.map(r => [r.name, r.move])).toEqual([['C', 0], ['A', 1], ['B', -1], ['D', 0]]);
+    expect(rows[1]).toMatchObject({ w: 1, l: 1, pd: -29 });
   });
 });
