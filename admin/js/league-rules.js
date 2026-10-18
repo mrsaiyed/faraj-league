@@ -1,20 +1,22 @@
 /**
  * League rules — admin only. The settings that differ from one league to the
- * next, for every season at once: the standings' tiebreakers, team timeouts,
- * the foul limits and the length of a half and an overtime.
+ * next: the standings' tiebreakers, team timeouts, the foul limits and the
+ * length of a half and an overtime.
  *
- * Kept as JSON text in `content_blocks.game_rules` with no season (league-wide),
- * written through admin-content and read back with the season's other content
- * blocks; `lib/game-rules.js` reads it, with a default for anything not set.
- * Edited on the admin's Rules page.
+ * Kept as JSON text in `content_blocks.game_rules`: timeouts, fouls and the
+ * clock in the league's row (no season), for every season; the tiebreakers in
+ * the row of the season picked in the admin, so changing them never re-ranks
+ * a season already played. Written through admin-content and read back;
+ * `seasonRules()` in `lib/game-rules.js` puts the two together when a season
+ * loads. Edited on the admin's Rules page.
  */
 
 import {
-  gameRules, timeoutRuleText, carryText, ruleProblems, RULE_LIMITS, TIMEOUT_SCOPES,
+  gameRules, splitRules, timeoutRuleText, carryText, ruleProblems, RULE_LIMITS, TIMEOUT_SCOPES, GAME_RULES_KEY,
 } from '../../lib/game-rules.js';
 import { TIEBREAKERS, tiebreakerList, tiebreakerText, rankTeams, calcStandings } from '../../lib/standings.js';
 
-export const RULES_KEY = 'game_rules';
+export const RULES_KEY = GAME_RULES_KEY;
 
 /** admin-content skips a key it does not know — and still answers ok — until it is redeployed. */
 export const RULES_NEED_DEPLOY =
@@ -24,7 +26,9 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
- * Save the league's rules and confirm the database holds them.
+ * Save the rules and confirm the database holds them: the tiebreakers to the
+ * season's row, everything else to the league's — one request, both rows.
+ * With no season (nothing loaded), the tiebreakers go in the league's row.
  *
  * Read back rather than trusting the answer: admin-content passes over any key
  * not on its list and still says ok, so before it is redeployed with
@@ -35,27 +39,37 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
  * @param {Function} opts.adminFetch the admin fetch helper
  * @param {object} [opts.supabase] the anon client, for the read-back
  * @param {object} opts.rules the rules; tidied by `gameRules`
- * @returns {Promise<{ rules: object, value: string, verified: boolean }>} `value` is the stored text
+ * @param {string} [opts.seasonId] the season whose tiebreakers these are
+ * @returns {Promise<{ rules: object, value: string, verified: boolean }>} `value` is the
+ *   season's rules as text, as `config.DB.contentBlocks.game_rules` holds them
  * @throws {Error} when the request fails, or the database does not hold the rules afterwards
  */
-export async function saveGameRules({ adminFetch, supabase, rules }) {
+export async function saveGameRules({ adminFetch, supabase, rules, seasonId }) {
   const clean = gameRules(rules);
   const value = JSON.stringify(clean);
-  await adminFetch('admin-content', {
-    method: 'POST',
-    body: JSON.stringify([{ key: RULES_KEY, value, season_id: null }]),
-  });
+  const { league, season } = seasonId ? splitRules(clean) : { league: clean, season: null };
+  const rows = [{ key: RULES_KEY, value: JSON.stringify(league), season_id: null }];
+  if (season) rows.push({ key: RULES_KEY, value: JSON.stringify(season), season_id: seasonId });
+  await adminFetch('admin-content', { method: 'POST', body: JSON.stringify(rows) });
   if (!supabase) return { rules: clean, value, verified: false };
 
-  const { data, error } = await supabase.from('content_blocks').select('value')
-    .eq('key', RULES_KEY).is('season_id', null).maybeSingle();
+  const { data, error } = await supabase.from('content_blocks').select('value,season_id').eq('key', RULES_KEY);
   // The write went through; it is only the check that could not be made.
   if (error) return { rules: clean, value, verified: false };
-  if (!data) throw new Error(RULES_NEED_DEPLOY);
-  if (JSON.stringify(gameRules(data.value)) !== value) {
+  const stored = (id) => (data || []).find(r => (r.season_id || null) === id)?.value;
+  if (rows.every(r => stored(r.season_id) == null)) throw new Error(RULES_NEED_DEPLOY);
+  if (!rows.every(r => keeps(stored(r.season_id), r, Boolean(seasonId)))) {
     throw new Error('Not saved: the database still has the rules from before. Try again in a moment.');
   }
   return { rules: clean, value, verified: true };
+}
+
+/** Whether a row read back says what was sent, tidied the way it was tidied for sending. */
+function keeps(stored, row, split) {
+  if (stored == null) return false;
+  if (!split) return JSON.stringify(gameRules(stored)) === row.value;
+  const parts = splitRules(stored);
+  return JSON.stringify(row.season_id ? parts.season : parts.league) === row.value;
 }
 
 /** What the Timeouts group says under its boxes about the window chosen. */
@@ -117,8 +131,9 @@ export function standingsPreview(teams, scores, tiebreakers, savedTiebreakers) {
  * @param {HTMLElement} content
  * @param {{ adminFetch: Function, supabase: object, config: object, onSaved?: () => void|Promise<void> }} ctx
  */
-export function renderLeagueRules(content, { adminFetch, supabase, config, onSaved }) {
+export function renderLeagueRules(content, { adminFetch, supabase, config, seasonId, onSaved }) {
   let saved = gameRules(config.DB?.contentBlocks?.[RULES_KEY]);
+  const seasonLabel = config.currentSeasonLabel || 'this season';
   const slots = Object.keys(TIEBREAKERS).length;
   const number = (key) => {
     const [label, after] = NUMBER_FIELDS[key];
@@ -135,11 +150,11 @@ export function renderLeagueRules(content, { adminFetch, supabase, config, onSav
 
   content.innerHTML = `
     <form id="league-rules-form" class="rules-form" novalidate>
-      <p class="rules-intro">These apply to every season. The standings use them as soon as they are saved; the live tracker uses them the next time a game is opened.</p>
+      <p class="rules-intro">The standings' tiebreakers belong to ${esc(seasonLabel)}, the season picked at the top, so other seasons keep theirs. Timeouts, fouls and the game clock apply to every season. The standings change as soon as rules are saved; the live tracker uses them the next time a game is opened.</p>
       <div class="rules-grid">
         <section class="card rules-card">
-          <h3 class="rules-card-title">Standings</h3>
-          <p class="rules-note">Teams are ranked by wins. Teams level on wins are separated by these, in order.</p>
+          <h3 class="rules-card-title">Standings · ${esc(seasonLabel)}</h3>
+          <p class="rules-note">Teams are ranked by wins. Teams level on wins in ${esc(seasonLabel)} are separated by these, in order.</p>
           ${Array.from({ length: slots }, (_, i) => tbSelect(i)).join('')}
           <p class="rules-note" id="rules-tb-summary"></p>
           <p class="rules-note rules-fine">Head-to-head counts only the games between the tied teams, once each of them has played at least one of the others. When it separates some of three or more tied teams, the rest start again from the first tiebreaker.</p>
@@ -258,7 +273,7 @@ export function renderLeagueRules(content, { adminFetch, supabase, config, onSav
     btn.disabled = true;
     say('', '');
     try {
-      const result = await saveGameRules({ adminFetch, supabase, rules });
+      const result = await saveGameRules({ adminFetch, supabase, rules, seasonId });
       if (config.DB) {
         if (!config.DB.contentBlocks) config.DB.contentBlocks = {};
         config.DB.contentBlocks[RULES_KEY] = result.value;
@@ -266,7 +281,7 @@ export function renderLeagueRules(content, { adminFetch, supabase, config, onSav
       saved = result.rules;
       fill(saved);
       refresh();
-      say('success', `Saved. Standings: ${tiebreakerText(saved.tiebreakers) || 'no tiebreakers'}. Timeouts: ${timeoutRuleText(saved)}.`);
+      say('success', `Saved. ${seasonLabel} standings: ${tiebreakerText(saved.tiebreakers) || 'no tiebreakers'}. Timeouts (every season): ${timeoutRuleText(saved)}.`);
       if (onSaved) await onSaved();
     } catch (err) {
       say('error', err.message || String(err));

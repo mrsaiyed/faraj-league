@@ -207,6 +207,8 @@ async function renderRulesPage() {
     adminFetch,
     supabase,
     config,
+    // The tiebreakers are saved for the season picked at the top.
+    seasonId: window.adminSeasonId,
     // New tiebreakers reorder the standings, the seeds and everything ranked by them.
     onSaved: () => { renderAll(true); initAdminOverlays(); },
   });

@@ -8,6 +8,7 @@ import { buildChampionCards, reigningChampion } from '../lib/trophy.js';
 import { aggregateStats } from '../lib/stats.js';
 import { config } from './config.js';
 import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
+import { seasonRules, GAME_RULES_KEY } from '../lib/game-rules.js';
 import { loadCardFont } from './champion-card.js';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
@@ -80,6 +81,9 @@ function transformSeasonData(raw) {
   const contentBlocksMap = {};
   (content_blocks || []).filter(b => !b.season_id).forEach(b => { contentBlocksMap[b.key] = b.value; });
   (content_blocks || []).filter(b => b.season_id === season?.id).forEach(b => { contentBlocksMap[b.key] = b.value; });
+  // The rules are the one key merged field by field rather than replaced: the
+  // league's timeouts, fouls and clock, with this season's own tiebreakers.
+  contentBlocksMap[GAME_RULES_KEY] = JSON.stringify(seasonRules(content_blocks, season));
 
   /** Parsed from content_blocks.playoffs_by_week JSON; keys are week numbers as strings, values are true */
   let playoffWeeks = {};

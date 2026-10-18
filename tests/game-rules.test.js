@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   gameRules, timeoutsLeft, timeoutRuleText, timeoutRuleShort, carryText, sameRules, withGameTimeouts, ruleProblems,
-  DEFAULT_GAME_RULES, MAX_TIMEOUTS,
+  seasonRules, splitRules, DEFAULT_GAME_RULES, MAX_TIMEOUTS, SEASON_RULES,
 } from '../lib/game-rules.js';
 import { deriveState } from '../lib/game-tracker.js';
 import {
@@ -64,6 +64,47 @@ describe('gameRules', () => {
     expect(ruleProblems(DEFAULTS)).toEqual([]);
     expect(ruleProblems({ bonusFouls: 7, doubleBonusFouls: 0 })).toEqual([]);
     expect(ruleProblems({ bonusFouls: 7, doubleBonusFouls: 7 })[0]).toMatch(/double bonus.*after the bonus/i);
+  });
+});
+
+describe('seasonRules — each season keeps its own tiebreakers', () => {
+  const row = (value, season_id = null) => ({ key: 'game_rules', value: JSON.stringify(value), season_id });
+  const spring = { id: 'S1', slug: 'spring2026' };
+  const fall = { id: 'S2', slug: 'fall2026' };
+  const later = { id: 'S3', slug: 'spring2027' };
+
+  it('has Spring 2026 on point differential and Fall 2026 on head-to-head, with nothing stored', () => {
+    expect(seasonRules([], spring).tiebreakers).toEqual(['pd', 'pf']);
+    expect(seasonRules([], fall).tiebreakers).toEqual(['h2h', 'pd', 'pf']);
+    expect(SEASON_RULES.spring2026.tiebreakers).toEqual(['pd', 'pf']);
+  });
+
+  it('gives a new season head-to-head first, or the league row\'s tiebreakers', () => {
+    expect(seasonRules([], later).tiebreakers).toEqual(['h2h', 'pd', 'pf']);
+    expect(seasonRules([row({ tiebreakers: ['pa'] })], later).tiebreakers).toEqual(['pa']);
+  });
+
+  it('lets the season\'s own row win over what it was played under', () => {
+    expect(seasonRules([row({ tiebreakers: ['h2hpd'] }, 'S1')], spring).tiebreakers).toEqual(['h2hpd']);
+  });
+
+  it('takes the league\'s timeouts, fouls and clock for every season, field by field', () => {
+    const rows = [row({ timeouts: 2, bonusFouls: 5, tiebreakers: ['pa'] }), row({ tiebreakers: ['pd'] }, 'S2'), row({ tiebreakers: ['pf'] }, 'S9')];
+    expect(seasonRules(rows, spring)).toEqual({ ...DEFAULTS, timeouts: 2, bonusFouls: 5, tiebreakers: ['pd', 'pf'] });
+    expect(seasonRules(rows, fall)).toEqual({ ...DEFAULTS, timeouts: 2, bonusFouls: 5, tiebreakers: ['pd'] });
+  });
+
+  it('reads only game_rules rows, and survives damaged ones', () => {
+    const rows = [{ key: 'hero_badge', value: '{"timeouts":9}', season_id: null }, { key: 'game_rules', value: '{oops', season_id: 'S2' }];
+    expect(seasonRules(rows, fall)).toEqual(DEFAULTS);
+    expect(seasonRules(undefined, undefined)).toEqual(DEFAULTS);
+  });
+
+  it('splits rules into the season\'s row and the league\'s', () => {
+    const { league, season } = splitRules({ ...DEFAULTS, tiebreakers: ['pd'], timeouts: 2 });
+    expect(season).toEqual({ tiebreakers: ['pd'] });
+    expect(league).toEqual({ ...DEFAULTS, timeouts: 2, tiebreakers: undefined });
+    expect('tiebreakers' in league).toBe(false);
   });
 });
 
@@ -157,62 +198,82 @@ describe('the rule in words', () => {
 });
 
 describe('saveGameRules', () => {
-  /** A database that keeps what admin-content is sent, or one whose function predates game_rules. */
-  function stub({ keeps = true, stored = null, readError = null } = {}) {
+  /** A database that keeps what admin-content is sent, one row per season, or one whose function predates game_rules. */
+  function stub({ keeps = true, rows = [], readError = null } = {}) {
     const calls = [];
-    let held = stored;
+    const held = [...rows];
     const adminFetch = async (fn, opts) => {
       const body = JSON.parse(opts.body);
       calls.push({ fn, body });
-      if (keeps) held = { value: body[0].value };
+      if (keeps) {
+        body.forEach((item) => {
+          const at = held.findIndex(r => (r.season_id || null) === (item.season_id || null));
+          if (at >= 0) held[at] = { value: item.value, season_id: item.season_id };
+          else held.push({ value: item.value, season_id: item.season_id });
+        });
+      }
       return { ok: true };
     };
     const reads = [];
     const supabase = {
       from: (table) => ({
         select: (cols) => ({
-          eq: (col, v) => ({
-            is: (col2, v2) => ({
-              maybeSingle: async () => {
-                reads.push({ table, cols, eq: [col, v], is: [col2, v2] });
-                return { data: held, error: readError };
-              },
-            }),
-          }),
+          eq: async (col, v) => {
+            reads.push({ table, cols, eq: [col, v] });
+            return { data: readError ? null : held, error: readError };
+          },
         }),
       }),
     };
     return { calls, reads, adminFetch, supabase };
   }
+  const LEAGUE_FIELDS = { ...DEFAULTS };
+  delete LEAGUE_FIELDS.tiebreakers;
 
-  it('saves the rules league-wide, as tidy JSON text, and checks they were kept', async () => {
+  it('saves the tiebreakers to the season and everything else league-wide, in one request, and checks both', async () => {
     const s = stub();
-    const out = await saveGameRules({ ...s, rules: { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] } });
-    const sent = { ...DEFAULTS, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] };
-    expect(s.calls).toEqual([{ fn: 'admin-content', body: [{ key: RULES_KEY, value: JSON.stringify(sent), season_id: null }] }]);
-    expect(s.reads[0]).toMatchObject({ table: 'content_blocks', eq: ['key', 'game_rules'], is: ['season_id', null] });
-    expect(out).toMatchObject({ verified: true, rules: sent });
+    const out = await saveGameRules({ ...s, seasonId: 'S2', rules: { timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] } });
+    const all = { ...DEFAULTS, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1, tiebreakers: ['pd', 'h2h'] };
+    expect(s.calls).toEqual([{ fn: 'admin-content', body: [
+      { key: RULES_KEY, value: JSON.stringify({ ...LEAGUE_FIELDS, timeouts: 2, timeoutsPer: 'half', overtimeTimeouts: 1 }), season_id: null },
+      { key: RULES_KEY, value: JSON.stringify({ tiebreakers: ['pd', 'h2h'] }), season_id: 'S2' },
+    ] }]);
+    expect(s.reads[0]).toMatchObject({ table: 'content_blocks', eq: ['key', 'game_rules'] });
+    expect(out).toMatchObject({ verified: true, rules: all, value: JSON.stringify(all) });
+  });
+
+  it('never touches another season\'s row', async () => {
+    const spring = { value: JSON.stringify({ tiebreakers: ['pd', 'pf'] }), season_id: 'S1' };
+    const s = stub({ rows: [spring] });
+    await saveGameRules({ ...s, seasonId: 'S2', rules: DEFAULT_GAME_RULES });
+    expect(s.calls[0].body.map(r => r.season_id)).toEqual([null, 'S2']);
+  });
+
+  it('keeps the tiebreakers league-wide when no season is loaded', async () => {
+    const s = stub();
+    await saveGameRules({ ...s, rules: DEFAULT_GAME_RULES });
+    expect(s.calls[0].body).toEqual([{ key: RULES_KEY, value: JSON.stringify(DEFAULTS), season_id: null }]);
   });
 
   it('says the function needs redeploying when it passed the key over', async () => {
     const s = stub({ keeps: false });
-    await expect(saveGameRules({ ...s, rules: DEFAULT_GAME_RULES })).rejects.toThrow(RULES_NEED_DEPLOY);
+    await expect(saveGameRules({ ...s, seasonId: 'S2', rules: DEFAULT_GAME_RULES })).rejects.toThrow(RULES_NEED_DEPLOY);
   });
 
-  it('says what the database still has when the save did not take', async () => {
-    const s = stub({ keeps: false, stored: { value: '{"timeouts":4,"timeoutsPer":"game","overtimeTimeouts":0}' } });
-    await expect(saveGameRules({ ...s, rules: DEFAULT_GAME_RULES })).rejects.toThrow('the database still has the rules from before');
+  it('says so when the save did not take', async () => {
+    const s = stub({ keeps: false, rows: [{ value: '{"timeouts":4}', season_id: null }, { value: '{"tiebreakers":["pa"]}', season_id: 'S2' }] });
+    await expect(saveGameRules({ ...s, seasonId: 'S2', rules: DEFAULT_GAME_RULES })).rejects.toThrow('the database still has the rules from before');
   });
 
   it('tidies what it is given before sending it', async () => {
     const s = stub();
-    const out = await saveGameRules({ ...s, rules: { timeouts: 99, timeoutsPer: 'quarter', overtimeTimeouts: 1 } });
+    const out = await saveGameRules({ ...s, seasonId: 'S2', rules: { timeouts: 99, timeoutsPer: 'quarter', overtimeTimeouts: 1 } });
     expect(out.rules).toEqual({ ...DEFAULTS, overtimeTimeouts: 1 });
   });
 
   it('takes the write as done when the check cannot be made', async () => {
     const s = stub({ readError: { message: 'offline' } });
-    expect(await saveGameRules({ ...s, rules: DEFAULT_GAME_RULES })).toMatchObject({ verified: false });
+    expect(await saveGameRules({ ...s, seasonId: 'S2', rules: DEFAULT_GAME_RULES })).toMatchObject({ verified: false });
     expect(await saveGameRules({ adminFetch: s.adminFetch, rules: DEFAULT_GAME_RULES })).toMatchObject({ verified: false });
   });
 
