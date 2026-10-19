@@ -542,8 +542,18 @@ function renderBoxScore(game, teams, gameStatValues, statDefinitions) {
   const played = game.s1 !== '' && game.s2 !== '';
   const defs = statDefinitions || [];
   const gsv = gameStatValues?.[gameId] || {};
-  const roster1 = [...(t1?.roster || [])];
-  const roster2 = [...(t2?.roster || [])];
+  // Each side is its roster plus anyone who played for it in this game and has
+  // left it since; someone now on one side who played this game for the other
+  // is listed only where they played.
+  const formerIn = (t) => (t?.formerPlayers || []).filter(p => p.games.includes(gameId));
+  const former1 = formerIn(t1);
+  const former2 = formerIn(t2);
+  const side = (t, ownFormer, otherFormer) => {
+    const elsewhere = new Set(otherFormer.map(p => p.id));
+    return [...(t?.roster || []).filter(p => !elsewhere.has(p.id)), ...ownFormer];
+  };
+  const roster1 = side(t1, former1, former2);
+  const roster2 = side(t2, former2, former1);
   const pointsDef = defs.find(d => d.slug === 'points');
 
   const getPoints = (playerId) => {

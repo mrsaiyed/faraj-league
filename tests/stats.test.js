@@ -2,7 +2,7 @@
  * Unit tests for aggregateStats
  */
 import { describe, it, expect } from 'vitest';
-import { aggregateStats, visibleStatDefinitions } from '../lib/stats.js';
+import { aggregateStats, visibleStatDefinitions, formerPlayers } from '../lib/stats.js';
 import { config } from '../js/config.js';
 
 const pointsDef = { id: 'pt1', slug: 'points', name: 'Points', sort_order: 0 };
@@ -96,6 +96,54 @@ describe('aggregateStats', () => {
     });
 
     expect(stats).toHaveLength(0);
+  });
+});
+
+describe('a player who leaves a team keeps what they scored for it', () => {
+  // Raad: Hanny played weeks 1 and 2, then left; Ali took his place for week 3.
+  const players = [{ id: 'hanny', name: 'Hanny Ali' }, { id: 'ali', name: 'Ali Mohsin' }, { id: 'mo', name: 'Mohammad Ali' }];
+  const games = [
+    { id: 'w1', week: 1, home_team_id: 'raad', away_team_id: 'noor' },
+    { id: 'w2', week: 2, home_team_id: 'nasr', away_team_id: 'raad' },
+    { id: 'w3', week: 3, home_team_id: 'raad', away_team_id: 'nasr' },
+  ];
+  const row = (game_id, player_id, value, team_id = 'raad') => ({ game_id, player_id, stat_definition_id: 'pt1', value, team_id });
+  const game_stat_values = [row('w1', 'hanny', 6), row('w2', 'hanny', 11), row('w1', 'mo', 4), row('w3', 'mo', 9), row('w3', 'ali', 7)];
+  // Hanny is on no roster now.
+  const rosterToTeam = { ali: 'Raad', mo: 'Raad' };
+  const playerToTeamId = { ali: 'raad', mo: 'raad' };
+  const teamNames = { raad: 'Raad', noor: 'Noor', nasr: 'Nasr' };
+  const run = (extra = {}) => aggregateStats({
+    game_stat_values, player_stat_values: [], stat_definitions: [pointsDef], rosters: [], games, players,
+    rosterToTeam, playerToTeamId, teamNames, ...extra,
+  });
+
+  it('counts every game the player played, under the team they played for', () => {
+    const hanny = run().find(s => s.name === 'Hanny Ali');
+    expect(hanny).toMatchObject({ team: 'Raad', gp: 2, total: 17 });
+  });
+
+  it('starts the player who took their place from their own games only', () => {
+    expect(run().find(s => s.name === 'Ali Mohsin')).toMatchObject({ team: 'Raad', gp: 1, total: 7 });
+  });
+
+  it('used to drop them altogether, with no team to count the rows for', () => {
+    const stripped = game_stat_values.map(({ team_id, ...r }) => r);
+    expect(run({ game_stat_values: stripped }).find(s => s.name === 'Hanny Ali')).toBeUndefined();
+  });
+
+  it('lists a player now on another team under that team, with the games from both', () => {
+    const moved = run({ rosterToTeam: { ...rosterToTeam, hanny: 'Noor' }, playerToTeamId: { ...playerToTeamId, hanny: 'noor' } });
+    expect(moved.find(s => s.name === 'Hanny Ali')).toMatchObject({ team: 'Noor', gp: 2, total: 17 });
+  });
+
+  it('names the former players of a team, with the games they played for it', () => {
+    const playerMap = Object.fromEntries(players.map(p => [p.id, p]));
+    expect(formerPlayers(game_stat_values, 'raad', ['ali', 'mo'], playerMap))
+      .toEqual([{ id: 'hanny', name: 'Hanny Ali', games: ['w1', 'w2'] }]);
+    expect(formerPlayers(game_stat_values, 'raad', ['ali', 'mo', 'hanny'], playerMap)).toEqual([]);
+    expect(formerPlayers(game_stat_values, 'noor', [], playerMap)).toEqual([]);
+    expect(formerPlayers(undefined, 'raad', [], playerMap)).toEqual([]);
   });
 });
 

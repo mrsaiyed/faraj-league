@@ -2082,6 +2082,54 @@ async function openLiveStats(game, ctx, onSaved) {
   openLiveTracker(game, { adminFetch: ctx.adminFetch, supabase: ctx.supabase, config, onSaved });
 }
 
+/**
+ * Players with stats in this game for a side they are no longer on (released,
+ * or replaced mid-season): their rows keep the team they were scored for, so
+ * the sheet still lists them under it. Read-only — admin-game-stats takes only
+ * players on the rosters, and their line should stay as it was played.
+ * @param {Array<{ player_id: string, team_id?: string }>} rows the game's game_stat_values
+ * @param {string} teamId
+ * @param {Array<{ id: string }>} roster the side's current roster
+ * @param {Record<string, { name: string }>} playerMap
+ */
+function formerSheetPlayers(rows, teamId, roster, playerMap) {
+  const onRoster = new Set(roster.map(p => p.id));
+  const ids = [...new Set((rows || []).filter(r => r.team_id === teamId && !onRoster.has(r.player_id)).map(r => r.player_id))];
+  return ids.map(id => ({ id, name: playerMap[id]?.name || '?', former: true }));
+}
+
+/**
+ * Tick DNP for roster players a played game has no line for. Every save writes
+ * a row for each player who played and marks the rest DNP, so in a game with
+ * stats a roster player with neither joined the team afterwards — someone who
+ * replaced a player mid-season, say. Left unticked, their empty boxes would be
+ * saved as 0 and count as a game played.
+ */
+function markJoinedSince(dnpSet, rows, roster, gsvMap) {
+  if (!(rows || []).length) return;
+  roster.forEach(p => { if (p?.id && !p.former && !gsvMap[p.id]) dnpSet.add(p.id); });
+}
+
+/**
+ * One player's row on a stat sheet: name, DNP box and a box per stat. A former
+ * player's boxes are disabled, so Save (which skips disabled boxes) never
+ * sends them.
+ */
+function statSheetRow(p, defs, gsvMap, dnpSet) {
+  const former = Boolean(p?.former);
+  const isDnp = p && !former ? dnpSet.has(p.id) : false;
+  const name = !p ? '—'
+    : former ? `${escapeHtml(p.name)} <span style="color:#8a8580;font-size:0.8em;">(left the team)</span>` : escapeHtml(p.name);
+  let row = `<tr><td>${name}</td>`;
+  row += `<td>${p && !former ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
+  defs.forEach(d => {
+    const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
+    const off = isDnp || former;
+    row += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${off ? ' disabled' : ''}${former ? ' title="Played for this team before leaving it — kept as recorded"' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : former ? 'opacity:0.7;' : ''}"></td>`;
+  });
+  return `${row}</tr>`;
+}
+
 async function openStatSheet(game, content, ctx, onSaved) {
   if (!game) return;
   const { adminFetch, supabase } = ctx;
@@ -2122,6 +2170,8 @@ async function openStatSheet(game, content, ctx, onSaved) {
   (players || []).forEach(p => { playerMap[p.id] = p; });
   const homeRoster = (rosters || []).filter(r => r.team_id === game.t1Id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
   const awayRoster = (rosters || []).filter(r => r.team_id === game.t2Id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+  homeRoster.push(...formerSheetPlayers(gsv, game.t1Id, homeRoster, playerMap));
+  awayRoster.push(...formerSheetPlayers(gsv, game.t2Id, awayRoster, playerMap));
   const gsvMap = {};
   (gsv || []).forEach(row => {
     if (!gsvMap[row.player_id]) gsvMap[row.player_id] = {};
@@ -2129,35 +2179,20 @@ async function openStatSheet(game, content, ctx, onSaved) {
   });
   const defs = (statDefs || []).filter(s => s.scope === 'game' || s.scope == null);
   const dnpSet = new Set((dnpRows || []).map(r => r.player_id));
+  markJoinedSince(dnpSet, gsv, [...homeRoster, ...awayRoster], gsvMap);
 
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div><h5>Home</h5><table><thead><tr><th>Player</th><th>DNP</th>';
   defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
   html += '</tr></thead><tbody>';
   const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
   for (let i = 0; i < maxRows; i++) {
-    const p = homeRoster[i];
-    const isDnp = p ? dnpSet.has(p.id) : false;
-    html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
-    html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
-    defs.forEach(d => {
-      const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
-    });
-    html += '</tr>';
+    html += statSheetRow(homeRoster[i], defs, gsvMap, dnpSet);
   }
   html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th><th>DNP</th>';
   defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
   html += '</tr></thead><tbody>';
   for (let i = 0; i < maxRows; i++) {
-    const p = awayRoster[i];
-    const isDnp = p ? dnpSet.has(p.id) : false;
-    html += '<tr><td>' + (p ? escapeHtml(p.name) : '—') + '</td>';
-    html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
-    defs.forEach(d => {
-      const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-      html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
-    });
-    html += '</tr>';
+    html += statSheetRow(awayRoster[i], defs, gsvMap, dnpSet);
   }
   html += '</tbody></table></div></div>';
   const t1Name = teamMap[game.t1Id] || 'Home';
@@ -2196,7 +2231,8 @@ async function openStatSheet(game, content, ctx, onSaved) {
   wrap.querySelector('#stat-sheet-clear').onclick = async () => {
     const msgEl = wrap.querySelector('#stat-sheet-msg');
     if (!confirm('Clear all recorded stats for this game and mark it as NOT played?\n\nThis cannot be undone.')) return;
-    const rosterPlayerIds = [...homeRoster, ...awayRoster].map(p => p.id).filter(Boolean);
+    // The current rosters only: a former player's line is not this sheet's to clear.
+    const rosterPlayerIds = [...homeRoster, ...awayRoster].filter(p => !p.former).map(p => p.id).filter(Boolean);
     try {
       msgEl.innerHTML = '<p class="msg">Clearing…</p>';
       const { clearGame } = await import('./game-reset.js');
@@ -2365,6 +2401,8 @@ export async function renderGames(content, ctx) {
       (players || []).forEach(p => { playerMap[p.id] = p; });
       const homeRoster = (rosters || []).filter(r => r.team_id === g.home_team_id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
       const awayRoster = (rosters || []).filter(r => r.team_id === g.away_team_id).map(r => ({ id: r.player_id, name: playerMap[r.player_id]?.name || '?' }));
+      homeRoster.push(...formerSheetPlayers(gsv, g.home_team_id, homeRoster, playerMap));
+      awayRoster.push(...formerSheetPlayers(gsv, g.away_team_id, awayRoster, playerMap));
 
       const gsvMap = {};
       (gsv || []).forEach(row => {
@@ -2381,36 +2419,19 @@ export async function renderGames(content, ctx) {
       document.getElementById('games-stat-sheet-save').style.display = '';
 
       const dnpSet = new Set((dnpRows || []).map(r => r.player_id));
+      markJoinedSince(dnpSet, gsv, [...homeRoster, ...awayRoster], gsvMap);
       const maxRows = Math.max(homeRoster.length, awayRoster.length, 1);
       let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-x:auto;"><div><h5>Home</h5><table><thead><tr><th>Player</th><th>DNP</th>';
       defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
       html += '</tr></thead><tbody>';
       for (let i = 0; i < maxRows; i++) {
-        const p = homeRoster[i];
-        const isDnp = p ? dnpSet.has(p.id) : false;
-        html += '<tr>';
-        html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
-        html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
-        defs.forEach(d => {
-          const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
-        });
-        html += '</tr>';
+        html += statSheetRow(homeRoster[i], defs, gsvMap, dnpSet);
       }
       html += '</tbody></table></div><div><h5>Away</h5><table><thead><tr><th>Player</th><th>DNP</th>';
       defs.forEach(d => { html += `<th>${escapeHtml(d.name)}</th>`; });
       html += '</tr></thead><tbody>';
       for (let i = 0; i < maxRows; i++) {
-        const p = awayRoster[i];
-        const isDnp = p ? dnpSet.has(p.id) : false;
-        html += '<tr>';
-        html += `<td>${p ? escapeHtml(p.name) : '—'}</td>`;
-        html += `<td>${p ? `<input type="checkbox" class="dnp-check" data-player="${p.id}"${isDnp ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">` : ''}</td>`;
-        defs.forEach(d => {
-          const val = p && !isDnp ? (gsvMap[p.id]?.[d.id] ?? '') : '';
-          html += `<td><input type="number" min="0" step="any" data-player="${p?.id || ''}" data-stat="${d.id}" value="${val}"${isDnp ? ' disabled' : ''} style="width:50px;padding:0.25rem;background:#1a1a1a;border:1px solid #444;color:#e8e4e0;${isDnp ? 'opacity:0.3;' : ''}"></td>`;
-        });
-        html += '</tr>';
+        html += statSheetRow(awayRoster[i], defs, gsvMap, dnpSet);
       }
       html += '</tbody></table></div></div>';
       statSheetContent.innerHTML = html;

@@ -5,7 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { getSeasons, getSeasonData, getGameScores, getChampionData, getGameLog } from '../lib/api.js';
 import { buildChampionCards, reigningChampion } from '../lib/trophy.js';
-import { aggregateStats } from '../lib/stats.js';
+import { aggregateStats, formerPlayers } from '../lib/stats.js';
 import { config } from './config.js';
 import { sponsorOverridesFrom, SPONSOR_SLOTS } from '../lib/sponsors.js';
 import { seasonRules, GAME_RULES_KEY } from '../lib/game-rules.js';
@@ -26,7 +26,9 @@ function transformSeasonData(raw) {
     rosterRows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const roster = rosterRows.map(r => ({ id: r.id, name: r.name, jersey_number: playerMap[r.id]?.jersey_number ?? null }));
     const playersList = roster.map(r => r.name);
-    return { id: t.id, name: t.name, conf: t.conference || t.conf, captain: t.captain || '', players: playersList, roster, sort_order: t.sort_order ?? 0, logo_url: t.logo_url || null, logo_scale: t.logo_scale != null ? Number(t.logo_scale) : null };
+    // Who played for this team and has left its roster: their box score lines stay with it.
+    const formerPlayersList = formerPlayers(game_stat_values, t.id, roster.map(r => r.id), playerMap);
+    return { id: t.id, name: t.name, conf: t.conference || t.conf, captain: t.captain || '', players: playersList, roster, formerPlayers: formerPlayersList, sort_order: t.sort_order ?? 0, logo_url: t.logo_url || null, logo_scale: t.logo_scale != null ? Number(t.logo_scale) : null };
   });
 
   const scores = (games || []).map(g => ({
@@ -128,6 +130,7 @@ function transformSeasonData(raw) {
     players,
     rosterToTeam,
     playerToTeamId,
+    teamNames: Object.fromEntries((rawTeams || []).map(t => [t.id, t.name])),
     playoffGameIds,
   });
 
