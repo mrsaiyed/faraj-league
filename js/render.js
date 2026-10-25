@@ -939,6 +939,8 @@ export function renderStats(teamFilter) {
   const filterWrap = document.getElementById('stats-filter-wrap');
   if (!wrap) return;
   if (teamFilter === undefined) teamFilter = document.getElementById('stats-team-filter')?.value || '';
+  // PPG unless the Sort box says total points; read back from the page because the box is redrawn on every render.
+  const sortBy = document.getElementById('stats-sort')?.value === 'points' ? 'points' : 'ppg';
   const defs = shownStatDefinitions();
   const sub = document.getElementById('stats-section-sub');
   if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
@@ -957,12 +959,16 @@ export function renderStats(teamFilter) {
   const filteredStats = (config.DB.stats || [])
     .filter(s => s.total > 0 || defs.some(d => (s.statValues?.[d.id] || 0) > 0));
 
-  // Everyone by PPG as shown (one decimal), however many games they have played;
-  // players level on it go by their team's standing.
+  // By PPG as shown (one decimal), or by total points then PPG, however many games
+  // a player has played; players level on both go by their team's standing.
   const roundPpg = r => Math.round(calcPpg(r) * 10) / 10;
+  const totalPts = r => (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total);
+  const sortKeys = sortBy === 'points' ? [totalPts, roundPpg] : [roundPpg];
   const allRows = [...filteredStats].sort((a, b) => {
-    const diff = roundPpg(b) - roundPpg(a);
-    if (diff !== 0) return diff;
+    for (const key of sortKeys) {
+      const diff = key(b) - key(a);
+      if (diff !== 0) return diff;
+    }
     return compareTeams(a.team, b.team);
   });
 
@@ -977,17 +983,20 @@ export function renderStats(teamFilter) {
     const teams = [...new Set(allRows.map(r => r.team).filter(Boolean))].sort();
     const rec = teamFilter ? standingsRec[teamFilter] : null;
     const recSpan = rec ? `<span style="flex:1;text-align:center;color:#c8a84b;font-family:'Cinzel',serif;font-size:0.88rem;letter-spacing:0.06em;">${escapeHtmlAttr(teamFilter)} &middot; ${rec.w}-${rec.l}</span>` : '';
-    filterWrap.innerHTML = `<div class="week-dropdown-wrap"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select>${recSpan}</div>`;
+    const sortBox = `<span style="display:flex;align-items:center;gap:0.75rem;margin-left:auto;"><span class="week-dropdown-label">Sort</span><select class="week-dropdown" id="stats-sort" onchange="renderStats()"><option value="ppg"${sortBy === 'ppg' ? ' selected' : ''}>PPG</option><option value="points"${sortBy === 'points' ? ' selected' : ''}>Total Points</option></select></span>`;
+    filterWrap.innerHTML = `<div class="week-dropdown-wrap" style="flex-wrap:wrap;row-gap:0.6rem;"><span class="week-dropdown-label">Team</span><select class="week-dropdown" id="stats-team-filter" onchange="renderStats(this.value)"><option value="">All Teams</option>${teams.map(t => `<option value="${escapeHtmlAttr(t)}"${t === teamFilter ? ' selected' : ''}>${escapeHtmlAttr(t)}</option>`).join('')}</select>${recSpan}${sortBox}</div>`;
     const sel = document.getElementById('stats-team-filter');
     if (sel) sel.value = teamFilter;
   }
   const rows = (teamFilter ? allRows.filter(r => r.team === teamFilter) : allRows).slice(0, 15);
+  // The leader cards are the table's top three, and lead with whatever it is sorted by.
   if (leadersWrap) {
-    const ranked = rows.filter(r => r.gp > 0)
-      .map(r => ({ ...r, ppg: calcPpg(r) }))
-      .sort((a, b) => b.ppg - a.ppg)
-      .slice(0, 3);
-    leadersWrap.innerHTML = ranked.map((r, i) => `<div class="stat-leader-card"><div class="slc-rank">#${i + 1}</div><div class="slc-name">${escapeHtmlAttr(r.name)}</div><div class="slc-team">${escapeHtmlAttr(r.team)}${teamFilter ? '' : escapeHtmlAttr(teamRec(r.team))}</div><div class="slc-ppg">${r.ppg.toFixed(1)} PPG</div><div class="slc-sub">${pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total} total pts</div></div>`).join('');
+    const ranked = rows.filter(r => r.gp > 0).slice(0, 3);
+    leadersWrap.innerHTML = ranked.map((r, i) => {
+      const ppg = calcPpg(r).toFixed(1);
+      const [main, sub] = sortBy === 'points' ? [`${totalPts(r)} PTS`, `${ppg} PPG`] : [`${ppg} PPG`, `${totalPts(r)} total pts`];
+      return `<div class="stat-leader-card"><div class="slc-rank">#${i + 1}</div><div class="slc-name">${escapeHtmlAttr(r.name)}</div><div class="slc-team">${escapeHtmlAttr(r.team)}${teamFilter ? '' : escapeHtmlAttr(teamRec(r.team))}</div><div class="slc-ppg">${main}</div><div class="slc-sub">${sub}</div></div>`;
+    }).join('');
   }
   const theadCells = `<th style="padding:0.75rem 1rem;width:36px">#</th><th style="padding:0.75rem 1rem;">Player</th><th style="padding:0.75rem 1rem;">GP</th>${defs.map(d => `<th style="padding:0.75rem 1rem;">${escapeHtmlAttr(d.name)}</th>`).join('')}<th style="padding:0.75rem 1rem;">PPG</th>`;
   const noData = `<tr><td colspan="${3 + defs.length + 1}" style="text-align:center;padding:1.8rem;font-style:italic;color:#c8c0b0;font-size:0.9rem;">No stats yet — season hasn't started.</td></tr>`;
