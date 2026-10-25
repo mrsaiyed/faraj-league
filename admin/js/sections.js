@@ -7,6 +7,7 @@ import { jerseyValue } from '../../lib/jersey.js';
 import { getGameLog } from '../../lib/api.js';
 import { gameLogRows } from '../../lib/game-log.js';
 import { isFinal } from '../../lib/game-clock.js';
+import { postseasonWeeks } from '../../lib/playoffs.js';
 import { gameLogHtml } from '../../js/game-log.js';
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 
@@ -1093,9 +1094,9 @@ export async function renderFullScheduleEditor(content, ctx) {
           <button type="button" class="admin-edit-btn fse-week-title-save" data-week="${w}" style="position:static;font-size:0.72rem;">Save title</button>
           ${addSlotBtn}
           <input type="date" class="fse-date-input" data-week="${w}" value="${weekDate}" title="Week date (applies to all games this week)">
-          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:#c8a84b;cursor:pointer;flex-shrink:0;margin-left:0.25rem;" title="When checked, this week renders as a playoff bracket on the schedule tab">
+          <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:#c8a84b;cursor:pointer;flex-shrink:0;margin-left:0.25rem;" title="Playoff weeks are left out of the standings. The last one is drawn as the bracket; an earlier one is a play-in, shown as ordinary games, that seeds the bracket">
             <input type="checkbox" class="fse-playoff-toggle" data-week="${w}" ${isPlayoff ? 'checked' : ''} style="cursor:pointer;accent-color:#c8a84b;">
-            Playoff Week
+            Playoff Week <span class="fse-playoff-role" data-week="${w}" style="color:#8bc4a0;"></span>
           </label>
         </div>
         ${slots.join('')}
@@ -1289,6 +1290,15 @@ export async function renderFullScheduleEditor(content, ctx) {
       };
     });
 
+    const showPlayoffRoles = () => {
+      const { bracketWeek, playInWeeks } = postseasonWeeks(playoffsByWeek);
+      el.querySelectorAll('.fse-playoff-role').forEach(span => {
+        const w = Number(span.dataset.week);
+        span.textContent = w === bracketWeek ? '· Bracket' : playInWeeks.includes(w) ? '· Play-in' : '';
+      });
+    };
+    showPlayoffRoles();
+
     el.querySelectorAll('.fse-playoff-toggle').forEach(cb => {
       cb.addEventListener('change', async () => {
         const w = String(cb.dataset.week);
@@ -1300,7 +1310,10 @@ export async function renderFullScheduleEditor(content, ctx) {
         } catch (err) {
           showMsg(err.message || 'Save failed.', true);
           cb.checked = !cb.checked;
+          if (cb.checked) playoffsByWeek[w] = true;
+          else delete playoffsByWeek[w];
         }
+        showPlayoffRoles();
       });
     });
 

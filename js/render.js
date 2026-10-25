@@ -4,7 +4,8 @@
 
 import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
-import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure, conferenceStandings, tiebreakerText } from '../lib/standings.js';
+import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure, conferenceStandings, tiebreakerText, rankTeams } from '../lib/standings.js';
+import { postseasonWeeks, bracketSlots } from '../lib/playoffs.js';
 import { gameRules } from '../lib/game-rules.js';
 import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
@@ -75,6 +76,10 @@ function confStandingRows(conf) {
   return conferenceStandings(config.DB.teams, regularSeasonScores(), conf, tiebreakers());
 }
 const seedCell = (r) => (r.seed ?? '–');
+/** Only the season's last playoff week is drawn as a bracket; an earlier one is a play-in, shown as ordinary games. */
+function isBracketWeek(w) {
+  return postseasonWeeks(config.DB.playoffWeeks).bracketWeek === Number(w);
+}
 function buildWeekDropdown(elId, includeAll, maxWeek) {
   const max = maxWeek != null ? maxWeek : config.TOTAL_WEEKS;
   const el = document.getElementById(elId); if (!el) return; el.innerHTML = '';
@@ -335,7 +340,7 @@ export function renderHome() {
   const homeMatchups = document.getElementById('home-matchups');
   const homeAwards = document.getElementById('home-awards');
   if (homeMatchups) {
-    if (config.DB.playoffWeeks?.[String(displayWeek)]) {
+    if (isBracketWeek(displayWeek)) {
       homeMatchups.classList.remove('matchups-grid');
       homeMatchups.innerHTML = renderPlayoffBracket(displayWeek);
     } else {
@@ -675,22 +680,50 @@ function scheduleWeekTitle(w) {
   return (c != null && String(c).trim() !== '') ? String(c).trim() : `Week ${w}`;
 }
 
+/**
+ * A bracket game that has not been scheduled yet: each side's seed, and its
+ * team once the play-in or a semifinal has settled it ("Winner of A vs B" until then).
+ */
+function bracketSlotCard(slot) {
+  const side = (s) => `<div class="pb-slot-side">${s.seed != null ? `<span class="pb-seed">${s.seed}</span>` : ''}${s.team
+    ? `<span class="pb-slot-team">${escapeHtmlAttr(s.team)}</span>`
+    : `<span class="pb-slot-note">${escapeHtmlAttr(s.note || 'TBD')}</span>`}</div>`;
+  return `<div class="matchup-card pb-slot">
+    <div class="mc-header"><span class="mc-meta-game">Game ${slot.game}</span><span class="mc-meta-time"></span><span class="mc-meta-date"></span></div>
+    <div class="pb-slot-body">${side(slot.home)}<div class="pb-slot-vs">vs</div>${side(slot.away)}</div>
+  </div>`;
+}
+
+/**
+ * The bracket week: games 1 and 2 above, game 3 below. After a play-in week it
+ * is seeded from the play-in (`bracketSlots()`): semifinal 1 is the first seed
+ * against the fourth, semifinal 2 the second against the third, and any game
+ * not yet scheduled shows its seeds and who they will be. Without a play-in
+ * (Spring 2026) it is two conference finals and a championship, as scheduled.
+ */
 function renderPlayoffBracket(w) {
   const allGames = (config.DB.scores || []).filter(g => g.week === w);
-  const g1 = allGames.find(g => g.game === 1);
-  const g2 = allGames.find(g => g.game === 2);
-  const g3 = allGames.find(g => g.game === 3);
+  const gameNo = (n) => allGames.find(g => g.game === n);
 
   const weekDate = allGames.find(g => g.scheduled_at)?.scheduled_at;
   const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
   const title = scheduleWeekTitle(w);
 
-  const placeholder = (label) =>
-    `<div class="matchup-card" style="padding:1.4rem;text-align:center;color:#555;font-size:0.82rem;display:flex;align-items:center;justify-content:center;">${label}</div>`;
-
-  const card1 = g1 ? buildMatchupCard(g1, g1.gameId || '') : placeholder('TBD');
-  const card2 = g2 ? buildMatchupCard(g2, g2.gameId || '') : placeholder('TBD');
-  const card3 = g3 ? buildMatchupCard(g3, g3.gameId || '') : placeholder('TBD');
+  const { playInWeeks } = postseasonWeeks(config.DB.playoffWeeks);
+  const playIn = (config.DB.scores || []).filter(g => playInWeeks.includes(g.week));
+  let cards;
+  let labels;
+  if (playInWeeks.length) {
+    const order = rankTeams(config.DB.teams, regularSeasonScores(), tiebreakers());
+    const slots = bracketSlots(order, playIn, allGames);
+    cards = slots.map(s => (gameNo(s.game) ? buildMatchupCard(gameNo(s.game), gameNo(s.game).gameId || '') : bracketSlotCard(s)));
+    labels = slots.map(s => (s.round === 'final' ? 'Championship' : `Semifinal · #${s.home.seed} vs #${s.away.seed}`));
+  } else {
+    const placeholder = (label) =>
+      `<div class="matchup-card" style="padding:1.4rem;text-align:center;color:#555;font-size:0.82rem;display:flex;align-items:center;justify-content:center;">${label}</div>`;
+    cards = [1, 2, 3].map(n => (gameNo(n) ? buildMatchupCard(gameNo(n), gameNo(n).gameId || '') : placeholder('TBD')));
+    labels = ['Conference Final', 'Conference Final', 'Championship'];
+  }
 
   return `<div class="playoff-bracket-wrap" data-week="${w}">
     <div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.9rem;">${title}${weekDateStr}</div>
@@ -698,12 +731,12 @@ function renderPlayoffBracket(w) {
       <div class="playoff-bracket">
         <div class="playoff-bracket-semis-row">
           <div class="playoff-bracket-col">
-            <div class="playoff-round-label">Conference Final</div>
-            ${card1}
+            <div class="playoff-round-label">${labels[0]}</div>
+            ${cards[0]}
           </div>
           <div class="playoff-bracket-col">
-            <div class="playoff-round-label">Conference Final</div>
-            ${card2}
+            <div class="playoff-round-label">${labels[1]}</div>
+            ${cards[1]}
           </div>
         </div>
         <div class="playoff-conn-v" aria-hidden="true">
@@ -711,8 +744,8 @@ function renderPlayoffBracket(w) {
         </div>
         <div class="playoff-bracket-final-row">
           <div class="playoff-bracket-col">
-            <div class="playoff-round-label">Championship</div>
-            ${card3}
+            <div class="playoff-round-label">${labels[2]}</div>
+            ${cards[2]}
           </div>
         </div>
       </div>
@@ -749,7 +782,7 @@ export function renderSchedule(focusWeek, teamFilter) {
   };
 
   const renderWeekContent = (w, label) =>
-    (config.DB.playoffWeeks?.[String(w)]) ? renderPlayoffBracket(w) : renderWeekBlock(w, label);
+    isBracketWeek(w) ? renderPlayoffBracket(w) : renderWeekBlock(w, label);
 
   const sectionHeader = (label, isCurrent) =>
     `<div class="schedule-section-header${isCurrent ? ' schedule-section-header-current' : ''}"><span>${label}</span></div>`;
@@ -811,8 +844,7 @@ export function renderScores(week) {
     if (!played.length) return `<div class="card" style="text-align:center;padding:1.4rem;margin-bottom:0.9rem;"><div style="font-size:0.9rem;color:#c8c0b0;font-style:italic;">Week ${w} — No results yet.</div></div>`;
     const weekDate = games.find(g => g.scheduled_at)?.scheduled_at;
     const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
-    const isPlayoff = config.DB.playoffWeeks?.[String(w)];
-    const gamesHtml = isPlayoff
+    const gamesHtml = isBracketWeek(w)
       ? renderPlayoffBracket(w)
       : `<div class="matchups-grid">${played.map(g => buildMatchupCard(g, g.gameId || '')).join('')}</div>`;
     return `<div style="margin-bottom:1.1rem;"><div style="font-family:'Cinzel',serif;font-size:0.84rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8a84b;margin-bottom:0.7rem;">Week ${w}${w == config.CURRENT_WEEK ? ' — Current' : ''}${weekDateStr}</div>${gamesHtml}</div>`;

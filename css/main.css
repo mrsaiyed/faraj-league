@@ -198,6 +198,12 @@ a.qs-item:hover .qs-num{color:#ddb94e;}
 .playoff-conn-v::after{content:'';position:absolute;left:50%;right:25%;top:0;height:50%;border-right:2px solid rgba(200,168,75,0.45);border-bottom:2px solid rgba(200,168,75,0.45);border-bottom-right-radius:3px;}
 .playoff-conn-v-stem{position:absolute;left:50%;top:50%;bottom:0;width:2px;background:rgba(200,168,75,0.45);border-radius:1px;transform:translateX(-50%);}
 .playoff-bracket-wrap .mc-team-name{white-space:normal;}
+.pb-slot-body{display:flex;flex-direction:column;gap:0.35rem;padding:0.75rem 0.8rem;}
+.pb-slot-side{display:flex;align-items:center;gap:0.55rem;min-width:0;}
+.pb-seed{flex-shrink:0;width:1.6rem;height:1.6rem;border-radius:50%;border:1px solid rgba(200,168,75,0.5);color:#c8a84b;font-family:'Cinzel',serif;font-size:0.72rem;display:flex;align-items:center;justify-content:center;}
+.pb-slot-team{font-size:0.9rem;font-weight:700;color:#f5f0e8;line-height:1.2;}
+.pb-slot-note{font-size:0.78rem;font-style:italic;color:#8a9aa8;line-height:1.25;}
+.pb-slot-vs{font-family:'Cinzel',serif;font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;color:#5a6a78;padding-left:2.15rem;}
 .matchup-card{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;overflow:hidden;}
 /* mc-* = matchup card internals */
 /* Game N | time | date: equal side columns keep the time centred on the card whatever the sides' widths. */
