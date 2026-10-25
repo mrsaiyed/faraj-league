@@ -944,7 +944,6 @@ export function renderStats(teamFilter) {
   if (sub) sub.textContent = config.currentSeasonLabel + (defs.length > 1 ? '' : ' · Points Only');
   const pointsDef = defs.find(d => d.slug === 'points');
   const calcPpg = r => r.gp > 0 ? (pointsDef ? (r.statValues?.[pointsDef.id] || 0) : r.total) / r.gp : 0;
-  const totalRegGames = config.DB.totalRegGames || 0;
   const standingsRec = calcStandings();
 
   // Team comparison across the whole league: the standings' own order, tiebreakers
@@ -958,17 +957,14 @@ export function renderStats(teamFilter) {
   const filteredStats = (config.DB.stats || [])
     .filter(s => s.total > 0 || defs.some(d => (s.statValues?.[d.id] || 0) > 0));
 
-  // Two-tier sort: players who missed ≤1 reg season game → by PPG (tiebreaker: cross-conf team rank);
-  // players who missed ≥2 reg season games → by total points, shown below.
-  const withMissed = filteredStats.map(r => ({ ...r, missed: totalRegGames - (r.regGp || 0) }));
+  // Everyone by PPG as shown (one decimal), however many games they have played;
+  // players level on it go by their team's standing.
   const roundPpg = r => Math.round(calcPpg(r) * 10) / 10;
-  const groupA = withMissed.filter(r => r.missed <= 1).sort((a, b) => {
+  const allRows = [...filteredStats].sort((a, b) => {
     const diff = roundPpg(b) - roundPpg(a);
     if (diff !== 0) return diff;
     return compareTeams(a.team, b.team);
   });
-  const groupB = withMissed.filter(r => r.missed > 1).sort((a, b) => b.total - a.total);
-  const allRows = totalRegGames > 0 ? [...groupA, ...groupB] : filteredStats.sort((a, b) => b.total - a.total);
 
   if (!defs.length) {
     if (leadersWrap) leadersWrap.innerHTML = '';

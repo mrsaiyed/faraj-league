@@ -238,7 +238,7 @@ A log that still never reached the database (tracked before logs were saved, or 
 
 **Standings PD column**: `calcStandings()` returns `{ w, l, pf, pa }` — it does NOT include point differential. The PD column in the standings table is computed at render time in `renderStandings()` as `pf - pa`.
 
-**Stats display limits**: `renderStats()` caps the table at 15 players (sorted by total points). A separate top-3 PPG leaders widget (`#stats-leaders-wrap`) is rendered above the table, sorted by points-per-game. Both respect the team filter.
+**Stats display limits**: `renderStats()` caps the table at 15 players, sorted by PPG as shown (one decimal) whatever their games played — there is no minimum, so a player who has missed games is not pushed below the rest — with ties going by their team's league seed. A separate top-3 PPG leaders widget (`#stats-leaders-wrap`) is rendered above the table, sorted by points-per-game. Both respect the team filter.
 
 **`config.DB` scores shape** (after `transformSeasonData`): `{ week, game, gameId, t1Id, t2Id, t1, s1, t2, s2, scheduled_at }`. The `t1`/`t2` fields are team names (used for display and standings lookups); `t1Id`/`t2Id` are DB UUIDs.
 
