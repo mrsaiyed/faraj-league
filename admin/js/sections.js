@@ -8,6 +8,7 @@ import { getGameLog } from '../../lib/api.js';
 import { gameLogRows } from '../../lib/game-log.js';
 import { isFinal } from '../../lib/game-clock.js';
 import { postseasonWeeks } from '../../lib/playoffs.js';
+import { slotStart, defaultSlotTime } from '../../lib/schedule.js';
 import { gameLogHtml } from '../../js/game-log.js';
 import { saveJerseyNumber, setLoadedJersey } from './jersey.js';
 
@@ -912,13 +913,10 @@ export async function renderFullScheduleEditor(content, ctx) {
     }
   }
 
-  const DEFAULT_TIMES = { 1: '10:00', 2: '11:00', 3: '12:00' };
-
-  /** Default time for new games / empty slots; first three slots keep 10/11/12, rest use 10:00 */
-  function defaultTimeForSlot(gi) {
-    const g = Number(gi);
-    if (g >= 1 && g <= 3) return DEFAULT_TIMES[g];
-    return '10:00';
+  /** When an empty slot's game would start: an hour on from the week's nearest timed game (`slotStart()`). */
+  function emptySlotStart(w, gi, weekDate) {
+    const games = Object.values(byWeek[w] || {}).map(g => ({ game: g.game_index, scheduled_at: g.scheduled_at }));
+    return slotStart(games, gi, weekDate);
   }
 
   /** Calendar date in local TZ (for date inputs) — avoids UTC day shift near midnight */
@@ -934,9 +932,9 @@ export async function renderFullScheduleEditor(content, ctx) {
 
   /** HH:mm for <input type="time"> — local wall clock, matches formatGameTime on public schedule */
   function getISOTime(scheduledAt, gameIndex) {
-    if (!scheduledAt) return defaultTimeForSlot(gameIndex);
+    if (!scheduledAt) return defaultSlotTime(gameIndex);
     const d = new Date(scheduledAt);
-    if (isNaN(d)) return defaultTimeForSlot(gameIndex);
+    if (isNaN(d)) return defaultSlotTime(gameIndex);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
@@ -1024,7 +1022,7 @@ export async function renderFullScheduleEditor(content, ctx) {
           document.querySelector(`.fse-date-input[data-week="${week}"]`)?.value?.trim()
           || getWeekDate(week)
           || (game?.scheduled_at ? getISODate(game.scheduled_at) : '');
-        scheduledAt = weekDate ? buildScheduledAt(weekDate, defaultTimeForSlot(gi)) : null;
+        scheduledAt = emptySlotStart(week, gi, weekDate)?.toISOString() || null;
       }
       const body = id
         ? { id, home_team_id: homeId, away_team_id: awayId }
@@ -1081,7 +1079,7 @@ export async function renderFullScheduleEditor(content, ctx) {
         return `<div class="fse-slot fse-slot-empty" data-week="${w}" data-gi="${gi}">
             ${slotMinus}
           <span class="fse-game-label">Game ${gi}</span>
-          <span class="fse-time-default">${fmtTime(defaultTimeForSlot(gi))}</span>
+          <span class="fse-time-default">${fmtTime(getISOTime(emptySlotStart(w, gi, weekDate)?.toISOString(), gi))}</span>
           <span class="fse-matchup" style="color:#666;">—</span>
           <button type="button" class="admin-edit-btn fse-add-btn" data-week="${w}" data-gi="${gi}" style="background:#2a5a3a;color:#8bc4a0;margin-left:auto;">+ Add</button>
         </div>`;

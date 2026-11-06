@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { confLabel, confShortLabel, getConferences, getBasePath, motmLabel, akhlaqLabel, statsTitle, highlightSponsor } from './config.js';
 import { calcStandings as calcStandingsPure, calcSeeds as calcSeedsPure, conferenceStandings, tiebreakerText, rankTeams } from '../lib/standings.js';
 import { postseasonWeeks, bracketSlots } from '../lib/playoffs.js';
+import { slotStart } from '../lib/schedule.js';
 import { gameRules } from '../lib/game-rules.js';
 import { resolveTeamLogo, logoScaleCss } from '../lib/team-logos.js';
 import { filterBankPlayers } from '../lib/draft-bank.js';
@@ -680,16 +681,23 @@ function scheduleWeekTitle(w) {
   return (c != null && String(c).trim() !== '') ? String(c).trim() : `Week ${w}`;
 }
 
+/** The date the schedule editor gave a week ('YYYY-MM-DD'), for a week with no games yet. */
+function scheduleWeekDate(w) {
+  try { return JSON.parse(config.DB.contentBlocks?.schedule_dates_by_week || '{}')?.[String(w)] || ''; } catch (_) { return ''; }
+}
+
 /**
  * A bracket game that has not been scheduled yet: each side's seed, and its
  * team once the play-in or a semifinal has settled it ("Winner of A vs B" until then).
+ * Its time is an hour on from the nearest scheduled game of the week (`slotStart()`).
  */
-function bracketSlotCard(slot) {
+function bracketSlotCard(slot, weekGames, week) {
   const side = (s) => `<div class="pb-slot-side">${s.seed != null ? `<span class="pb-seed">${s.seed}</span>` : ''}${s.team
     ? `<span class="pb-slot-team">${escapeHtmlAttr(s.team)}</span>`
     : `<span class="pb-slot-note">${escapeHtmlAttr(s.note || 'TBD')}</span>`}</div>`;
+  const start = slotStart(weekGames, slot.game, scheduleWeekDate(week))?.toISOString() || null;
   return `<div class="matchup-card pb-slot">
-    <div class="mc-header"><span class="mc-meta-game">Game ${slot.game}</span><span class="mc-meta-time"></span><span class="mc-meta-date"></span></div>
+    <div class="mc-header"><span class="mc-meta-game">Game ${slot.game}</span><span class="mc-meta-time">${formatGameTime(start, slot.game)}</span><span class="mc-meta-date">${formatGameDate(start)}</span></div>
     <div class="pb-slot-body">${side(slot.home)}<div class="pb-slot-vs">vs</div>${side(slot.away)}</div>
   </div>`;
 }
@@ -705,7 +713,7 @@ function renderPlayoffBracket(w) {
   const allGames = (config.DB.scores || []).filter(g => g.week === w);
   const gameNo = (n) => allGames.find(g => g.game === n);
 
-  const weekDate = allGames.find(g => g.scheduled_at)?.scheduled_at;
+  const weekDate = allGames.find(g => g.scheduled_at)?.scheduled_at || slotStart([], 1, scheduleWeekDate(w))?.toISOString();
   const weekDateStr = weekDate ? ` · ${formatGameDate(weekDate)}` : '';
   const title = scheduleWeekTitle(w);
 
@@ -716,7 +724,7 @@ function renderPlayoffBracket(w) {
   if (playInWeeks.length) {
     const order = rankTeams(config.DB.teams, regularSeasonScores(), tiebreakers());
     const slots = bracketSlots(order, playIn, allGames);
-    cards = slots.map(s => (gameNo(s.game) ? buildMatchupCard(gameNo(s.game), gameNo(s.game).gameId || '') : bracketSlotCard(s)));
+    cards = slots.map(s => (gameNo(s.game) ? buildMatchupCard(gameNo(s.game), gameNo(s.game).gameId || '') : bracketSlotCard(s, allGames, w)));
     labels = slots.map(s => (s.round === 'final' ? 'Championship' : `Semifinal · #${s.home.seed} vs #${s.away.seed}`));
   } else {
     const placeholder = (label) =>
