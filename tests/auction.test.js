@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  DEFAULT_BUDGET, ppg, shuffle, setupProblem, newGame, maxBid, highBidder, highBid,
+  DEFAULT_BUDGET, ppg, shuffle, setupProblem, newGame, maxBid, freeTaker, highBidder, highBid,
   bidProblem, placeBid, raise, resetBids, purchase, nextLot, finalTeams,
 } from '../lib/auction.js';
 
@@ -29,7 +29,8 @@ describe('setup', () => {
   it('refuses settings that cannot make a game', () => {
     expect(setupProblem({ bidders: 1, perTeam: 6, budget: 20, available: 56 })).toMatch(/at least 2/i);
     expect(setupProblem({ bidders: 2, perTeam: 0, budget: 20, available: 56 })).toMatch(/at least 1 player/i);
-    expect(setupProblem({ bidders: 2, perTeam: 6, budget: 5, available: 56 })).toMatch(/at least \$6/);
+    expect(setupProblem({ bidders: 2, perTeam: 6, budget: 0, available: 56 })).toMatch(/at least \$1/);
+    expect(setupProblem({ bidders: 2, perTeam: 6, budget: 3, available: 56 })).toBeNull();
     expect(setupProblem({ bidders: 10, perTeam: 6, budget: 20, available: 56 })).toMatch(/60 players.*56/);
     expect(setupProblem({ bidders: 2, perTeam: 6, budget: 20, available: 56 })).toBeNull();
   });
@@ -68,11 +69,11 @@ describe('bidding', () => {
     expect(bidProblem(game(), 0, 3)).toMatch(/already has the high bid/);
   });
 
-  it('keeps $1 back for every other open spot', () => {
-    const g = game(); // $10, 3 spots: at most $8 on the first player
-    expect(maxBid(g, 1)).toBe(8);
-    expect(placeBid(g, 1, 9).error).toMatch(/at most \$8/);
-    expect(placeBid(g, 1, 8).error).toBeUndefined();
+  it('a bidder can bid all the money they have left, and no more', () => {
+    const g = game(); // $10 each
+    expect(maxBid(g, 1)).toBe(10);
+    expect(placeBid(g, 1, 11).error).toMatch(/only has \$10/);
+    expect(placeBid(g, 1, 10).error).toBeUndefined();
   });
 
   it('refuses a bid that is not whole dollars, and leaves the state as it was', () => {
@@ -128,6 +129,61 @@ describe('selling', () => {
     for (let k = 0; k < 6; k++) g = sell(g);
     expect(g.phase).toBe('over');
     expect(g.bidders.every(b => b.team.length === 3)).toBe(true);
+  });
+});
+
+describe('out of money', () => {
+  // $2 each: Sami spends it all on the first player.
+  const broke = () => nextLot(purchase(placeBid(game({ budget: 2 }), 1, 2).state));
+
+  it('a bidder at $0 cannot bid', () => {
+    const g = broke();
+    expect(g.bidders[1].budget).toBe(0);
+    expect(maxBid(g, 1)).toBe(0);
+    expect(bidProblem(g, 1, 1)).toMatch(/out of money/);
+  });
+
+  it('on their own turn nobody has to open, and if nobody bids the player is theirs for $0', () => {
+    const g = broke(); // Sami's turn
+    expect(g.opener).toBe(1);
+    expect(g.bids).toEqual([0, 0]);
+    expect(freeTaker(g)).toBe(1);
+    const sold = purchase(g);
+    expect(sold.sold).toMatchObject({ bidder: 1, price: 0 });
+    expect(sold.bidders[1].team).toHaveLength(2);
+  });
+
+  it('or whoever has money bids and takes him', () => {
+    const g = purchase(raise(broke(), 0).state);
+    expect(g.sold).toMatchObject({ bidder: 0, price: 1 });
+  });
+
+  it('on the other bidder\'s turn they need not open: not bidding gives the player away', () => {
+    const g = nextLot(purchase(broke())); // Sami took one free; now Ali's turn
+    expect(g.opener).toBe(0);
+    expect(g.bids).toEqual([0, 0]);
+    expect(purchase(g).sold).toMatchObject({ bidder: 1, price: 0 });
+  });
+
+  it('once everyone is at $0 the players go out one each, in turn', () => {
+    let g = newGame({ names: ['Ali', 'Sami'], perTeam: 3, budget: 1, players: PLAYERS, random: noShuffle });
+    g = sell(g); // Ali opens at $1 and takes him: Ali $0
+    g = sell(g, [[1, 1]]); // Sami bids his $1: Sami $0
+    expect(g.bidders.map(b => b.budget)).toEqual([0, 0]);
+    const owners = [];
+    while (g.phase === 'bidding') {
+      expect(g.bids).toEqual([0, 0]);
+      g = purchase(g);
+      owners.push(g.sold.bidder);
+      g = nextLot(g);
+    }
+    expect(owners).toEqual([0, 1, 0, 1]);
+    expect(g.phase).toBe('over');
+  });
+
+  it('with nobody at $0 the opener still has to start at $1', () => {
+    expect(freeTaker(game())).toBe(-1);
+    expect(game().bids).toEqual([1, 0]);
   });
 });
 
