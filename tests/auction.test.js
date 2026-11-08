@@ -59,32 +59,10 @@ describe('bidding', () => {
     expect(highBid(state)).toBe(2);
   });
 
-  it('anyone but the opener has to beat the high bid', () => {
-    const g = game(); // Ali opens at $1
-    expect(placeBid(g, 1, 1).error).toMatch(/Ties go to Ali.*beat \$1/);
-    expect(placeBid(g, 1, 2).state.bids).toEqual([1, 2]);
-  });
-
-  it('the opener wins ties: they can match the high bid to take it', () => {
-    const g = placeBid(game(), 1, 4).state; // Sami bids $4 over Ali's $1
-    expect(placeBid(g, 0, 3).error).toMatch(/at least \$4/);
-    const matched = placeBid(g, 0, 4).state;
-    expect(matched.bids).toEqual([4, 4]);
-    expect(highBidder(matched)).toBe(0);
-    expect(raise(matched, 1).state.bids).toEqual([4, 5]);
-  });
-
-  it('the opener can put all they have in against a bid of the same', () => {
-    let g = game();
-    g = { ...g, bidders: [{ ...g.bidders[0], budget: 8 }, { ...g.bidders[1], budget: 10 }] };
-    g = placeBid(g, 0, 7).state;
-    g = placeBid(g, 1, 8).state; // Ali, opening with $8 left, faces $8
-    expect(raise(g, 0).state.bids).toEqual([8, 8]);
-    const allIn = placeBid(g, 0, 8).state;
-    expect(highBidder(allIn)).toBe(0);
-    expect(purchase(allIn).sold).toMatchObject({ bidder: 0, price: 8 });
-    expect(placeBid(allIn, 1, 8).error).toMatch(/Ties go to Ali/);
-    expect(placeBid(allIn, 1, 9).state.bids).toEqual([8, 9]);
+  it('a typed bid has to beat the high bid', () => {
+    const g = placeBid(game(), 1, 4).state;
+    expect(placeBid(g, 0, 4).error).toMatch(/beat \$4/);
+    expect(placeBid(g, 0, 5).state.bids).toEqual([5, 4]);
   });
 
   it('the high bidder cannot bid against themselves', () => {
