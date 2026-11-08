@@ -14,7 +14,7 @@
  */
 
 import {
-  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, minBid, freeTaker, highBidder, highBid,
+  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, freeTaker, highBidder, highBid,
   placeBid, raise, resetBids, purchase, nextLot, finalTeams,
 } from '../../lib/auction.js';
 
@@ -137,9 +137,7 @@ export async function renderAuctionGame(content, { supabase }) {
     const broke = !full && b.budget <= 0;
     const isHigh = bidding && highBidder(state) === i;
     const max = maxBid(state, i);
-    // The opener wins ties, so their quick bid matches the high bid; anyone else's goes $1 over it.
-    const next = minBid(state, i);
-    const quick = isHigh ? 'High bid' : state.bids.some(b => b > 0) && next === highBid(state) ? `Match $${next}` : `+1 → $${next}`;
+    const next = highBid(state) + 1;
     const canRaise = bidding && !full && !isHigh && next <= max;
     const bid = bidding ? state.bids[i] : 0;
     const cls = ['ag-panel', bidding && state.opener === i ? 'is-turn' : '', isHigh ? 'is-high' : '', full || broke ? 'is-full' : ''].filter(Boolean).join(' ');
@@ -157,7 +155,7 @@ export async function renderAuctionGame(content, { supabase }) {
       <div class="ag-bid${isHigh ? ' ag-bid-high' : ''}">${bid ? `$${bid}` : '—'}</div>
       ${bidding && !full && !broke ? `
       <div class="ag-controls">
-        <button type="button" class="ag-btn ag-btn-raise" data-raise="${i}" ${canRaise ? '' : 'disabled'}>${quick}</button>
+        <button type="button" class="ag-btn ag-btn-raise" data-raise="${i}" ${canRaise ? '' : 'disabled'}>+1 → $${next}</button>
         <input type="number" class="ag-amount" data-amount="${i}" min="${next}" max="${max}" placeholder="$" inputmode="numeric" aria-label="${esc(b.name)}'s bid">
         <button type="button" class="ag-btn" data-bid="${i}">Bid</button>
       </div>` : ''}
