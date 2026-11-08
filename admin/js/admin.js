@@ -196,6 +196,10 @@ async function adminShowPage(id) {
     }
   }
   if (id === 'rules') await renderRulesPage();
+  if (id === 'game') {
+    const { renderAuctionGame } = await import('./auction-game.js');
+    await renderAuctionGame(document.getElementById('game-content'), { supabase });
+  }
 }
 
 /** The Rules page: the league's tiebreakers, timeouts, foul limits and clock, for every season. */
