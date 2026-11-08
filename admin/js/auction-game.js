@@ -14,7 +14,7 @@
  */
 
 import {
-  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, freeTaker, highBidder, highBid,
+  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, freeTaker, highBidder, highBid, bidProblem,
   placeBid, raise, resetBids, purchase, nextLot, finalTeams,
 } from '../../lib/auction.js';
 
@@ -138,7 +138,8 @@ export async function renderAuctionGame(content, { supabase }) {
     const isHigh = bidding && highBidder(state) === i;
     const max = maxBid(state, i);
     const next = highBid(state) + 1;
-    const canRaise = bidding && !full && !isHigh && next <= max;
+    // The opener can keep raising their own opening bid until someone else bids.
+    const canRaise = bidding && !bidProblem(state, i, next);
     const bid = bidding ? state.bids[i] : 0;
     const cls = ['ag-panel', bidding && state.opener === i ? 'is-turn' : '', isHigh ? 'is-high' : '', full || broke ? 'is-full' : ''].filter(Boolean).join(' ');
     // Side by side on a wide screen: bidders down the left and right, the player between them.
@@ -156,7 +157,7 @@ export async function renderAuctionGame(content, { supabase }) {
       ${bidding && !full && !broke ? `
       <div class="ag-controls">
         <button type="button" class="ag-btn ag-btn-raise" data-raise="${i}" ${canRaise ? '' : 'disabled'}>+1 → $${next}</button>
-        <input type="number" class="ag-amount" data-amount="${i}" min="${next}" max="${max}" placeholder="$" inputmode="numeric" aria-label="${esc(b.name)}'s bid">
+        <input type="number" class="ag-amount" data-amount="${i}" min="1" max="${max}" placeholder="$" inputmode="numeric" aria-label="${esc(b.name)}'s bid">
         <button type="button" class="ag-btn" data-bid="${i}">Bid</button>
       </div>` : ''}
       <ol class="ag-team">
