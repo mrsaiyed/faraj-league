@@ -66,7 +66,22 @@ describe('bidding', () => {
   });
 
   it('the high bidder cannot bid against themselves', () => {
-    expect(bidProblem(game(), 0, 3)).toMatch(/already has the high bid/);
+    const g = raise(game(), 1).state; // Sami $2 over Ali's $1
+    expect(bidProblem(g, 1, 3)).toMatch(/already has the high bid/);
+  });
+
+  it('the opener can set the opening bid to any amount until someone else bids', () => {
+    let g = game(); // Ali opens at $1
+    expect(raise(g, 0).state.bids).toEqual([2, 0]);
+    g = placeBid(g, 0, 6).state;
+    expect(g.bids).toEqual([6, 0]);
+    expect(placeBid(g, 0, 3).state.bids).toEqual([3, 0]);
+    expect(placeBid(g, 0, 11).error).toMatch(/only has \$10/);
+    g = raise(g, 1).state; // Sami goes $1 over
+    expect(g.bids).toEqual([6, 7]);
+    expect(placeBid(g, 0, 7).error).toMatch(/beat \$7/);
+    expect(raise(g, 0).state.bids).toEqual([8, 7]);
+    expect(bidProblem(raise(g, 0).state, 0, 9)).toMatch(/already has the high bid/);
   });
 
   it('a bidder can bid all the money they have left, and no more', () => {
