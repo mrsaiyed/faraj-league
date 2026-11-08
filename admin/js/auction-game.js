@@ -14,7 +14,7 @@
  */
 
 import {
-  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, highBidder, highBid,
+  DEFAULT_BUDGET, ppg, setupProblem, newGame, maxBid, freeTaker, highBidder, highBid,
   placeBid, raise, resetBids, purchase, nextLot, finalTeams,
 } from '../../lib/auction.js';
 
@@ -134,12 +134,13 @@ export async function renderAuctionGame(content, { supabase }) {
   function panelHtml(b, i) {
     const bidding = state.phase === 'bidding';
     const full = b.team.length >= state.perTeam;
+    const broke = !full && b.budget <= 0;
     const isHigh = bidding && highBidder(state) === i;
     const max = maxBid(state, i);
     const next = highBid(state) + 1;
     const canRaise = bidding && !full && !isHigh && next <= max;
     const bid = bidding ? state.bids[i] : 0;
-    const cls = ['ag-panel', bidding && state.opener === i ? 'is-turn' : '', isHigh ? 'is-high' : '', full ? 'is-full' : ''].filter(Boolean).join(' ');
+    const cls = ['ag-panel', bidding && state.opener === i ? 'is-turn' : '', isHigh ? 'is-high' : '', full || broke ? 'is-full' : ''].filter(Boolean).join(' ');
     // Side by side on a wide screen: bidders down the left and right, the player between them.
     const col = i % 2 === 0 ? 1 : 3;
     const row = Math.floor(i / 2) + 1;
@@ -148,10 +149,11 @@ export async function renderAuctionGame(content, { supabase }) {
         <span class="ag-panel-name">${esc(b.name)}</span>
         ${bidding && state.opener === i ? '<span class="ag-badge">Opens</span>' : ''}
         ${full ? '<span class="ag-badge ag-badge-full">Full</span>' : ''}
+        ${broke ? '<span class="ag-badge ag-badge-full">Out of money</span>' : ''}
       </header>
-      <div class="ag-money"><span class="ag-left">$${b.budget}</span> left${!full ? ` · max bid $${max}` : ''}</div>
+      <div class="ag-money"><span class="ag-left">$${b.budget}</span> left</div>
       <div class="ag-bid${isHigh ? ' ag-bid-high' : ''}">${bid ? `$${bid}` : '—'}</div>
-      ${bidding && !full ? `
+      ${bidding && !full && !broke ? `
       <div class="ag-controls">
         <button type="button" class="ag-btn ag-btn-raise" data-raise="${i}" ${canRaise ? '' : 'disabled'}>+1 → $${next}</button>
         <input type="number" class="ag-amount" data-amount="${i}" min="${next}" max="${max}" placeholder="$" inputmode="numeric" aria-label="${esc(b.name)}'s bid">
@@ -186,14 +188,21 @@ export async function renderAuctionGame(content, { supabase }) {
         <button type="button" class="ag-btn ag-btn-primary" data-next>${last ? 'See the teams' : 'Next player'}</button>
       </div>`;
     }
+    // With no bids the player goes for nothing to whoever is out of money (freeTaker).
     const hi = highBidder(state);
+    const taker = hi >= 0 ? hi : freeTaker(state);
+    const takerName = taker >= 0 ? esc(state.bidders[taker].name) : '';
+    const high = hi >= 0
+      ? `High bid <strong>$${state.bids[hi]}</strong> · ${takerName}`
+      : `No bids · goes to <strong>${takerName}</strong> for $0 if nobody bids`;
+    const sell = hi >= 0 ? `Sold to ${takerName} for $${state.bids[hi]}` : `Give to ${takerName} for $0`;
     return `<div class="ag-lot" ${place}>
       ${count}
       <div class="ag-mystery" aria-label="Name hidden">?</div>
       <div class="ag-ppg">${ppgText(p)} <small>PPG</small></div>
       ${stats}
-      <div class="ag-high">High bid <strong>$${state.bids[hi]}</strong> · ${esc(state.bidders[hi].name)}</div>
-      <button type="button" class="ag-btn ag-btn-primary" data-purchase>Sold to ${esc(state.bidders[hi].name)} for $${state.bids[hi]}</button>
+      <div class="ag-high">${high}</div>
+      <button type="button" class="ag-btn ag-btn-primary" data-purchase ${taker >= 0 ? '' : 'disabled'}>${sell}</button>
       <button type="button" class="ag-btn ag-btn-quiet" data-reset>Reset bids</button>
       <p class="ag-msg${message ? ' ag-error' : ''}" role="status">${esc(message)}</p>
     </div>`;
