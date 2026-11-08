@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/live-tracker.css?v=20261014a">
 <link rel="stylesheet" href="css/admin-overlays.css">
 <link rel="stylesheet" href="css/rules.css?v=20261017a">
+<link rel="stylesheet" href="css/auction.css?v=20261108a">
 <style>
 /* Admin-only: login, floating button, drawer */
 .admin-login-wrap { position:fixed;inset:0;z-index:9999;display:flex;justify-content:center;align-items:center;background:#060f1a; }
@@ -95,6 +96,7 @@
     <button class="nav-tab" data-page="sponsors" onclick="adminShowPage('sponsors')">Sponsors</button>
     <button class="nav-tab" data-page="power-rankings" onclick="adminShowPage('power-rankings')">Rankings</button>
     <button class="nav-tab" data-page="rules" onclick="adminShowPage('rules')">Rules</button>
+    <button class="nav-tab" data-page="game" onclick="adminShowPage('game')">Game</button>
   </div>
 </nav>
 
@@ -237,6 +239,14 @@
   <div class="section">
     <p class="section-sub">Every season</p><h2 class="section-title">League Rules</h2><div class="section-line"></div>
     <div id="rules-content"><p class="loading">Loading...</p></div>
+  </div>
+  <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
+</div>
+
+<div id="page-game" class="page">
+  <div class="section">
+    <p class="section-sub">Both seasons</p><h2 class="section-title">Auction Game</h2><div class="section-line"></div>
+    <div id="game-content"><p class="loading">Loading...</p></div>
   </div>
   <footer><div class="footer-logo">Faraj League</div><div class="footer-hadith">"The best worship is awaiting the reappearance." — Holy Prophet (s.a.w.s.)</div><div class="footer-insta">@farajleague on Instagram</div></footer>
 </div>

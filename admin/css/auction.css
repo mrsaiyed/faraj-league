@@ -1,0 +1,81 @@
+/* The admin's Game tab (admin/js/auction-game.js): an auction for teams of league players. */
+
+.ag-intro{margin:0 0 1.2rem;font-size:0.92rem;line-height:1.5;color:#c8c0b0;max-width:46rem;}
+.ag-setup-grid,.ag-names{display:grid;grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:0.9rem;margin-bottom:1rem;max-width:46rem;}
+.ag-field{display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;letter-spacing:0.08em;text-transform:uppercase;color:#c8c0b0;}
+.ag-field input,.ag-amount{padding:0.55rem 0.6rem;background:#0a1f2e;border:1px solid rgba(200,168,75,0.3);border-radius:4px;color:#f5f0e8;font:inherit;font-size:1rem;letter-spacing:normal;text-transform:none;}
+.ag-field input:focus,.ag-amount:focus{outline:2px solid #c8a84b;outline-offset:1px;}
+.ag-summary{margin:0 0 1rem;font-size:0.9rem;color:#2fa89a;}
+.ag-error{color:#e88!important;}
+
+.ag-btn{padding:0.55rem 0.9rem;border-radius:4px;border:1px solid rgba(200,168,75,0.45);background:#0e2535;color:#f5f0e8;font:inherit;font-size:0.92rem;cursor:pointer;}
+.ag-btn:hover:not(:disabled){border-color:#c8a84b;}
+.ag-btn:disabled{opacity:0.4;cursor:default;}
+.ag-btn-primary{background:#c8a84b;color:#060f1a;border-color:#c8a84b;font-weight:700;}
+.ag-btn-quiet{background:transparent;border-color:transparent;color:#8a8580;font-size:0.82rem;}
+.ag-btn-quiet:hover{color:#c8c0b0;}
+.ag-btn-raise{font-weight:700;color:#c8a84b;}
+
+.ag-bar{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem;font-size:0.82rem;color:#8a8580;}
+
+/* Bidders down the left and right columns, the player in the middle spanning their rows. */
+.ag-board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:1rem;align-items:start;}
+.ag-panel{grid-column:var(--ag-col);grid-row:var(--ag-row);background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;padding:0.9rem;display:flex;flex-direction:column;gap:0.55rem;min-width:0;}
+.ag-panel.is-turn{border-color:rgba(47,168,154,0.7);}
+.ag-panel.is-high{border-color:#c8a84b;box-shadow:0 0 0 1px #c8a84b inset;}
+.ag-panel.is-full{opacity:0.7;}
+.ag-panel-head{display:flex;align-items:center;gap:0.5rem;}
+.ag-panel-name{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:#f5f0e8;letter-spacing:0.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ag-badge{font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.15rem 0.45rem;border-radius:3px;background:rgba(47,168,154,0.18);color:#2fa89a;}
+.ag-badge-full{background:rgba(200,192,176,0.12);color:#c8c0b0;}
+.ag-money{font-size:0.82rem;color:#8a8580;}
+.ag-left{font-size:1rem;font-weight:700;color:#2fa89a;}
+.ag-bid{font-family:'Cinzel',serif;font-size:2.1rem;line-height:1;color:#c8c0b0;}
+.ag-bid-high{color:#c8a84b;}
+.ag-controls{display:flex;gap:0.4rem;align-items:stretch;}
+.ag-controls .ag-btn{padding:0.55rem 0.65rem;}
+.ag-amount{width:0;flex:1 1 3.5rem;min-width:3rem;}
+.ag-team{list-style:none;margin:0.2rem 0 0;padding:0.5rem 0 0;border-top:1px solid rgba(200,168,75,0.15);display:flex;flex-direction:column;gap:0.3rem;counter-reset:ag;}
+.ag-team li{display:flex;justify-content:space-between;gap:0.5rem;font-size:0.86rem;color:#f5f0e8;}
+.ag-team li::before{counter-increment:ag;content:counter(ag);color:#556;min-width:1.1rem;font-size:0.78rem;}
+.ag-team-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ag-team-meta{color:#8a8580;font-size:0.8rem;white-space:nowrap;}
+.ag-team-empty{color:#445!important;}
+
+.ag-lot{grid-column:2;grid-row:1 / span var(--ag-rows);background:linear-gradient(180deg,#102a3c,#0a1f2e);border:1px solid rgba(200,168,75,0.35);border-radius:8px;padding:1.4rem 1.1rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:0.75rem;}
+.ag-lot-count{font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#8a8580;}
+.ag-mystery{width:5.5rem;height:5.5rem;border-radius:50%;border:2px dashed rgba(200,168,75,0.5);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:2.6rem;color:#c8a84b;}
+.ag-reveal{font-family:'Cinzel',serif;font-size:1.7rem;font-weight:700;color:#c8a84b;line-height:1.2;}
+.ag-ppg{font-family:'Cinzel',serif;font-size:2.6rem;line-height:1;color:#2fa89a;}
+.ag-ppg small{font-size:0.9rem;color:#8a8580;letter-spacing:0.1em;}
+.ag-stats{display:flex;gap:1.4rem;margin:0;}
+.ag-stats div{display:flex;flex-direction:column;align-items:center;gap:0.15rem;}
+.ag-stats dt{font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8580;}
+.ag-stats dd{margin:0;font-size:1.15rem;color:#f5f0e8;}
+.ag-high,.ag-sold-to{font-size:0.95rem;color:#c8c0b0;}
+.ag-high strong,.ag-sold-to strong{color:#c8a84b;}
+.ag-lot .ag-btn-primary{width:100%;max-width:20rem;padding:0.75rem;font-size:1rem;}
+.ag-msg{margin:0;min-height:1.2em;font-size:0.85rem;}
+
+.ag-end-title{font-family:'Cinzel',serif;font-size:1rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8a84b;margin:0 0 1rem;}
+.ag-final{display:grid;grid-template-columns:repeat(var(--ag-teams),minmax(12rem,1fr));gap:1rem;margin-bottom:1.25rem;overflow-x:auto;}
+.ag-final-team{background:#0e2535;border:1px solid rgba(200,168,75,0.2);border-radius:6px;padding:0.9rem;min-width:0;}
+.ag-final-team.is-best{border-color:#c8a84b;}
+.ag-final-team h4{margin:0 0 0.6rem;font-family:'Cinzel',serif;font-size:1rem;color:#f5f0e8;letter-spacing:0.06em;}
+.ag-final-team ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.35rem;counter-reset:agf;}
+.ag-final-team li{display:flex;gap:0.5rem;font-size:0.9rem;color:#f5f0e8;}
+.ag-final-team li::before{counter-increment:agf;content:counter(agf);color:#8a8580;min-width:1.1rem;font-size:0.8rem;}
+.ag-final-ppg{color:#2fa89a;font-weight:700;}
+.ag-final-team footer{margin-top:0.7rem;padding-top:0.55rem;border-top:1px solid rgba(200,168,75,0.15);font-size:0.82rem;color:#8a8580;}
+.ag-final-team footer strong{color:#c8a84b;font-size:1rem;}
+
+/* A phone: the player on top, the bidders two to a row beneath. */
+@media(max-width:760px){
+  .ag-board{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.6rem;}
+  .ag-lot{grid-column:1 / -1;grid-row:1;padding:1rem 0.8rem;}
+  .ag-panel{grid-column:auto;grid-row:auto;padding:0.7rem;}
+  .ag-bid{font-size:1.7rem;}
+  .ag-controls{flex-wrap:wrap;}
+  .ag-btn-raise{flex:1 1 100%;}
+  .ag-ppg{font-size:2.1rem;}
+}
