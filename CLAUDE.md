@@ -25,6 +25,8 @@ Tests cover `lib/standings.js` (`calcStandings`, `rankTeams` and its tiebreakers
 
 No build step — this is a static site with ES modules served directly.
 
+**Commits are authored as the repo owner**, so they count on his GitHub contribution graph: author and committer `Raza Saiyed <mr.saiyed14@gmail.com>`, set per commit (`git -c user.name="Raza Saiyed" -c user.email=mr.saiyed14@gmail.com commit ...`) rather than in git config, with the Claude co-author trailer kept in the message. GitHub only counts a commit whose author email is verified on the account; the 77 earlier commits authored as `Claude <noreply@anthropic.com>` were rewritten to this author on 2026-11-08 (the old history is on the `backup/main-before-author-rewrite` branch).
+
 ## Architecture
 
 **Stack**: Static HTML/CSS/ES modules (no bundler) + Supabase (PostgreSQL + Edge Functions) + GitHub Pages hosting.
